@@ -138,6 +138,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private int glassAccent;
     private int ambientColor = -1;
     private ValueAnimator ambientAnimator;
+    /** Cinematic glow style (Launcher settings, Glow style) and where the glow mask is painted now. */
+    private int glowStyle;
+    private GlowStyle.Spot glowSpot;
+    /** TWO_GLOWS only: the second, fainter glow. */
+    private View ambient2;
+    private final Runnable driftTick = new Runnable() {
+        @Override public void run() {
+            paintGlow(GlowStyle.drift(android.os.SystemClock.uptimeMillis() / 1000.0));
+            handler.postDelayed(this, 66);   // about 15 frames a second: smooth enough for a slow drift
+        }
+    };
     private boolean heroShown;
     private boolean animations;
     private boolean advancedEffects;
@@ -350,6 +361,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
         cinematic = cfg.cinematicHome;
+        glowStyle = GlowStyle.load(this);
+        glowSpot = GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar));
         if (cinematic) setUpCinematicShelf();
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
         // still follows the dock.
@@ -682,6 +695,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         restartIdleClock();
         inputPreview.start();
+        if (cinematic && glowStyle == GlowStyle.DRIFT && animations) {
+            handler.removeCallbacks(driftTick);
+            handler.post(driftTick);
+        }
         promptsPaused = false;
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
         if (rebuildOnResume) {
@@ -819,6 +836,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onPause();
         root.removeCallbacks(showIdleClock);
         inputPreview.stop();
+        handler.removeCallbacks(driftTick);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
         stopAmbientAnimation();
@@ -1304,7 +1322,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int color = adapter.ambientColorAt(position);
         float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
-        if (cinematic) showHeroArt(position);
+        if (cinematic) {
+            showHeroArt(position);
+            applyGlowStyle(position);
+        }
 
         if (!animations || reducedMotion) {
             // Snap the shelf instead of sliding and fading it: each of those frames repaints the
@@ -1503,14 +1524,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             Canvas canvas = new Canvas(bmp);
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
             if (cinematic) {
-                // Higher and stronger, from the corner away from the shelf's text: the app's colour floods
-                // the top of the screen over its artwork, and the scrim keeps the text side dark.
-                boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
-                paint.setShader(new RadialGradient(
-                        w * (rtl ? 0.20f : 0.80f), h * 0.06f, w * 0.78f,
-                        new int[]{0xA6FFFFFF, 0x47FFFFFF, 0x00FFFFFF},
-                        new float[]{0f, 0.5f, 1f},
-                        Shader.TileMode.CLAMP));
+                // Higher and stronger, from the corner away from the shelf's text (or where the glow style
+                // puts it): the app's colour floods the top of the screen over its artwork.
+                paintGlowMask(canvas, w, h, glowSpot);
+                paint = null;
             } else {
                 paint.setShader(new RadialGradient(
                         w * 0.32f, h * 0.42f, w * 0.62f,
@@ -1518,13 +1535,77 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                         new float[]{0f, 0.45f, 1f},
                         Shader.TileMode.CLAMP));
             }
-            canvas.drawRect(0, 0, w, h, paint);
+            if (paint != null) canvas.drawRect(0, 0, w, h, paint);
             glow = new BitmapDrawable(getResources(), bmp);
             glow.setGravity(Gravity.FILL);
             ambient.setBackground(glow);
         }
         // The default tint mode, SRC_IN, keeps the mask's alpha and takes the colour from the tint.
         glow.setTint(0xFF000000 | color);
+    }
+
+    /** Paints one glow (white, alpha only) into a w×h mask: a radial gradient stretched to the spot's radii. */
+    private static void paintGlowMask(Canvas canvas, int w, int h, GlowStyle.Spot spot) {
+        canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float rx = w * spot.rx, ry = w * spot.ry;
+        RadialGradient g = new RadialGradient(0, 0, 1f,
+                new int[]{0xA6FFFFFF, 0x47FFFFFF, 0x00FFFFFF}, new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+        android.graphics.Matrix m = new android.graphics.Matrix();
+        m.setScale(rx, ry);
+        m.postTranslate(w * spot.x, h * spot.y);
+        g.setLocalMatrix(m);
+        paint.setShader(g);
+        canvas.drawRect(0, 0, w, h, paint);
+    }
+
+    /** Moves the cinematic glow to a new spot: repaints the small mask in place, the tint stays. */
+    private void paintGlow(GlowStyle.Spot spot) {
+        if (spot.same(glowSpot)) return;
+        glowSpot = spot;
+        if (!(ambient.getBackground() instanceof BitmapDrawable)) return;
+        Bitmap bmp = ((BitmapDrawable) ambient.getBackground()).getBitmap();
+        paintGlowMask(new Canvas(bmp), bmp.getWidth(), bmp.getHeight(), spot);
+        ambient.getBackground().invalidateSelf();
+        ambient.invalidate();
+    }
+
+    /** Glow style for the focused dock app (cinematic only). */
+    private void applyGlowStyle(int position) {
+        switch (glowStyle) {
+            case GlowStyle.RANDOM: paintGlow(GlowStyle.random(false)); break;
+            case GlowStyle.RANDOM_SHAPE: paintGlow(GlowStyle.random(true)); break;
+            case GlowStyle.PER_APP: paintGlow(GlowStyle.perApp(adapter.packageAt(position))); break;
+            case GlowStyle.FOLLOW: {
+                RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(position);
+                if (vh != null && root.getWidth() > 0) {
+                    int[] at = new int[2];
+                    vh.itemView.getLocationInWindow(at);
+                    paintGlow(GlowStyle.follow((at[0] + vh.itemView.getWidth() / 2f) / root.getWidth()));
+                }
+                break;
+            }
+            case GlowStyle.DRIFT: break;   // driftTick moves it
+            default: paintGlow(GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar)));
+        }
+        if (glowStyle == GlowStyle.TWO_GLOWS) showSecondGlow(adapter.ambientColorAt(position));
+    }
+
+    /** TWO_GLOWS: a fainter glow on the other side in the app's colour turned round the hue wheel. */
+    private void showSecondGlow(int color) {
+        if (ambient2 == null) {
+            ambient2 = new View(this);
+            Bitmap bmp = Bitmap.createBitmap(480, 270, Bitmap.Config.ARGB_8888);
+            paintGlowMask(new Canvas(bmp), 480, 270, GlowStyle.second(glowSpot));
+            BitmapDrawable d = new BitmapDrawable(getResources(), bmp);
+            d.setGravity(Gravity.FILL);
+            ambient2.setBackground(d);
+            ambient2.setAlpha(0f);
+            root.addView(ambient2, root.indexOfChild(ambient) + 1,
+                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        }
+        ambient2.getBackground().setTint(0xFF000000 | GlowStyle.shifted(color));
+        ambient2.animate().alpha(0.6f).setDuration(animations ? 400 : 0).start();
     }
 
     private void transitionAmbient(int color) {
@@ -1581,6 +1662,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void hideHero() {
         if (!heroShown) return;
+        if (ambient2 != null) ambient2.animate().alpha(0f).setDuration(animations ? 300 : 0).start();
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();

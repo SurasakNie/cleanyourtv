@@ -41,6 +41,8 @@
             <TextView android:id="@+id/columns7" style="@style/SettingsColumnChoice" android:text="8" />
         </LinearLayout>
 
+        <TextView style="@style/SettingsHint" android:text="@string/hint_columns" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -61,15 +63,21 @@
             <TextView android:id="@+id/rows3" style="@style/SettingsColumnChoice" android:text="3" />
         </LinearLayout>
 
+        <TextView style="@style/SettingsHint" android:text="@string/hint_rows" />
+
         <TextView
             android:id="@+id/wallpaperChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="28dp" />
 
+        <TextView style="@style/SettingsHint" android:text="@string/hint_wallpaper" />
+
         <TextView
             android:id="@+id/animationsChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="28dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_animations" />
 
         <TextView
             android:id="@+id/advancedChoice"
@@ -89,20 +97,35 @@
             style="@style/SettingsRow"
             android:layout_marginTop="18dp" />
 
+        <TextView style="@style/SettingsHint" android:text="@string/hint_cinematic" />
+
+        <TextView
+            android:id="@+id/glowChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_glow" />
+
         <TextView
             android:id="@+id/namesChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_names" />
 
         <TextView
             android:id="@+id/clockChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
 
+        <TextView style="@style/SettingsHint" android:text="@string/hint_clock" />
+
         <TextView
             android:id="@+id/previewChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_preview" />
 
         <TextView
             android:id="@+id/followThemeChoice"
