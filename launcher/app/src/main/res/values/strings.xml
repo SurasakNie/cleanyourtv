@@ -52,6 +52,11 @@
     <string name="names_state">App names under tiles: %1$s</string>
     <string name="clock_state">Clock screensaver: %1$s</string>
     <string name="minutes_short">%1$d min</string>
+    <string name="preview_state">Input preview: %1$s</string>
+    <string name="preview_connecting">Connecting…</string>
+    <string name="preview_no_signal">No signal</string>
+    <string name="preview_unavailable">Preview not available on this TV</string>
+    <string name="preview_full_screen">Open full screen</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="enable">Enable</string>

@@ -26,6 +26,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView cinematicChoice;
     private TextView namesChoice;
     private TextView clockChoice;
+    private TextView previewChoice;
     private boolean cinematic;
     private boolean alwaysShowNames;
     private int idleClockMinutes;
@@ -126,6 +127,12 @@ public final class LauncherSettingsActivity extends Activity {
             }
             idleClockMinutes = next;
             choices.edit().putInt("home_idle_clock_minutes", next).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        previewChoice = findViewById(R.id.previewChoice);
+        previewChoice.setOnClickListener(v -> {
+            choices.edit().putBoolean(InputPreview.PREF_ON, !InputPreview.enabled(this)).apply();
             setResult(RESULT_OK);
             refresh();
         });
@@ -237,6 +244,8 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(alwaysShowNames ? R.string.on : R.string.off)));
         clockChoice.setText(getString(R.string.clock_state, idleClockMinutes == 0
                 ? getString(R.string.off) : getString(R.string.minutes_short, idleClockMinutes)));
+        previewChoice.setText(getString(R.string.preview_state,
+                getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 

@@ -227,6 +227,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Dock place being changed in edit-dock mode, or -1 while the place is still being chosen. */
     private int dockEditSlot = -1;
     private AppLibraryDialog appLibrary;
+    /** Optional HDMI live window (Launcher settings, Input preview). */
+    private InputPreview inputPreview;
+    private View inputPreviewFrame;
     private boolean libraryFocusPending;
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
@@ -539,6 +542,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         });
 
+        inputPreviewFrame = findViewById(R.id.inputPreview);
+        inputPreview = new InputPreview(this, inputPreviewFrame,
+                findViewById(R.id.inputPreviewTv), findViewById(R.id.inputPreviewStatus));
+        inputPreviewFrame.setOnClickListener(v -> showPreviewMenu());
+        inputPreviewFrame.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                btnSettings.requestFocus();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                focusTile(lastFocused % COLUMNS);
+                return true;
+            }
+            return keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+        });
+
         // Keep focus on the top bar at its ends and at the top: Android's focus finder would otherwise
         // jump to a tile far below when there is nothing in that direction.
         boolean rtlMenuBar = getResources().getBoolean(R.bool.rtl_menu_bar);
@@ -546,6 +566,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                // The input preview sits under the pills when it is on; otherwise back to the dock tile.
+                if (inputPreviewFrame.getVisibility() == View.VISIBLE) {
+                    inputPreviewFrame.requestFocus();
+                    return true;
+                }
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(lastFocused % COLUMNS);
                 return true;
@@ -649,6 +674,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return;
         }
         restartIdleClock();
+        inputPreview.start();
         promptsPaused = false;
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
         if (rebuildOnResume) {
@@ -785,6 +811,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onPause() {
         super.onPause();
         root.removeCallbacks(showIdleClock);
+        inputPreview.stop();
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
         stopAmbientAnimation();
@@ -2515,7 +2542,34 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rows.getChildAt(0).requestFocus();
     }
 
+    /** OK on the input preview: open that input full screen, or switch the preview to another HDMI port. */
+    private void showPreviewMenu() {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (200 * density));
+        String current = inputPreview.sourceId();
+        if (current != null) addSettingsMenuRow(rows, popup, getString(R.string.preview_full_screen), () -> openInput(current));
+        List<InputPreview.Port> ports = inputPreview.ports();
+        if (!ports.isEmpty() && rows.getChildCount() > 0) addSeparator(rows);
+        for (InputPreview.Port port : ports) {
+            String label = port.id.equals(current) ? port.label + "  \u2713" : port.label;
+            addSettingsMenuRow(rows, popup, label, () -> inputPreview.choose(port.id));
+        }
+        if (rows.getChildCount() == 0) {
+            Toast.makeText(this, R.string.preview_unavailable, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
+        dropIn(popup, panel, inputPreviewFrame, Gravity.END);
+        rows.getChildAt(0).requestFocus();
+    }
+
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addSettingsMenuRow(rows, popup, getString(title), action);
+    }
+
+    private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, CharSequence title, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
         row.findViewById(R.id.icon).setVisibility(View.GONE);
         row.findViewById(R.id.dot).setVisibility(View.GONE);
