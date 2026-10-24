@@ -28,6 +28,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView clockChoice;
     private TextView previewChoice;
     private TextView glowChoice;
+    private TextView fontChoice;
     private TextView ambientChoice;
     private boolean ambientGlow;
     private boolean cinematic;
@@ -44,6 +45,7 @@ public final class LauncherSettingsActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_launcher_settings);
+        Fonts.apply(findViewById(android.R.id.content));
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
         columns = config.columns;
@@ -136,7 +138,7 @@ public final class LauncherSettingsActivity extends Activity {
         });
         glowChoice = findViewById(R.id.glowChoice);
         glowChoice.setOnClickListener(v -> {
-            if (cinematic) showGlowPicker();
+            if (ambientGlow) showGlowPicker();
         });
         ambientChoice = findViewById(R.id.ambientChoice);
         ambientChoice.setOnClickListener(v -> {
@@ -145,6 +147,8 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK);
             refresh();
         });
+        fontChoice = findViewById(R.id.fontChoice);
+        fontChoice.setOnClickListener(v -> showFontPicker());
         previewChoice = findViewById(R.id.previewChoice);
         previewChoice.setOnClickListener(v -> {
             choices.edit().putBoolean(InputPreview.PREF_ON, !InputPreview.enabled(this)).apply();
@@ -183,6 +187,24 @@ public final class LauncherSettingsActivity extends Activity {
         LinearLayout row = (LinearLayout) views[0].getParent();
         row.removeAllViews();
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+    /** Font: Outfit or CMU Serif; this screen redraws in the new font straight away. */
+    private void showFontPicker() {
+        String[] values = {Fonts.OUTFIT, Fonts.CMU_SERIF};
+        String[] labels = {getString(R.string.font_outfit), getString(R.string.font_cmu_serif)};
+        int checked = Fonts.CMU_SERIF.equals(Fonts.load(this)) ? 1 : 0;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.font_title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which == checked) return;
+                    choices.edit().putString(Fonts.PREF, values[which]).apply();
+                    setResult(RESULT_OK);
+                    recreate();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     /** Every glow style in one list, the current one checked; picking one applies it. */
@@ -277,10 +299,11 @@ public final class LauncherSettingsActivity extends Activity {
         clockChoice.setText(getString(R.string.clock_state, idleClockMinutes == 0
                 ? getString(R.string.off) : getString(R.string.minutes_short, idleClockMinutes)));
         glowChoice.setText(getString(R.string.glow_state, getString(GlowStyle.nameRes(GlowStyle.load(this)))));
-        glowChoice.setEnabled(cinematic);
-        glowChoice.setAlpha(cinematic ? 1f : 0.5f);
+        glowChoice.setEnabled(ambientGlow);
+        glowChoice.setAlpha(ambientGlow ? 1f : 0.5f);
         ambientChoice.setText(getString(R.string.ambient_state,
                 getString(ambientGlow ? R.string.on : R.string.off)));
+        fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());

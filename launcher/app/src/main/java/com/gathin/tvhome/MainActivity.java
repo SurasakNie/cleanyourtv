@@ -141,8 +141,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Cinematic glow style (Launcher settings, Glow style) and where the glow mask is painted now. */
     private int glowStyle;
     private GlowStyle.Spot glowSpot;
-    /** TWO_GLOWS only: the second, fainter glow. */
-    private View ambient2;
+    /** TWO_GLOWS, RANDOM_2, RANDOM_3: the extra, fainter glows over the main one. */
+    private final java.util.List<View> extraGlows = new java.util.ArrayList<>();
     private final Runnable driftTick = new Runnable() {
         @Override public void run() {
             paintGlow(GlowStyle.drift(android.os.SystemClock.uptimeMillis() / 1000.0));
@@ -325,6 +325,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Fonts.apply(findViewById(android.R.id.content));
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
@@ -371,7 +372,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroArt = findViewById(R.id.heroArt);
         cinematic = cfg.cinematicHome;
         glowStyle = GlowStyle.load(this);
-        glowSpot = GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar));
+        glowSpot = cinematic ? GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar)) : GlowStyle.classicNormal();
         if (cinematic) setUpCinematicShelf();
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
         // still follows the dock.
@@ -570,6 +571,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         moreBelow = findViewById(R.id.moreBelow);
         grid.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
             @Override public void onChildViewAttachedToWindow(View child) {
+                Fonts.apply(child);
                 int pos = grid.getChildAdapterPosition(child);
                 if (pos >= COLUMNS) child.setAlpha(belowHidden ? 0f : 1f);
             }
@@ -721,7 +723,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         restartIdleClock();
         inputPreview.start();
-        if (cinematic && glowStyle == GlowStyle.DRIFT && animations) {
+        if (ambientGlow && glowStyle == GlowStyle.DRIFT && animations) {
             handler.removeCallbacks(driftTick);
             handler.post(driftTick);
         }
@@ -1351,10 +1353,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int color = adapter.ambientColorAt(position);
         float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
-        if (cinematic) {
-            showHeroArt(position);
-            applyGlowStyle(position);
-        }
+        if (cinematic) showHeroArt(position);
+        applyGlowStyle(position);
 
         if (!animations || reducedMotion) {
             // Snap the shelf instead of sliding and fading it: each of those frames repaints the
@@ -1551,20 +1551,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int h = 270;
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bmp);
-            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            if (cinematic) {
-                // Higher and stronger, from the corner away from the shelf's text (or where the glow style
-                // puts it): the app's colour floods the top of the screen over its artwork.
-                paintGlowMask(canvas, w, h, glowSpot);
-                paint = null;
-            } else {
-                paint.setShader(new RadialGradient(
-                        w * 0.32f, h * 0.42f, w * 0.62f,
-                        new int[]{0x5CFFFFFF, 0x26FFFFFF, 0x00FFFFFF},
-                        new float[]{0f, 0.45f, 1f},
-                        Shader.TileMode.CLAMP));
-            }
-            if (paint != null) canvas.drawRect(0, 0, w, h, paint);
+            // Cinematic: higher and stronger, the app's colour floods the top of the screen over its artwork.
+            // Normal: softer. Either way the glow style decides where (glowSpot).
+            paintGlowMask(canvas, w, h, glowSpot, cinematic);
             glow = new BitmapDrawable(getResources(), bmp);
             glow.setGravity(Gravity.FILL);
             ambient.setBackground(glow);
@@ -1589,12 +1578,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** Paints one glow (white, alpha only) into a w×h mask: a radial gradient stretched to the spot's radii. */
-    private static void paintGlowMask(Canvas canvas, int w, int h, GlowStyle.Spot spot) {
+    private static void paintGlowMask(Canvas canvas, int w, int h, GlowStyle.Spot spot, boolean strong) {
         canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         float rx = w * spot.rx, ry = w * spot.ry;
         RadialGradient g = new RadialGradient(0, 0, 1f,
-                new int[]{0xA6FFFFFF, 0x47FFFFFF, 0x00FFFFFF}, new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+                strong ? new int[]{0xA6FFFFFF, 0x47FFFFFF, 0x00FFFFFF} : new int[]{0x5CFFFFFF, 0x26FFFFFF, 0x00FFFFFF},
+                new float[]{0f, strong ? 0.5f : 0.45f, 1f}, Shader.TileMode.CLAMP);
         android.graphics.Matrix m = new android.graphics.Matrix();
         m.setScale(rx, ry);
         m.postTranslate(w * spot.x, h * spot.y);
@@ -1609,7 +1599,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         glowSpot = spot;
         if (!(ambient.getBackground() instanceof BitmapDrawable)) return;
         Bitmap bmp = ((BitmapDrawable) ambient.getBackground()).getBitmap();
-        paintGlowMask(new Canvas(bmp), bmp.getWidth(), bmp.getHeight(), spot);
+        paintGlowMask(new Canvas(bmp), bmp.getWidth(), bmp.getHeight(), spot, cinematic);
         ambient.getBackground().invalidateSelf();
         ambient.invalidate();
     }
@@ -1630,26 +1620,47 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 break;
             }
             case GlowStyle.DRIFT: break;   // driftTick moves it
-            default: paintGlow(GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar)));
+            case GlowStyle.RANDOM_2:
+            case GlowStyle.RANDOM_3: paintGlow(GlowStyle.random(false)); break;
+            default: paintGlow(cinematic ? GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar))
+                    : GlowStyle.classicNormal());
         }
-        if (glowStyle == GlowStyle.TWO_GLOWS && ambientGlow) showSecondGlow(adapter.ambientColorAt(position));
+        showExtraGlows(ambientGlow ? GlowStyle.extraCount(glowStyle) : 0, adapter.ambientColorAt(position));
     }
 
-    /** TWO_GLOWS: a fainter glow on the other side in the app's colour turned round the hue wheel. */
-    private void showSecondGlow(int color) {
-        if (ambient2 == null) {
-            ambient2 = new View(this);
-            Bitmap bmp = Bitmap.createBitmap(480, 270, Bitmap.Config.ARGB_8888);
-            paintGlowMask(new Canvas(bmp), 480, 270, GlowStyle.second(glowSpot));
-            BitmapDrawable d = new BitmapDrawable(getResources(), bmp);
-            d.setGravity(Gravity.FILL);
-            ambient2.setBackground(d);
-            ambient2.setAlpha(0f);
-            root.addView(ambient2, root.indexOfChild(ambient) + 1,
-                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    /**
+     * Extra glows: TWO_GLOWS puts one on the other side in the app's colour turned 45°; RANDOM_2 / RANDOM_3 put
+     * one or two at random spots in the colour turned ±25°. Each is its own small tinted mask over the main glow.
+     */
+    private void showExtraGlows(int count, int color) {
+        for (int i = 0; i < extraGlows.size(); i++) {
+            View v = extraGlows.get(i);
+            if (i >= count) v.animate().alpha(0f).setDuration(animations ? 250 : 0).start();
         }
-        ambient2.getBackground().setTint(0xFF000000 | GlowStyle.shifted(color));
-        ambient2.animate().alpha(0.6f).setDuration(animations ? 400 : 0).start();
+        for (int i = 0; i < count; i++) {
+            View v;
+            if (i < extraGlows.size()) {
+                v = extraGlows.get(i);
+            } else {
+                v = new View(this);
+                Bitmap bmp = Bitmap.createBitmap(480, 270, Bitmap.Config.ARGB_8888);
+                BitmapDrawable d = new BitmapDrawable(getResources(), bmp);
+                d.setGravity(Gravity.FILL);
+                v.setBackground(d);
+                v.setAlpha(0f);
+                root.addView(v, root.indexOfChild(ambient) + 1 + i, new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+                extraGlows.add(v);
+            }
+            GlowStyle.Spot spot = glowStyle == GlowStyle.TWO_GLOWS ? GlowStyle.second(glowSpot) : GlowStyle.random(false);
+            BitmapDrawable d = (BitmapDrawable) v.getBackground();
+            Bitmap bmp = d.getBitmap();
+            paintGlowMask(new Canvas(bmp), bmp.getWidth(), bmp.getHeight(), spot, cinematic);
+            d.invalidateSelf();
+            float turn = glowStyle == GlowStyle.TWO_GLOWS ? 45f : (i == 0 ? 25f : -25f);
+            d.setTint(0xFF000000 | GlowStyle.shifted(color, turn));
+            v.animate().alpha(0.6f).setDuration(animations ? 400 : 0).start();
+        }
     }
 
     private void transitionAmbient(int color) {
@@ -1680,6 +1691,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void showGlowOnly(int position) {
         int color = adapter.ambientColorAt(position);
+        if (ambientGlow) applyGlowStyle(position);
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();
@@ -1706,7 +1718,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void hideHero() {
         if (!heroShown) return;
-        if (ambient2 != null) ambient2.animate().alpha(0f).setDuration(animations ? 300 : 0).start();
+        for (View v : extraGlows) v.animate().alpha(0f).setDuration(animations ? 300 : 0).start();
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();
@@ -2560,6 +2572,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private PopupWindow glassPopup(View panel, int width) {
+        Fonts.apply(panel);
         final PopupWindow popup = new PopupWindow(panel, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
         popup.setOutsideTouchable(true);
@@ -2780,6 +2793,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         final Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        Fonts.apply(panel);
         dialog.setContentView(panel);
         dialog.setCanceledOnTouchOutside(false);
         Window w = dialog.getWindow();
