@@ -242,6 +242,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private InputPreview inputPreview;
     /** rows_below_dock 0 with a dock: the rows below are hidden while the dock has focus (no half-cut row). */
     private boolean hideBelowDock;
+    /** A Launcher settings choice changed while Home was in the background: rebuild on return. */
+    private boolean settingsChanged;
+    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener settingsListener =
+            (prefs, key) -> { if (!homeResumed) settingsChanged = true; };
+    private boolean homeResumed;
     private boolean belowHidden;
     private View moreBelow;
     private View inputPreviewFrame;
@@ -560,6 +565,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
 
         hideBelowDock = dockRow && cfg.rowsBelowDock == 0;
+        // Leaving Launcher settings with Home (not Back) returns no result, so watch the choices themselves.
+        getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(settingsListener);
         moreBelow = findViewById(R.id.moreBelow);
         grid.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
             @Override public void onChildViewAttachedToWindow(View child) {
@@ -701,6 +708,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        if (settingsChanged) {
+            settingsChanged = false;
+            recreate();
+            return;
+        }
+        homeResumed = true;
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -847,6 +860,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onPause() {
         super.onPause();
+        homeResumed = false;
         root.removeCallbacks(showIdleClock);
         inputPreview.stop();
         handler.removeCallbacks(driftTick);
@@ -912,6 +926,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(settingsListener);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
