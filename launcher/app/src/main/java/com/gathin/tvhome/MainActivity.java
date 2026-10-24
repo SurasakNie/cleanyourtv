@@ -2568,7 +2568,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
-        dropIn(popup, panel, inputPreviewFrame, Gravity.START);
+        // Beside the window, not under it: six rows below it would run off the bottom of the screen.
+        int[] at = new int[2];
+        inputPreviewFrame.getLocationInWindow(at);
+        int margin = (int) (8 * density);
+        int x = at[0] + inputPreviewFrame.getWidth() + (int) (12 * density);
+        int y = Math.max(margin, Math.min(at[1], root.getHeight() - panel.getMeasuredHeight() - margin));
+        panel.setAlpha(0f);
+        panel.setTranslationX(-8 * density);
+        popup.showAtLocation(inputPreviewFrame, Gravity.NO_GRAVITY, x, y);
+        panel.animate().alpha(1f).translationX(0f).setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
         rows.getChildAt(0).requestFocus();
     }
 
