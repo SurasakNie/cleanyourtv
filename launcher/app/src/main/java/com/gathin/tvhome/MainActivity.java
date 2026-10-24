@@ -2503,8 +2503,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         int y = Math.max((int) (8 * density), at[1] - panel.getMeasuredHeight() - (int) (12 * density));
         panel.setAlpha(0f);
         panel.setTranslationY(8 * density);
-        int x = Math.max((int) (8 * density),
-                Math.min(at[0], root.getWidth() - popup.getWidth() - (int) (8 * density)));
+        // Left-aligned with the tile; when that would cross the screen edge, right-aligned with it instead.
+        int x = at[0];
+        if (x + popup.getWidth() > root.getWidth() - (int) (8 * density)) {
+            x = at[0] + Math.round(card.getWidth() * card.getScaleX()) - popup.getWidth();
+        }
+        x = Math.max((int) (8 * density), x);
         popup.showAtLocation(card, Gravity.NO_GRAVITY, x, y);
         panel.animate().alpha(1f).translationY(0f).setDuration(220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
