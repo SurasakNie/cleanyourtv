@@ -57,6 +57,7 @@
     <string name="preview_no_signal">No signal</string>
     <string name="preview_unavailable">Preview not available on this TV</string>
     <string name="preview_full_screen">Open full screen</string>
+    <string name="preview_turn_off">Turn off preview</string>
     <string name="on">On</string>
     <string name="off">Off</string>
     <string name="enable">Enable</string>

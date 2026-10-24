@@ -546,10 +546,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         inputPreview = new InputPreview(this, inputPreviewFrame,
                 findViewById(R.id.inputPreviewTv), findViewById(R.id.inputPreviewStatus));
         inputPreviewFrame.setOnClickListener(v -> showPreviewMenu());
+        inputPreviewFrame.setOnLongClickListener(v -> {
+            showPreviewMenu();
+            return true;
+        });
         inputPreviewFrame.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                btnSettings.requestFocus();
+                firstTopButton().requestFocus();
                 return true;
             }
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
@@ -566,7 +570,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                // The input preview sits under the pills when it is on; otherwise back to the dock tile.
+                // The input preview (left, under the clock) when it is on; otherwise back to the dock tile.
                 if (inputPreviewFrame.getVisibility() == View.VISIBLE) {
                     inputPreviewFrame.requestFocus();
                     return true;
@@ -2555,13 +2559,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             String label = port.id.equals(current) ? port.label + "  \u2713" : port.label;
             addSettingsMenuRow(rows, popup, label, () -> inputPreview.choose(port.id));
         }
-        if (rows.getChildCount() == 0) {
-            Toast.makeText(this, R.string.preview_unavailable, Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (rows.getChildCount() > 0) addSeparator(rows);
+        addSettingsMenuRow(rows, popup, getString(R.string.preview_turn_off), () -> {
+            getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
+                    .putBoolean(InputPreview.PREF_ON, false).apply();
+            inputPreview.start();   // hides the window and releases the input
+            focusTile(lastFocused % COLUMNS);
+        });
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
-        dropIn(popup, panel, inputPreviewFrame, Gravity.END);
+        dropIn(popup, panel, inputPreviewFrame, Gravity.START);
         rows.getChildAt(0).requestFocus();
     }
 
