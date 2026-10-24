@@ -189,11 +189,11 @@ public final class LauncherSettingsActivity extends Activity {
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
     }
 
-    /** Font: Outfit or CMU Serif; this screen redraws in the new font straight away. */
+    /** Font: Outfit or CMU Sans Serif; this screen redraws in the new font straight away. */
     private void showFontPicker() {
-        String[] values = {Fonts.OUTFIT, Fonts.CMU_SERIF};
-        String[] labels = {getString(R.string.font_outfit), getString(R.string.font_cmu_serif)};
-        int checked = Fonts.CMU_SERIF.equals(Fonts.load(this)) ? 1 : 0;
+        String[] values = {Fonts.OUTFIT, Fonts.CMU_SANS};
+        String[] labels = {getString(R.string.font_outfit), getString(R.string.font_cmu_sans)};
+        int checked = Fonts.CMU_SANS.equals(Fonts.load(this)) ? 1 : 0;
         new AlertDialog.Builder(this)
                 .setTitle(R.string.font_title)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {

@@ -8,13 +8,13 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 /**
- * Launcher settings, Font: Outfit (the layouts' own font) or CMU Serif. For CMU every TextView in a
- * tree gets the serif face, bold where the Outfit face was medium or heavier. Text the serif has no glyphs
+ * Launcher settings, Font: Outfit (the layouts' own font) or CMU Sans Serif. For CMU every TextView in a
+ * tree gets the CMU face, bold where the Outfit face was medium or heavier. Text the serif has no glyphs
  * for (Thai, for one) falls back to the system font per character.
  */
 final class Fonts {
     static final String PREF = "font";
-    static final String OUTFIT = "outfit", CMU_SERIF = "cmu_serif";
+    static final String OUTFIT = "outfit", CMU_SANS = "cmu_sans";
 
     private static Typeface regular, bold;
 
@@ -22,19 +22,20 @@ final class Fonts {
 
     static String load(Context ctx) {
         String v = ctx.getSharedPreferences(Config.SETTINGS_NAME, Context.MODE_PRIVATE).getString(PREF, OUTFIT);
-        return CMU_SERIF.equals(v) ? CMU_SERIF : OUTFIT;
+        // "cmu_serif" was the first CMU choice (v18); it now means the sans.
+        return CMU_SANS.equals(v) || "cmu_serif".equals(v) ? CMU_SANS : OUTFIT;
     }
 
     static int nameRes(String font) {
-        return CMU_SERIF.equals(font) ? R.string.font_cmu_serif : R.string.font_outfit;
+        return CMU_SANS.equals(font) ? R.string.font_cmu_sans : R.string.font_outfit;
     }
 
     /** Applies the chosen font to every TextView under root; Outfit leaves the layouts as they are. */
     static void apply(View root) {
-        if (root == null || !CMU_SERIF.equals(load(root.getContext()))) return;
+        if (root == null || !CMU_SANS.equals(load(root.getContext()))) return;
         if (regular == null) {
-            regular = root.getResources().getFont(R.font.cmu_serif);
-            bold = root.getResources().getFont(R.font.cmu_serif_bold);
+            regular = root.getResources().getFont(R.font.cmu_sans);
+            bold = root.getResources().getFont(R.font.cmu_sans_bold);
         }
         walk(root);
     }

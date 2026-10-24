@@ -72,8 +72,8 @@
     <string name="font_state">Font: %1$s</string>
     <string name="font_title">Font</string>
     <string name="font_outfit">Outfit</string>
-    <string name="font_cmu_serif">CMU Serif</string>
-    <string name="hint_font">The typeface for the clock, names and menus. CMU Serif is Computer Modern, the classic LaTeX font.</string>
+    <string name="font_cmu_sans">CMU Sans Serif</string>
+    <string name="hint_font">The typeface for the clock, names and menus. CMU Sans Serif is the sans version of Computer Modern, the classic LaTeX font.</string>
     <string name="hint_columns">How many apps fit in one row. Fewer apps means bigger tiles.</string>
     <string name="hint_rows">How many rows of apps stay visible under the dock.</string>
     <string name="hint_wallpaper">Background picture. Pictures come from the theme\'s wallpapers folder.</string>
