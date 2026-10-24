@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost 192.168.1.50 th
 | `default/` | The built-in look written out as JSON, as a starting point for your own |
 | `aurora/` | A dark aurora wallpaper (teal and violet on navy, darker at the bottom) with a matching background colour |
 | `dussehra/` | Festive skin for Dussehra (ends 21 Oct 2026): a marigold toran, a faint gold rangoli, a diya for Wi-Fi, a bell for Inputs, a marigold for Settings and a petal shower |
-| `scenes/` | 14 dark illustrated landscapes in `wallpapers/`, a new one every hour; drawn from code by `tools/scenes_wallpapers.py` |
+| `scenes/` | 16 dark wallpapers in `wallpapers/`, a new one every hour: 14 illustrated landscapes drawn from code by `tools/scenes_wallpapers.py`, plus the aurora and Dussehra theme pictures as `15-aurora-glow.jpg` and `16-marigold-toran.jpg` |
 | `six-columns/` | Six smaller tiles per row and one grid row visible under the dock |
 
 ## Keys
