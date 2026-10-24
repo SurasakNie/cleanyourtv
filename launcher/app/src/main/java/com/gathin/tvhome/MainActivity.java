@@ -240,6 +240,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private AppLibraryDialog appLibrary;
     /** Optional HDMI live window (Launcher settings, Input preview). */
     private InputPreview inputPreview;
+    /** rows_below_dock 0 with a dock: the rows below are hidden while the dock has focus (no half-cut row). */
+    private boolean hideBelowDock;
+    private boolean belowHidden;
+    private View moreBelow;
     private View inputPreviewFrame;
     private boolean libraryFocusPending;
     private RecyclerView.OnScrollListener pendingFocusScroll;
@@ -555,6 +559,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         });
 
+        hideBelowDock = dockRow && cfg.rowsBelowDock == 0;
+        moreBelow = findViewById(R.id.moreBelow);
+        grid.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
+            @Override public void onChildViewAttachedToWindow(View child) {
+                int pos = grid.getChildAdapterPosition(child);
+                if (pos >= COLUMNS) child.setAlpha(belowHidden ? 0f : 1f);
+            }
+            @Override public void onChildViewDetachedFromWindow(View child) { }
+        });
         inputPreviewFrame = findViewById(R.id.inputPreview);
         inputPreview = new InputPreview(this, inputPreviewFrame,
                 findViewById(R.id.inputPreviewTv), findViewById(R.id.inputPreviewStatus));
@@ -1221,6 +1234,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onTileFocused(int position, View card) {
+        setBelowHidden(hideBelowDock && position < COLUMNS);
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
@@ -1542,6 +1556,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         // The default tint mode, SRC_IN, keeps the mask's alpha and takes the colour from the tint.
         glow.setTint(0xFF000000 | color);
+    }
+
+    /** Hides (dock focused) or shows the rows under the dock, and the arrow pointing to them. */
+    private void setBelowHidden(boolean hide) {
+        if (hide == belowHidden) return;
+        belowHidden = hide;
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            if (grid.getChildAdapterPosition(child) < COLUMNS) continue;
+            child.animate().cancel();
+            if (animations) child.animate().alpha(hide ? 0f : 1f).setDuration(hide ? 150 : 220).start();
+            else child.setAlpha(hide ? 0f : 1f);
+        }
+        boolean more = hide && adapter.getItemCount() > COLUMNS;
+        moreBelow.setVisibility(more ? View.VISIBLE : View.GONE);
     }
 
     /** Paints one glow (white, alpha only) into a w×h mask: a radial gradient stretched to the spot's radii. */

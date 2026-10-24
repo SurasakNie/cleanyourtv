@@ -371,6 +371,18 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- rows_below_dock 0: while the dock has focus the rows below are hidden and this points Down to them. -->
+    <ImageView
+        android:id="@+id/moreBelow"
+        android:layout_width="28dp"
+        android:layout_height="20dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="22dp"
+        android:src="@drawable/ic_more_below"
+        android:alpha="0.7"
+        android:visibility="gone"
+        android:importantForAccessibility="no" />
+
     <!-- Optional live window of one HDMI input (Launcher settings, Input preview). OK opens its menu. -->
     <FrameLayout
         android:id="@+id/inputPreview"
