@@ -242,11 +242,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private InputPreview inputPreview;
     /** rows_below_dock 0 with a dock: the rows below are hidden while the dock has focus (no half-cut row). */
     private boolean hideBelowDock;
+    private boolean homeResumed;
     /** A Launcher settings choice changed while Home was in the background: rebuild on return. */
     private boolean settingsChanged;
     private final android.content.SharedPreferences.OnSharedPreferenceChangeListener settingsListener =
             (prefs, key) -> { if (!homeResumed) settingsChanged = true; };
-    private boolean homeResumed;
     private boolean belowHidden;
     private View moreBelow;
     private View inputPreviewFrame;
