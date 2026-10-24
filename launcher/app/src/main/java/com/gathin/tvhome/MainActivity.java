@@ -2497,7 +2497,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
-        dropIn(popup, panel, card, Gravity.START);
+        // The dock sits near the bottom edge: open the menu above the tile so it stays on screen.
+        int[] at = new int[2];
+        card.getLocationInWindow(at);
+        int y = Math.max((int) (8 * density), at[1] - panel.getMeasuredHeight() - (int) (12 * density));
+        panel.setAlpha(0f);
+        panel.setTranslationY(8 * density);
+        int x = Math.max((int) (8 * density),
+                Math.min(at[0], root.getWidth() - popup.getWidth() - (int) (8 * density)));
+        popup.showAtLocation(card, Gravity.NO_GRAVITY, x, y);
+        panel.animate().alpha(1f).translationY(0f).setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
         rows.getChildAt(0).requestFocus();
     }
 
