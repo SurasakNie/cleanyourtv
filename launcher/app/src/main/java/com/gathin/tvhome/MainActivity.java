@@ -1340,7 +1340,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** The parts that never change: a larger name, the meta line and the dots, the artwork and the scrim. */
     private void setUpCinematicShelf() {
-        heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 68f);
+        heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 51f);
         heroName.setLetterSpacing(-0.025f);
         heroMeta.setVisibility(View.INVISIBLE);   // keeps its height, so the name does not jump when it fills in
         heroDots.setVisibility(View.VISIBLE);
