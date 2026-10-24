@@ -133,10 +133,7 @@ public final class LauncherSettingsActivity extends Activity {
         });
         glowChoice = findViewById(R.id.glowChoice);
         glowChoice.setOnClickListener(v -> {
-            if (!cinematic) return;
-            choices.edit().putInt(GlowStyle.PREF, (GlowStyle.load(this) + 1) % GlowStyle.COUNT).apply();
-            setResult(RESULT_OK);
-            refresh();
+            if (cinematic) showGlowPicker();
         });
         previewChoice = findViewById(R.id.previewChoice);
         previewChoice.setOnClickListener(v -> {
@@ -175,6 +172,22 @@ public final class LauncherSettingsActivity extends Activity {
         LinearLayout row = (LinearLayout) views[0].getParent();
         row.removeAllViews();
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+    /** Every glow style in one list, the current one checked; picking one applies it. */
+    private void showGlowPicker() {
+        String[] labels = new String[GlowStyle.COUNT];
+        for (int i = 0; i < labels.length; i++) labels[i] = getString(GlowStyle.nameRes(i));
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.glow_title)
+                .setSingleChoiceItems(labels, GlowStyle.load(this), (dialog, which) -> {
+                    dialog.dismiss();
+                    choices.edit().putInt(GlowStyle.PREF, which).apply();
+                    setResult(RESULT_OK);
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showWallpaperPicker() {

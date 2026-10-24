@@ -59,6 +59,7 @@
     <string name="preview_full_screen">Open full screen</string>
     <string name="preview_turn_off">Turn off preview</string>
     <string name="glow_state">Glow style: %1$s</string>
+    <string name="glow_title">Glow style</string>
     <string name="glow_classic">Classic</string>
     <string name="glow_random">Random position</string>
     <string name="glow_per_app">Fixed per app</string>
@@ -71,7 +72,7 @@
     <string name="hint_wallpaper">Background picture. Pictures come from the theme\'s wallpapers folder.</string>
     <string name="hint_animations">Movement when you change focus. Turn off if Home feels slow.</string>
     <string name="hint_cinematic">The selected dock app\'s artwork and colour fill the top of the screen.</string>
-    <string name="hint_glow">Where the coloured glow appears in cinematic mode. Press OK to try the next style.</string>
+    <string name="hint_glow">Where the coloured glow appears in cinematic mode. Press OK to choose a style.</string>
     <string name="hint_names">Show every app\'s name under its tile, not only the selected one.</string>
     <string name="hint_clock">Show a clock after Home sits untouched this long. Off keeps the TV\'s own screensaver.</string>
     <string name="hint_preview">A small live window of an HDMI input on Home. OK opens it full screen; hold OK for more.</string>
