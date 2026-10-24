@@ -379,7 +379,7 @@
         android:layout_gravity="top|start"
         android:layout_marginTop="150dp"
         android:layout_marginStart="56dp"
-        android:padding="3dp"
+        android:padding="7dp"
         android:background="@drawable/preview_frame"
         android:focusable="true"
         android:clickable="true"
