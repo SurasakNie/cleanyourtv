@@ -28,6 +28,8 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView clockChoice;
     private TextView previewChoice;
     private TextView glowChoice;
+    private TextView ambientChoice;
+    private boolean ambientGlow;
     private boolean cinematic;
     private boolean alwaysShowNames;
     private int idleClockMinutes;
@@ -49,6 +51,7 @@ public final class LauncherSettingsActivity extends Activity {
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
         cinematic = config.cinematicHome;
+        ambientGlow = config.ambientGlow;
         alwaysShowNames = config.alwaysShowNames;
         idleClockMinutes = config.homeIdleClockMinutes;
 
@@ -135,6 +138,13 @@ public final class LauncherSettingsActivity extends Activity {
         glowChoice.setOnClickListener(v -> {
             if (cinematic) showGlowPicker();
         });
+        ambientChoice = findViewById(R.id.ambientChoice);
+        ambientChoice.setOnClickListener(v -> {
+            ambientGlow = !ambientGlow;
+            choices.edit().putBoolean("ambient_glow", ambientGlow).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
         previewChoice = findViewById(R.id.previewChoice);
         previewChoice.setOnClickListener(v -> {
             choices.edit().putBoolean(InputPreview.PREF_ON, !InputPreview.enabled(this)).apply();
@@ -146,13 +156,14 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").commit();
+                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
             cinematic = current.cinematicHome;
+            ambientGlow = current.ambientGlow;
             alwaysShowNames = current.alwaysShowNames;
             idleClockMinutes = current.homeIdleClockMinutes;
             setResult(RESULT_OK);
@@ -268,6 +279,8 @@ public final class LauncherSettingsActivity extends Activity {
         glowChoice.setText(getString(R.string.glow_state, getString(GlowStyle.nameRes(GlowStyle.load(this)))));
         glowChoice.setEnabled(cinematic);
         glowChoice.setAlpha(cinematic ? 1f : 0.5f);
+        ambientChoice.setText(getString(R.string.ambient_state,
+                getString(ambientGlow ? R.string.on : R.string.off)));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
@@ -277,7 +290,7 @@ public final class LauncherSettingsActivity extends Activity {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("cinematic_home")
-                || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes");
+                || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes") || choices.contains("ambient_glow");
     }
 
     private void open(Intent intent) {

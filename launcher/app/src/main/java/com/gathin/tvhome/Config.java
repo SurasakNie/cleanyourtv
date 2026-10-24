@@ -301,6 +301,7 @@ final class Config {
         animations = choices.getBoolean("animations", animations);
         advancedEffects = choices.getBoolean("advanced_effects", advancedEffects);
         cinematic = choices.getBoolean("cinematic_home", cinematic);
+        ambientGlow = choices.getBoolean("ambient_glow", ambientGlow);
         alwaysShowNames = choices.getBoolean("always_show_names", alwaysShowNames);
         int chosenIdle = choices.getInt("home_idle_clock_minutes", idleClockMinutes);
         if (chosenIdle >= 0 && chosenIdle <= 1440) idleClockMinutes = chosenIdle;
@@ -395,12 +396,12 @@ final class Config {
             SharedPreferences.Editor editor = choices.edit();
             if (!"absent".equals(token)) editor.remove("columns").remove("animations")
                     .remove("advanced_effects").remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY)
-                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes");
+                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow");
             editor.putString(THEME_SIGNATURE_KEY, signature).commit();
         } else if (!seen.equals(signature)) {
             choices.edit().remove("columns").remove("animations").remove("advanced_effects")
                     .remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY)
-                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes")
+                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow")
                     .putString(THEME_SIGNATURE_KEY, signature).commit();
         }
     }

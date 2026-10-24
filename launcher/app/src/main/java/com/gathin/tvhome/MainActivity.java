@@ -1632,7 +1632,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             case GlowStyle.DRIFT: break;   // driftTick moves it
             default: paintGlow(GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar)));
         }
-        if (glowStyle == GlowStyle.TWO_GLOWS) showSecondGlow(adapter.ambientColorAt(position));
+        if (glowStyle == GlowStyle.TWO_GLOWS && ambientGlow) showSecondGlow(adapter.ambientColorAt(position));
     }
 
     /** TWO_GLOWS: a fainter glow on the other side in the app's colour turned round the hue wheel. */

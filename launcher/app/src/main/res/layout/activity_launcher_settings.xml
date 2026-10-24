@@ -107,6 +107,13 @@
         <TextView style="@style/SettingsHint" android:text="@string/hint_glow" />
 
         <TextView
+            android:id="@+id/ambientChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_ambient" />
+
+        <TextView
             android:id="@+id/namesChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="10dp" />
