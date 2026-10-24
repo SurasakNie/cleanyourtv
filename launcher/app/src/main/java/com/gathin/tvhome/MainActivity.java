@@ -545,7 +545,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         inputPreviewFrame = findViewById(R.id.inputPreview);
         inputPreview = new InputPreview(this, inputPreviewFrame,
                 findViewById(R.id.inputPreviewTv), findViewById(R.id.inputPreviewStatus));
-        inputPreviewFrame.setOnClickListener(v -> showPreviewMenu());
+        inputPreviewFrame.setOnClickListener(v -> {
+            String id = inputPreview.sourceId();
+            if (id != null) openInput(id); else showPreviewMenu();
+        });
         inputPreviewFrame.setOnLongClickListener(v -> {
             showPreviewMenu();
             return true;
