@@ -1,0 +1,40 @@
+# Sony BRAVIA KD-49X8500H (BRAVIA 4K UR3, MediaTek), Thailand
+# Android 9 (Android TV). Based on examples/sony-bravia-4k-ur2/debloat.txt, filtered to packages
+# present on this TV (pm list packages -e).
+#
+# Apply:   TV_HOST=<tv ip> tools/disable.sh examples/sony-kd-49x8500h/debloat.txt
+# Undo:    TV_HOST=<tv ip> tools/restore.sh examples/sony-kd-49x8500h/debloat.txt
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# Stock launcher KEPT: com.google.android.tvlauncher stays enabled, and so does
+# com.google.android.tvrecommendations (the stock launcher uses it).
+# Keep the com.sony.dtv.tvinput.* services, com.sony.dtv.braviasync*, com.sony.dtv.tvapi,
+# com.sony.dtv.sonysystemservice, com.sony.dtv.systemupdate/update and the Sony settings apps:
+# they drive HDMI, the tuner, Bravia Sync, the remote and firmware updates.
+
+# tracking / ads / recommendations
+tv.samba.ssm                                   # Samba TV (ACR viewing data)
+com.qterics.da.product
+com.sony.dtv.da.service
+com.sonyericsson.idd.agent
+com.sony.dtv.promos
+com.sony.dtv.sonyselect
+com.google.android.feedback
+
+# demo / shop mode
+com.sony.dtv.demosupport
+com.sony.dtv.demosystemsupport
+com.sony.dtv.multiscreendemo
+
+# voice assistant (removes the remote's mic search; comment out these three to keep it)
+# com.google.android.katniss                 # kept: user uses the mic
+# com.google.android.tv.assistant            # kept
+# com.sony.dtv.assistantadapter              # kept
+
+# Chromecast built-in (comment out to keep casting)
+# com.google.android.apps.mediashell         # kept: user casts
+
+# preloaded apps, disabled by choice
+com.apple.atve.sony.appletv
+com.google.android.play.games
+com.google.android.youtube.tvmusic

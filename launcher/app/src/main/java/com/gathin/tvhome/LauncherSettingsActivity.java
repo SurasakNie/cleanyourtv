@@ -23,6 +23,19 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
+    private TextView cinematicChoice;
+    private TextView namesChoice;
+    private TextView clockChoice;
+    private TextView previewChoice;
+    private TextView glowChoice;
+    private TextView fontChoice;
+    private TextView ambientChoice;
+    private boolean ambientGlow;
+    private boolean cinematic;
+    private boolean alwaysShowNames;
+    private int idleClockMinutes;
+    /** Clock screensaver choices, in minutes; 0 is off. */
+    private static final int[] CLOCK_STEPS = {0, 5, 10, 30};
     private int columns;
     private int rowsBelowDock;
     private boolean animations;
@@ -32,16 +45,21 @@ public final class LauncherSettingsActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_launcher_settings);
+        Fonts.apply(findViewById(android.R.id.content));
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
         columns = config.columns;
         rowsBelowDock = config.rowsBelowDock;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
+        cinematic = config.cinematicHome;
+        ambientGlow = config.ambientGlow;
+        alwaysShowNames = config.alwaysShowNames;
+        idleClockMinutes = config.homeIdleClockMinutes;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
-            final int value = i + 4;
+            final int value = i + 5;
             columnChoices[i] = findViewById(ids[i]);
             columnChoices[i].setOnClickListener(v -> {
                 if (columns == value) return;
@@ -93,16 +111,65 @@ public final class LauncherSettingsActivity extends Activity {
                         .show();
             }
         });
+        cinematicChoice = findViewById(R.id.cinematicChoice);
+        cinematicChoice.setOnClickListener(v -> {
+            cinematic = !cinematic;
+            choices.edit().putBoolean("cinematic_home", cinematic).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        namesChoice = findViewById(R.id.namesChoice);
+        namesChoice.setOnClickListener(v -> {
+            alwaysShowNames = !alwaysShowNames;
+            choices.edit().putBoolean("always_show_names", alwaysShowNames).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        clockChoice = findViewById(R.id.clockChoice);
+        clockChoice.setOnClickListener(v -> {
+            int next = CLOCK_STEPS[0];
+            for (int i = 0; i < CLOCK_STEPS.length; i++) {
+                if (CLOCK_STEPS[i] > idleClockMinutes) { next = CLOCK_STEPS[i]; break; }
+            }
+            idleClockMinutes = next;
+            choices.edit().putInt("home_idle_clock_minutes", next).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        glowChoice = findViewById(R.id.glowChoice);
+        glowChoice.setOnClickListener(v -> {
+            if (ambientGlow) showGlowPicker();
+        });
+        ambientChoice = findViewById(R.id.ambientChoice);
+        ambientChoice.setOnClickListener(v -> {
+            ambientGlow = !ambientGlow;
+            choices.edit().putBoolean("ambient_glow", ambientGlow).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        fontChoice = findViewById(R.id.fontChoice);
+        fontChoice.setOnClickListener(v -> showFontPicker());
+        previewChoice = findViewById(R.id.previewChoice);
+        previewChoice.setOnClickListener(v -> {
+            choices.edit().putBoolean(InputPreview.PREF_ON, !InputPreview.enabled(this)).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
-                    .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).commit();
+                    .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
+                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
+            cinematic = current.cinematicHome;
+            ambientGlow = current.ambientGlow;
+            alwaysShowNames = current.alwaysShowNames;
+            idleClockMinutes = current.homeIdleClockMinutes;
             setResult(RESULT_OK);
             refresh();
         });
@@ -113,13 +180,47 @@ public final class LauncherSettingsActivity extends Activity {
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(new Intent(Settings.ACTION_SETTINGS)));
         refresh();
-        columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
+        columnChoices[Math.max(0, Math.min(columns - 5, 3))].requestFocus();
     }
 
     private void reverseRow(TextView[] views) {
         LinearLayout row = (LinearLayout) views[0].getParent();
         row.removeAllViews();
         for (int i = views.length - 1; i >= 0; i--) row.addView(views[i]);
+    }
+
+    /** Font: Outfit or CMU Sans Serif; this screen redraws in the new font straight away. */
+    private void showFontPicker() {
+        String[] values = {Fonts.OUTFIT, Fonts.CMU_SANS};
+        String[] labels = {getString(R.string.font_outfit), getString(R.string.font_cmu_sans)};
+        int checked = Fonts.CMU_SANS.equals(Fonts.load(this)) ? 1 : 0;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.font_title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which == checked) return;
+                    choices.edit().putString(Fonts.PREF, values[which]).apply();
+                    setResult(RESULT_OK);
+                    recreate();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /** Every glow style in one list, the current one checked; picking one applies it. */
+    private void showGlowPicker() {
+        String[] labels = new String[GlowStyle.COUNT];
+        for (int i = 0; i < labels.length; i++) labels[i] = getString(GlowStyle.nameRes(i));
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.glow_title)
+                .setSingleChoiceItems(labels, GlowStyle.load(this), (dialog, which) -> {
+                    dialog.dismiss();
+                    choices.edit().putInt(GlowStyle.PREF, which).apply();
+                    setResult(RESULT_OK);
+                    refresh();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showWallpaperPicker() {
@@ -175,7 +276,7 @@ public final class LauncherSettingsActivity extends Activity {
 
     private void refresh() {
         for (int i = 0; i < columnChoices.length; i++) {
-            columnChoices[i].setSelected(columns == i + 4);
+            columnChoices[i].setSelected(columns == i + 5);
         }
         for (int i = 0; i < rowChoices.length; i++) {
             rowChoices[i].setSelected(rowsBelowDock == i);
@@ -191,13 +292,28 @@ public final class LauncherSettingsActivity extends Activity {
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
+        cinematicChoice.setText(getString(R.string.cinematic_state,
+                getString(cinematic ? R.string.on : R.string.off)));
+        namesChoice.setText(getString(R.string.names_state,
+                getString(alwaysShowNames ? R.string.on : R.string.off)));
+        clockChoice.setText(getString(R.string.clock_state, idleClockMinutes == 0
+                ? getString(R.string.off) : getString(R.string.minutes_short, idleClockMinutes)));
+        glowChoice.setText(getString(R.string.glow_state, getString(GlowStyle.nameRes(GlowStyle.load(this)))));
+        glowChoice.setEnabled(ambientGlow);
+        glowChoice.setAlpha(ambientGlow ? 1f : 0.5f);
+        ambientChoice.setText(getString(R.string.ambient_state,
+                getString(ambientGlow ? R.string.on : R.string.off)));
+        fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
+        previewChoice.setText(getString(R.string.preview_state,
+                getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
     private boolean hasOnTvChoices() {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
-                || choices.contains(Config.WALLPAPER_CHOICE_KEY);
+                || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("cinematic_home")
+                || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes") || choices.contains("ambient_glow");
     }
 
     private void open(Intent intent) {

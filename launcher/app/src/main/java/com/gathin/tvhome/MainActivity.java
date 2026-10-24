@@ -138,6 +138,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private int glassAccent;
     private int ambientColor = -1;
     private ValueAnimator ambientAnimator;
+    /** Cinematic glow style (Launcher settings, Glow style) and where the glow mask is painted now. */
+    private int glowStyle;
+    private GlowStyle.Spot glowSpot;
+    /** TWO_GLOWS, RANDOM_2, RANDOM_3: the extra, fainter glows over the main one. */
+    private final java.util.List<View> extraGlows = new java.util.ArrayList<>();
+    private final Runnable driftTick = new Runnable() {
+        @Override public void run() {
+            paintGlow(GlowStyle.drift(android.os.SystemClock.uptimeMillis() / 1000.0));
+            handler.postDelayed(this, 66);   // about 15 frames a second: smooth enough for a slow drift
+        }
+    };
     private boolean heroShown;
     private boolean animations;
     private boolean advancedEffects;
@@ -227,6 +238,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** Dock place being changed in edit-dock mode, or -1 while the place is still being chosen. */
     private int dockEditSlot = -1;
     private AppLibraryDialog appLibrary;
+    /** Optional HDMI live window (Launcher settings, Input preview). */
+    private InputPreview inputPreview;
+    /** rows_below_dock 0 with a dock: the rows below are hidden while the dock has focus (no half-cut row). */
+    private boolean hideBelowDock;
+    private boolean homeResumed;
+    /** A Launcher settings choice changed while Home was in the background: rebuild on return. */
+    private boolean settingsChanged;
+    private final android.content.SharedPreferences.OnSharedPreferenceChangeListener settingsListener =
+            (prefs, key) -> { if (!homeResumed) settingsChanged = true; };
+    private boolean belowHidden;
+    private View moreBelow;
+    private View inputPreviewFrame;
     private boolean libraryFocusPending;
     private RecyclerView.OnScrollListener pendingFocusScroll;
 
@@ -302,6 +325,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Fonts.apply(findViewById(android.R.id.content));
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
@@ -347,6 +371,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroDots = findViewById(R.id.heroDots);
         heroArt = findViewById(R.id.heroArt);
         cinematic = cfg.cinematicHome;
+        glowStyle = GlowStyle.load(this);
+        glowSpot = cinematic ? GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar)) : GlowStyle.classicNormal();
         if (cinematic) setUpCinematicShelf();
         // dock_title false: the name above the dock (and the cinematic lines under it) never shows; the glow
         // still follows the dock.
@@ -539,6 +565,42 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             return true;
         });
 
+        hideBelowDock = dockRow && cfg.rowsBelowDock == 0;
+        // Leaving Launcher settings with Home (not Back) returns no result, so watch the choices themselves.
+        getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(settingsListener);
+        moreBelow = findViewById(R.id.moreBelow);
+        grid.addOnChildAttachStateChangeListener(new RecyclerView.OnChildAttachStateChangeListener() {
+            @Override public void onChildViewAttachedToWindow(View child) {
+                Fonts.apply(child);
+                int pos = grid.getChildAdapterPosition(child);
+                if (pos >= COLUMNS) child.setAlpha(belowHidden ? 0f : 1f);
+            }
+            @Override public void onChildViewDetachedFromWindow(View child) { }
+        });
+        inputPreviewFrame = findViewById(R.id.inputPreview);
+        inputPreview = new InputPreview(this, inputPreviewFrame,
+                findViewById(R.id.inputPreviewTv), findViewById(R.id.inputPreviewStatus));
+        inputPreviewFrame.setOnClickListener(v -> {
+            String id = inputPreview.sourceId();
+            if (id != null) openInput(id); else showPreviewMenu();
+        });
+        inputPreviewFrame.setOnLongClickListener(v -> {
+            showPreviewMenu();
+            return true;
+        });
+        inputPreviewFrame.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                firstTopButton().requestFocus();
+                return true;
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                focusTile(lastFocused % COLUMNS);
+                return true;
+            }
+            return keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
+        });
+
         // Keep focus on the top bar at its ends and at the top: Android's focus finder would otherwise
         // jump to a tile far below when there is nothing in that direction.
         boolean rtlMenuBar = getResources().getBoolean(R.bool.rtl_menu_bar);
@@ -546,6 +608,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                // The input preview (left, under the clock) when it is on; otherwise back to the dock tile.
+                if (inputPreviewFrame.getVisibility() == View.VISIBLE) {
+                    inputPreviewFrame.requestFocus();
+                    return true;
+                }
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(lastFocused % COLUMNS);
                 return true;
@@ -643,12 +710,23 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        if (settingsChanged) {
+            settingsChanged = false;
+            recreate();
+            return;
+        }
+        homeResumed = true;
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
             return;
         }
         restartIdleClock();
+        inputPreview.start();
+        if (ambientGlow && glowStyle == GlowStyle.DRIFT && animations) {
+            handler.removeCallbacks(driftTick);
+            handler.post(driftTick);
+        }
         promptsPaused = false;
         if (grid.getAdapter() == null) grid.setAdapter(adapter);   // dropped by onTrimMemory
         if (rebuildOnResume) {
@@ -784,7 +862,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onPause() {
         super.onPause();
+        homeResumed = false;
         root.removeCallbacks(showIdleClock);
+        inputPreview.stop();
+        handler.removeCallbacks(driftTick);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
         stopAmbientAnimation();
@@ -847,6 +928,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(settingsListener);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
@@ -1169,6 +1251,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onTileFocused(int position, View card) {
+        setBelowHidden(hideBelowDock && position < COLUMNS);
         lastFocused = position;
         lastFocusedKey = adapter.keyAt(position);
         // Focus restored before the first layout (cold start): the tile has no size yet, and the glass
@@ -1271,6 +1354,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic) showHeroArt(position);
+        applyGlowStyle(position);
 
         if (!animations || reducedMotion) {
             // Snap the shelf instead of sliding and fading it: each of those frames repaints the
@@ -1340,7 +1424,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     /** The parts that never change: a larger name, the meta line and the dots, the artwork and the scrim. */
     private void setUpCinematicShelf() {
-        heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 68f);
+        heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 51f);
         heroName.setLetterSpacing(-0.025f);
         heroMeta.setVisibility(View.INVISIBLE);   // keeps its height, so the name does not jump when it fills in
         heroDots.setVisibility(View.VISIBLE);
@@ -1467,30 +1551,116 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int h = 270;
             Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(bmp);
-            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            if (cinematic) {
-                // Higher and stronger, from the corner away from the shelf's text: the app's colour floods
-                // the top of the screen over its artwork, and the scrim keeps the text side dark.
-                boolean rtl = getResources().getBoolean(R.bool.rtl_menu_bar);
-                paint.setShader(new RadialGradient(
-                        w * (rtl ? 0.20f : 0.80f), h * 0.06f, w * 0.78f,
-                        new int[]{0xA6FFFFFF, 0x47FFFFFF, 0x00FFFFFF},
-                        new float[]{0f, 0.5f, 1f},
-                        Shader.TileMode.CLAMP));
-            } else {
-                paint.setShader(new RadialGradient(
-                        w * 0.32f, h * 0.42f, w * 0.62f,
-                        new int[]{0x5CFFFFFF, 0x26FFFFFF, 0x00FFFFFF},
-                        new float[]{0f, 0.45f, 1f},
-                        Shader.TileMode.CLAMP));
-            }
-            canvas.drawRect(0, 0, w, h, paint);
+            // Cinematic: higher and stronger, the app's colour floods the top of the screen over its artwork.
+            // Normal: softer. Either way the glow style decides where (glowSpot).
+            paintGlowMask(canvas, w, h, glowSpot, cinematic);
             glow = new BitmapDrawable(getResources(), bmp);
             glow.setGravity(Gravity.FILL);
             ambient.setBackground(glow);
         }
         // The default tint mode, SRC_IN, keeps the mask's alpha and takes the colour from the tint.
         glow.setTint(0xFF000000 | color);
+    }
+
+    /** Hides (dock focused) or shows the rows under the dock, and the arrow pointing to them. */
+    private void setBelowHidden(boolean hide) {
+        if (hide == belowHidden) return;
+        belowHidden = hide;
+        for (int i = 0; i < grid.getChildCount(); i++) {
+            View child = grid.getChildAt(i);
+            if (grid.getChildAdapterPosition(child) < COLUMNS) continue;
+            child.animate().cancel();
+            if (animations) child.animate().alpha(hide ? 0f : 1f).setDuration(hide ? 150 : 220).start();
+            else child.setAlpha(hide ? 0f : 1f);
+        }
+        boolean more = hide && adapter.getItemCount() > COLUMNS;
+        moreBelow.setVisibility(more ? View.VISIBLE : View.GONE);
+    }
+
+    /** Paints one glow (white, alpha only) into a w×h mask: a radial gradient stretched to the spot's radii. */
+    private static void paintGlowMask(Canvas canvas, int w, int h, GlowStyle.Spot spot, boolean strong) {
+        canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float rx = w * spot.rx, ry = w * spot.ry;
+        RadialGradient g = new RadialGradient(0, 0, 1f,
+                strong ? new int[]{0xA6FFFFFF, 0x47FFFFFF, 0x00FFFFFF} : new int[]{0x5CFFFFFF, 0x26FFFFFF, 0x00FFFFFF},
+                new float[]{0f, strong ? 0.5f : 0.45f, 1f}, Shader.TileMode.CLAMP);
+        android.graphics.Matrix m = new android.graphics.Matrix();
+        m.setScale(rx, ry);
+        m.postTranslate(w * spot.x, h * spot.y);
+        g.setLocalMatrix(m);
+        paint.setShader(g);
+        canvas.drawRect(0, 0, w, h, paint);
+    }
+
+    /** Moves the cinematic glow to a new spot: repaints the small mask in place, the tint stays. */
+    private void paintGlow(GlowStyle.Spot spot) {
+        if (spot.same(glowSpot)) return;
+        glowSpot = spot;
+        if (!(ambient.getBackground() instanceof BitmapDrawable)) return;
+        Bitmap bmp = ((BitmapDrawable) ambient.getBackground()).getBitmap();
+        paintGlowMask(new Canvas(bmp), bmp.getWidth(), bmp.getHeight(), spot, cinematic);
+        ambient.getBackground().invalidateSelf();
+        ambient.invalidate();
+    }
+
+    /** Glow style for the focused dock app (cinematic only). */
+    private void applyGlowStyle(int position) {
+        switch (glowStyle) {
+            case GlowStyle.RANDOM: paintGlow(GlowStyle.random(false)); break;
+            case GlowStyle.RANDOM_SHAPE: paintGlow(GlowStyle.random(true)); break;
+            case GlowStyle.PER_APP: paintGlow(GlowStyle.perApp(adapter.packageAt(position))); break;
+            case GlowStyle.FOLLOW: {
+                RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(position);
+                if (vh != null && root.getWidth() > 0) {
+                    int[] at = new int[2];
+                    vh.itemView.getLocationInWindow(at);
+                    paintGlow(GlowStyle.follow((at[0] + vh.itemView.getWidth() / 2f) / root.getWidth()));
+                }
+                break;
+            }
+            case GlowStyle.DRIFT: break;   // driftTick moves it
+            case GlowStyle.RANDOM_2:
+            case GlowStyle.RANDOM_3: paintGlow(GlowStyle.random(false)); break;
+            default: paintGlow(cinematic ? GlowStyle.classic(getResources().getBoolean(R.bool.rtl_menu_bar))
+                    : GlowStyle.classicNormal());
+        }
+        showExtraGlows(ambientGlow ? GlowStyle.extraCount(glowStyle) : 0, adapter.ambientColorAt(position));
+    }
+
+    /**
+     * Extra glows: TWO_GLOWS puts one on the other side in the app's colour turned 45°; RANDOM_2 / RANDOM_3 put
+     * one or two at random spots in the colour turned ±25°. Each is its own small tinted mask over the main glow.
+     */
+    private void showExtraGlows(int count, int color) {
+        for (int i = 0; i < extraGlows.size(); i++) {
+            View v = extraGlows.get(i);
+            if (i >= count) v.animate().alpha(0f).setDuration(animations ? 250 : 0).start();
+        }
+        for (int i = 0; i < count; i++) {
+            View v;
+            if (i < extraGlows.size()) {
+                v = extraGlows.get(i);
+            } else {
+                v = new View(this);
+                Bitmap bmp = Bitmap.createBitmap(480, 270, Bitmap.Config.ARGB_8888);
+                BitmapDrawable d = new BitmapDrawable(getResources(), bmp);
+                d.setGravity(Gravity.FILL);
+                v.setBackground(d);
+                v.setAlpha(0f);
+                root.addView(v, root.indexOfChild(ambient) + 1 + i, new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+                extraGlows.add(v);
+            }
+            GlowStyle.Spot spot = glowStyle == GlowStyle.TWO_GLOWS ? GlowStyle.second(glowSpot) : GlowStyle.random(false);
+            BitmapDrawable d = (BitmapDrawable) v.getBackground();
+            Bitmap bmp = d.getBitmap();
+            paintGlowMask(new Canvas(bmp), bmp.getWidth(), bmp.getHeight(), spot, cinematic);
+            d.invalidateSelf();
+            float turn = glowStyle == GlowStyle.TWO_GLOWS ? 45f : (i == 0 ? 25f : -25f);
+            d.setTint(0xFF000000 | GlowStyle.shifted(color, turn));
+            v.animate().alpha(0.6f).setDuration(animations ? 400 : 0).start();
+        }
     }
 
     private void transitionAmbient(int color) {
@@ -1521,6 +1691,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     private void showGlowOnly(int position) {
         int color = adapter.ambientColorAt(position);
+        if (ambientGlow) applyGlowStyle(position);
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();
@@ -1547,6 +1718,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void hideHero() {
         if (!heroShown) return;
+        for (View v : extraGlows) v.animate().alpha(0f).setDuration(animations ? 300 : 0).start();
         stopAmbientAnimation();
         hero.animate().cancel();
         ambient.animate().cancel();
@@ -2400,6 +2572,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private PopupWindow glassPopup(View panel, int width) {
+        Fonts.apply(panel);
         final PopupWindow popup = new PopupWindow(panel, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
         popup.setOutsideTouchable(true);
@@ -2478,7 +2651,84 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         rows.getChildAt(0).requestFocus();
     }
 
+    /** Hold OK on an app tile: the dock and reorder actions from the Settings menu, plus App info. */
+    @Override
+    public void onTileLongPressed(View card, String pkg) {
+        if (reordering) return;
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (200 * density));
+        if (dockRow) addSettingsMenuRow(rows, popup, R.string.dock_edit, this::startDockEdit);
+        addSettingsMenuRow(rows, popup, R.string.reorder, this::toggleReorder);
+        addSettingsMenuRow(rows, popup, R.string.library_app_info, () -> {
+            Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.parse("package:" + pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                startActivity(i);
+            } catch (android.content.ActivityNotFoundException ignored) {
+            }
+        });
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
+        // The dock sits near the bottom edge: open the menu above the tile so it stays on screen.
+        int[] at = new int[2];
+        card.getLocationInWindow(at);
+        int y = Math.max((int) (8 * density), at[1] - panel.getMeasuredHeight() - (int) (12 * density));
+        panel.setAlpha(0f);
+        panel.setTranslationY(8 * density);
+        // Left-aligned with the tile; when that would cross the screen edge, right-aligned with it instead.
+        int x = at[0];
+        if (x + popup.getWidth() > root.getWidth() - (int) (8 * density)) {
+            x = at[0] + Math.round(card.getWidth() * card.getScaleX()) - popup.getWidth();
+        }
+        x = Math.max((int) (8 * density), x);
+        popup.showAtLocation(card, Gravity.NO_GRAVITY, x, y);
+        panel.animate().alpha(1f).translationY(0f).setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+        rows.getChildAt(0).requestFocus();
+    }
+
+    /** OK on the input preview: open that input full screen, or switch the preview to another HDMI port. */
+    private void showPreviewMenu() {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (200 * density));
+        String current = inputPreview.sourceId();
+        if (current != null) addSettingsMenuRow(rows, popup, getString(R.string.preview_full_screen), () -> openInput(current));
+        List<InputPreview.Port> ports = inputPreview.ports();
+        if (!ports.isEmpty() && rows.getChildCount() > 0) addSeparator(rows);
+        for (InputPreview.Port port : ports) {
+            String label = port.id.equals(current) ? port.label + "  \u2713" : port.label;
+            addSettingsMenuRow(rows, popup, label, () -> inputPreview.choose(port.id));
+        }
+        if (rows.getChildCount() > 0) addSeparator(rows);
+        addSettingsMenuRow(rows, popup, getString(R.string.preview_turn_off), () -> {
+            getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
+                    .putBoolean(InputPreview.PREF_ON, false).apply();
+            inputPreview.start();   // hides the window and releases the input
+            focusTile(lastFocused % COLUMNS);
+        });
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
+        // Beside the window, not under it: six rows below it would run off the bottom of the screen.
+        int[] at = new int[2];
+        inputPreviewFrame.getLocationInWindow(at);
+        int margin = (int) (8 * density);
+        int x = at[0] + inputPreviewFrame.getWidth() + (int) (12 * density);
+        int y = Math.max(margin, Math.min(at[1], root.getHeight() - panel.getMeasuredHeight() - margin));
+        panel.setAlpha(0f);
+        panel.setTranslationX(-8 * density);
+        popup.showAtLocation(inputPreviewFrame, Gravity.NO_GRAVITY, x, y);
+        panel.animate().alpha(1f).translationX(0f).setDuration(220)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+        rows.getChildAt(0).requestFocus();
+    }
+
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        addSettingsMenuRow(rows, popup, getString(title), action);
+    }
+
+    private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, CharSequence title, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
         row.findViewById(R.id.icon).setVisibility(View.GONE);
         row.findViewById(R.id.dot).setVisibility(View.GONE);
@@ -2543,6 +2793,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         final Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        Fonts.apply(panel);
         dialog.setContentView(panel);
         dialog.setCanceledOnTouchOutside(false);
         Window w = dialog.getWindow();
