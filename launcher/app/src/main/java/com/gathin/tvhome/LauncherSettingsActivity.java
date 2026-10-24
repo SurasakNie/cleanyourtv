@@ -23,6 +23,14 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView animationsChoice;
     private TextView advancedChoice;
     private TextView followThemeChoice;
+    private TextView cinematicChoice;
+    private TextView namesChoice;
+    private TextView clockChoice;
+    private boolean cinematic;
+    private boolean alwaysShowNames;
+    private int idleClockMinutes;
+    /** Clock screensaver choices, in minutes; 0 is off. */
+    private static final int[] CLOCK_STEPS = {0, 5, 10, 30};
     private int columns;
     private int rowsBelowDock;
     private boolean animations;
@@ -38,6 +46,9 @@ public final class LauncherSettingsActivity extends Activity {
         rowsBelowDock = config.rowsBelowDock;
         animations = config.animations;
         advancedEffects = config.animations && config.advancedEffects;
+        cinematic = config.cinematicHome;
+        alwaysShowNames = config.alwaysShowNames;
+        idleClockMinutes = config.homeIdleClockMinutes;
 
         int[] ids = {R.id.columns4, R.id.columns5, R.id.columns6, R.id.columns7};
         for (int i = 0; i < ids.length; i++) {
@@ -93,16 +104,45 @@ public final class LauncherSettingsActivity extends Activity {
                         .show();
             }
         });
+        cinematicChoice = findViewById(R.id.cinematicChoice);
+        cinematicChoice.setOnClickListener(v -> {
+            cinematic = !cinematic;
+            choices.edit().putBoolean("cinematic_home", cinematic).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        namesChoice = findViewById(R.id.namesChoice);
+        namesChoice.setOnClickListener(v -> {
+            alwaysShowNames = !alwaysShowNames;
+            choices.edit().putBoolean("always_show_names", alwaysShowNames).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        clockChoice = findViewById(R.id.clockChoice);
+        clockChoice.setOnClickListener(v -> {
+            int next = CLOCK_STEPS[0];
+            for (int i = 0; i < CLOCK_STEPS.length; i++) {
+                if (CLOCK_STEPS[i] > idleClockMinutes) { next = CLOCK_STEPS[i]; break; }
+            }
+            idleClockMinutes = next;
+            choices.edit().putInt("home_idle_clock_minutes", next).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
         followThemeChoice = findViewById(R.id.followThemeChoice);
         followThemeChoice.setOnClickListener(v -> {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
-                    .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY).commit();
+                    .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
+                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
             animations = current.animations;
             advancedEffects = current.animations && current.advancedEffects;
+            cinematic = current.cinematicHome;
+            alwaysShowNames = current.alwaysShowNames;
+            idleClockMinutes = current.homeIdleClockMinutes;
             setResult(RESULT_OK);
             refresh();
         });
@@ -191,13 +231,20 @@ public final class LauncherSettingsActivity extends Activity {
                 "none".equals(wallpaperCurrent) ? getString(R.string.wallpaper_none)
                         : wallpaperCurrent != null ? wallpaperCurrent
                         : getString(R.string.wallpaper_theme_default)));
+        cinematicChoice.setText(getString(R.string.cinematic_state,
+                getString(cinematic ? R.string.on : R.string.off)));
+        namesChoice.setText(getString(R.string.names_state,
+                getString(alwaysShowNames ? R.string.on : R.string.off)));
+        clockChoice.setText(getString(R.string.clock_state, idleClockMinutes == 0
+                ? getString(R.string.off) : getString(R.string.minutes_short, idleClockMinutes)));
         followThemeChoice.setSelected(!hasOnTvChoices());
     }
 
     private boolean hasOnTvChoices() {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
-                || choices.contains(Config.WALLPAPER_CHOICE_KEY);
+                || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("cinematic_home")
+                || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes");
     }
 
     private void open(Intent intent) {
