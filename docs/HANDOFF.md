@@ -201,6 +201,10 @@ drawables, the dead strings in both languages (`layout_apple`, `hint_rows`, the 
 `config.xml` keys, and the parts of the README, the specs and the themes that describe the layout. R8 already
 drops the code from the APK, so stage 2 is about the source tree, not the size.
 
+**Off limits in stage 2, on the owner's instruction:** the remote's Settings button path stays exactly as it is.
+`QuickSettingsActivity`, the `ACTION_LAUNCHER_SETTINGS` string and the shim's handling of it were not changed by
+stage 1 (that code is 2.18's redirect branch line for line) and are not to be changed by stage 2 either.
+
 **This is a fork of `Gathin23/cleanyourtv`,** where that layout is the project's main feature, so the removal
 diverges permanently and makes merging from upstream painful — the owner chose this knowingly.
 
