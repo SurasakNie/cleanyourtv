@@ -22,6 +22,8 @@ import android.media.tv.TvContract;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.SystemClock;
 import android.os.Looper;
 import android.provider.Settings;
 import android.text.format.DateFormat;
@@ -88,7 +90,12 @@ public final class GtvActivity extends Activity {
                 .getString(PREF_LAYOUT, LAYOUT_GTV.equals(ctx.getString(R.string.default_layout)) ? LAYOUT_GTV : "apple"));
     }
 
-    /** One launchable app. */
+    /**
+     * One launchable app, with its artwork loaded once and kept. Loading it per tile instead was tried in 2.08 and
+     * measured worse on this TV: every tile scrolling into view decoded a fresh copy, and the native heap climbed
+     * from 21.8 MB to 38 MB and kept going. If this 22 MB is worth reclaiming, decode the banners at tile size
+     * (about 207x116) rather than trading memory for repeated decoding.
+     */
     private static final class App {
         String pkg, label;
         ComponentName component;
@@ -116,12 +123,23 @@ public final class GtvActivity extends Activity {
     private App moving;
     /** False when the banner can't fit between the top bar and the rows (then only the glow shows). */
     private boolean bannerFits = true, bannerCompact;
+    /** False when the Home rows reach up to where the performance card would sit. */
+    private boolean perfFits = true;
+    /** True while a tile is selected: with the selection on a tab there is no app for the banner to name. */
+    private boolean appSelected;
     /** Every app in Home order (saved order, dock_apps, name): the first row is Your apps, then Favorites. */
     private final List<App> ordered = new ArrayList<>();
     /** The owner's Favorite apps (packages, in their order) shown under Your apps. */
     private List<String> favPackages = new ArrayList<>();
     /** The gear or hold-OK menu while it is on screen, so Home and pausing can close it. */
     private PopupWindow openPopup;
+    /** The performance card (Launcher settings), its reader and the thread it reads on. */
+    private LinearLayout perfCard;
+    private Stats stats;
+    private HandlerThread perfThread;
+    private volatile Handler perfBg;
+    private int framesDrawn;
+    private long framesSince;
     private LinearLayout inputsRow;
     private int currentTab = TAB_HOME;
     private int tileW, tileH;
@@ -178,10 +196,12 @@ public final class GtvActivity extends Activity {
         super.onNewIntent(intent);
         if (homePage == null) return;
         closeMenu();
-        tabs[TAB_HOME].requestFocus();   // focus out of Apps/Inputs before they hide (see openAppsAt)
+        // Home leaves the selection on the Home tab: Down from there enters Your apps.
+        tabs[TAB_HOME].requestFocus();
         if (currentTab != TAB_HOME) showTab(TAB_HOME);
         styleTabs();
-        if (homeGrid != null) homeGrid.post(this::focusHomeFirst);
+        if (homeGrid != null) homeGrid.scrollToPosition(0);
+        clearSelectedApp();   // the selection sits on the Home tab: no app to name until Down picks one
     }
 
     private void build() {
@@ -212,6 +232,7 @@ public final class GtvActivity extends Activity {
         setContentView(root);
         buildBackground(cfg);
         buildTopBar();
+        buildPerfCard(cfg);
         buildBanner();
         content = new FrameLayout(this);
         content.setClipChildren(false);
@@ -227,8 +248,10 @@ public final class GtvActivity extends Activity {
         showTab(TAB_HOME);
         Fonts.apply(root);
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(settingsListener);
+        // Colour the glow from the first app, but leave the banner hidden: nothing is selected yet.
         if (!dock.isEmpty()) showApp(dock.get(0));
         else if (!all.isEmpty()) showApp(all.get(0));
+        clearSelectedApp();
         root.post(this::focusHomeFirst);
     }
 
@@ -244,12 +267,14 @@ public final class GtvActivity extends Activity {
         resumed = true;
         handler.removeCallbacks(tick);
         handler.post(tick);
+        startPerf();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         closeMenu();
+        stopPerf();
         resumed = false;
         handler.removeCallbacks(tick);
     }
@@ -474,6 +499,15 @@ public final class GtvActivity extends Activity {
         refocusMoving();
     }
 
+    /** Puts the carried tile's lift and ghost on, or takes them off and gives the ring back. */
+    private void styleCarried(View v, boolean carried) {
+        v.animate().cancel();
+        v.animate().scaleX(carried ? 1.15f : 1.1f).scaleY(carried ? 1.15f : 1.1f)
+                .translationZ((carried ? 16 : 8) * dp)
+                .alpha(carried ? GHOST : 1f)
+                .setDuration(140).start();
+    }
+
     /**
      * Move mode: arrows move the tile through Your apps and the Favorite rows as one list (Left/Right one place,
      * Up/Down one row); OK or Back puts it down and saves. Otherwise: Up from a page's top row goes to that page's
@@ -589,7 +623,10 @@ public final class GtvActivity extends Activity {
         int pos = homeItems.indexOf(a);
         homeGrid.post(() -> {
             RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(pos);
-            if (vh != null) vh.itemView.requestFocus();
+            if (vh == null) return;
+            vh.itemView.requestFocus();
+            styleCarried(vh.itemView, false);   // put down: back to an ordinary selection
+            dimOthers(vh.itemView);
         });
     }
 
@@ -598,7 +635,8 @@ public final class GtvActivity extends Activity {
         RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(moving));
         if (vh == null) return;
         vh.itemView.requestFocus();
-        vh.itemView.setForeground(ring(MOVE_COLOR));
+        styleCarried(vh.itemView, true);
+        dimOthers(vh.itemView);
     }
 
     @Override
@@ -634,7 +672,7 @@ public final class GtvActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF21B2029);
+        bg.setColor(0xFF151A21);   // solid: over a bright wallpaper the tiles read straight through a sheer panel
         bg.setStroke((int) Math.max(1, 1.5f * dp), 0x33FFFFFF);
         bg.setCornerRadius(20 * dp);
         panel.setBackground(bg);
@@ -661,8 +699,34 @@ public final class GtvActivity extends Activity {
             panel.addView(menuRow(popup, getString(titles.get(i)), actions.get(i)));
         }
         Fonts.apply(panel);
-        popup.showAsDropDown(anchor, 0, (int) (10 * dp), Gravity.END);
+        showPanel(popup, panel, anchor);
         panel.getChildAt(heading == null ? 0 : 1).requestFocus();
+    }
+
+    /**
+     * Hangs the menu under the thing it belongs to, or above it when there is no room below — a tile in the
+     * bottom row has none, and the menu used to run off the screen.
+     */
+    private void showPanel(PopupWindow popup, View panel, View anchor) {
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int height = panel.getMeasuredHeight(), width = Math.max(popup.getWidth(), panel.getMeasuredWidth());
+        int gap = (int) (10 * dp), edge = (int) (8 * dp);
+        int[] at = new int[2];
+        anchor.getLocationInWindow(at);
+        int[] rootAt = new int[2];
+        root.getLocationInWindow(rootAt);
+        int anchorTop = at[1] - rootAt[1], anchorBottom = anchorTop + anchor.getHeight();
+        if (anchorBottom + gap + height <= root.getHeight() - edge) {
+            popup.showAsDropDown(anchor, 0, gap, Gravity.END);
+            return;
+        }
+        // Above the tile, left-aligned with it; against the right edge of the screen, right-aligned instead.
+        int x = at[0] - rootAt[0];
+        if (x + width > root.getWidth() - edge) {
+            x = x + Math.round(anchor.getWidth() * anchor.getScaleX()) - width;
+        }
+        popup.showAtLocation(anchor, Gravity.NO_GRAVITY,
+                Math.max(edge, x), Math.max(edge, anchorTop - height - gap));
     }
 
     private TextView menuRow(PopupWindow popup, String title, Runnable action) {
@@ -779,7 +843,13 @@ public final class GtvActivity extends Activity {
                 t.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_home, 0, 0, 0);
                 t.setCompoundDrawablePadding((int) (8 * dp));
             }
-            t.setOnFocusChangeListener((v, has) -> { if (has) showTab(tab); styleTabs(); });
+            t.setOnFocusChangeListener((v, has) -> {
+                if (has) {
+                    clearSelectedApp();
+                    showTab(tab);
+                }
+                styleTabs();
+            });
             t.setOnKeyListener((v, code, e) -> {
                 if (e.getAction() != KeyEvent.ACTION_DOWN || code != KeyEvent.KEYCODE_DPAD_DOWN) return false;
                 focusContent();
@@ -801,7 +871,10 @@ public final class GtvActivity extends Activity {
         settings.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
         settings.setPadding((int) (12 * dp), (int) (8 * dp), (int) (12 * dp), (int) (8 * dp));
         settings.setOnClickListener(this::showSettingsChoice);
-        settings.setOnFocusChangeListener((v, has) -> stylePill((TextView) v, has, false));
+        settings.setOnFocusChangeListener((v, has) -> {
+            if (has) clearSelectedApp();
+            stylePill((TextView) v, has, false);
+        });
         settings.setOnKeyListener((v, code, e) -> {
             if (e.getAction() != KeyEvent.ACTION_DOWN || code != KeyEvent.KEYCODE_DPAD_DOWN) return false;
             focusContent();
@@ -818,6 +891,111 @@ public final class GtvActivity extends Activity {
         rp.topMargin = (int) (20 * dp);
         root.addView(right, rp);
         styleTabs();
+    }
+
+    /**
+     * A small glass card under the clock with what the TV is doing. Off unless Launcher settings turns it on:
+     * while it is off nothing is read and no thread runs.
+     */
+    private void buildPerfCard(Config cfg) {
+        if (!getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getBoolean(Config.PERF_CARD_KEY, false)) return;
+        stats = new Stats(this);
+        perfCard = new LinearLayout(this);
+        perfCard.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(0xCC0B0D12);
+        g.setStroke((int) Math.max(1, dp), 0x33FFFFFF);
+        g.setCornerRadius(18 * dp);
+        perfCard.setBackground(g);
+        perfCard.setPadding((int) (16 * dp), (int) (12 * dp), (int) (18 * dp), (int) (12 * dp));
+        TextView head = new TextView(this);
+        head.setText(R.string.perf_title);
+        head.setTextColor(0xFF8F9AAB);
+        head.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        head.setPadding(0, 0, 0, (int) (6 * dp));
+        perfCard.addView(head);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams((int) (230 * dp), -2, Gravity.TOP | Gravity.END);
+        lp.rightMargin = sidePad;
+        lp.topMargin = (int) (84 * dp);
+        root.addView(perfCard, lp);
+    }
+
+    /** The figures on the card now, so it can be re-laid out without waiting for the next reading. */
+    private java.util.List<Stats.Item> perfItems = java.util.Collections.emptyList();
+
+    /** One row of the card: the figure's name on the left, its value on the right. */
+    private void setPerfRows(java.util.List<Stats.Item> items) {
+        perfItems = items;
+        if (perfCard == null) return;
+        int rows = perfCard.getChildCount() - 1;            // the heading stays
+        for (int i = rows; i < items.size(); i++) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            TextView name = new TextView(this);
+            name.setTextColor(0xFFC3CAD4);
+            name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView value = new TextView(this);
+            value.setTextColor(Color.WHITE);
+            value.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            row.addView(value);
+            Fonts.apply(row);
+            perfCard.addView(row);
+        }
+        for (int i = items.size(); i < rows; i++) perfCard.getChildAt(i + 1).setVisibility(View.GONE);
+        for (int i = 0; i < items.size(); i++) {
+            LinearLayout row = (LinearLayout) perfCard.getChildAt(i + 1);
+            row.setVisibility(View.VISIBLE);
+            ((TextView) row.getChildAt(0)).setText(items.get(i).labelRes);
+            ((TextView) row.getChildAt(1)).setText(items.get(i).value);
+        }
+    }
+
+    /** Reads the figures off the main thread every two seconds while Home is in front. */
+    private void startPerf() {
+        if (perfCard == null || perfThread != null) return;
+        perfThread = new HandlerThread("perf");
+        perfThread.start();
+        Handler bg = new Handler(perfThread.getLooper());
+        perfBg = bg;
+        framesDrawn = 0;
+        framesSince = SystemClock.elapsedRealtime();
+        countFrame();
+        bg.post(new Runnable() {
+            @Override public void run() {
+                if (perfBg != bg) return;
+                java.util.List<Stats.Item> items = stats.read();
+                    runOnUiThread(() -> {
+                    if (perfBg != bg) return;
+                    setPerfRows(items);
+                    fitBanner();   // the card grows as figures arrive; keep it clear of the rows
+                });
+                if (perfBg == bg) bg.postDelayed(this, 2000);
+            }
+        });
+    }
+
+    private void stopPerf() {
+        if (perfThread == null) return;
+        perfBg.removeCallbacksAndMessages(null);
+        perfBg = null;
+        perfThread.quit();
+        perfThread = null;
+    }
+
+    /** Counts drawn frames for the card's frame rate; stops with the card. */
+    private void countFrame() {
+        if (perfCard == null || perfThread == null) return;
+        android.view.Choreographer.getInstance().postFrameCallback(t -> {
+            framesDrawn++;
+            long now = SystemClock.elapsedRealtime();
+            if (now - framesSince >= 1000) {
+                stats.frameRate = (int) Math.round(framesDrawn * 1000.0 / (now - framesSince));
+                framesDrawn = 0;
+                framesSince = now;
+            }
+            countFrame();
+        });
     }
 
     private void buildBanner() {
@@ -846,6 +1024,8 @@ public final class GtvActivity extends Activity {
 
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
+        appSelected = true;
+        updateBanner();
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
@@ -902,12 +1082,46 @@ public final class GtvActivity extends Activity {
             setBannerCompact(true);
             top = roomBottom - roomTop >= bannerHeight() ? roomTop : -1;
         }
+        layoutPerfCard(roomBottom);
         bannerFits = top >= 0;
         if (bannerFits && lp.topMargin != top) {
             lp.topMargin = top;
             banner.setLayoutParams(lp);
         }
-        banner.setVisibility(currentTab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+        updateBanner();
+    }
+
+    /** The banner names the selected app, so it shows only on Home, only when it fits, and only with a selection. */
+    private void updateBanner() {
+        banner.setVisibility(currentTab == TAB_HOME && bannerFits && appSelected ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    /** The selection left the tiles (a tab or the gear): there is no app to name. */
+    private void clearSelectedApp() {
+        appSelected = false;
+        updateBanner();
+    }
+
+    /**
+     * The card hangs under the clock on the right, where the Home rows can reach up to it. It shows every figure
+     * where there is room; where there is not, it drops to the few that matter (processor, memory, storage,
+     * frames); and where even those do not fit, it steps aside altogether.
+     */
+    private void layoutPerfCard(int roomBottom) {
+        if (perfCard == null) return;
+        int cardTop = ((FrameLayout.LayoutParams) perfCard.getLayoutParams()).topMargin;
+        perfFits = false;
+        for (int pass = 0; pass < 2 && !perfFits; pass++) {
+            boolean essentialOnly = pass == 1;
+            for (int i = 0; i < perfItems.size() && i + 1 < perfCard.getChildCount(); i++) {
+                perfCard.getChildAt(i + 1).setVisibility(
+                        !essentialOnly || perfItems.get(i).essential ? View.VISIBLE : View.GONE);
+            }
+            perfCard.measure(View.MeasureSpec.makeMeasureSpec(perfCard.getLayoutParams().width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.UNSPECIFIED);
+            perfFits = cardTop + perfCard.getMeasuredHeight() <= roomBottom;
+        }
+        perfCard.setVisibility(currentTab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
     }
 
     private void setBannerCompact(boolean compact) {
@@ -1023,8 +1237,10 @@ public final class GtvActivity extends Activity {
         homePage.setVisibility(tab == TAB_HOME ? View.VISIBLE : View.GONE);
         appsPage.setVisibility(tab == TAB_APPS ? View.VISIBLE : View.GONE);
         inputsPage.setVisibility(tab == TAB_INPUTS ? View.VISIBLE : View.GONE);
-        // The banner belongs to Home (when it fits above the rows); Apps and Inputs use the full height.
-        banner.setVisibility(tab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+        // The banner and the performance card belong to Home (when they fit above the rows); Apps and Inputs
+        // use the full height, and a card left on screen there would sit over the grid's right-hand tiles.
+        updateBanner();
+        if (perfCard != null) perfCard.setVisibility(tab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
     }
 
     /** Home's first app (Your apps, first place). */
@@ -1126,12 +1342,15 @@ public final class GtvActivity extends Activity {
                 img.setImageDrawable(null);
                 name.setText(a.label);
             }
-            // A recycled card may still carry the zoom of the tile it showed before.
-            boolean focused = card.isFocused();
+            // A recycled card may still carry the zoom or dimness of the tile it showed before.
+            boolean focused = card.isFocused(), carried = a == moving;
             card.animate().cancel();
-            card.setScaleX(focused ? 1.1f : 1f);
-            card.setScaleY(focused ? 1.1f : 1f);
-            card.setForeground(focused ? ring(a == moving ? MOVE_COLOR : Color.WHITE) : null);
+            boolean carrying = moving != null;
+            float scale = focused ? (carrying ? 1.15f : 1.1f) : 1f;
+            card.setScaleX(scale);
+            card.setScaleY(scale);
+            card.setTranslationZ(focused ? (carrying ? 16 : 8) * dp : 0);
+            card.setAlpha(focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f));
             card.setOnClickListener(v -> open(a));
             card.setOnLongClickListener(v -> { menu(a, v); return true; });
             card.setOnFocusChangeListener((v, has) -> {
@@ -1143,18 +1362,39 @@ public final class GtvActivity extends Activity {
         @Override public int getItemCount() { return items.size(); }
     }
 
+    /** While a tile is carried: how far the others step back, and how see-through the carried one goes. */
+    private static final float DIM_MOVING = 0.4f, GHOST = 0.75f;
+
+    /**
+     * An ordinary selection: the tile simply zooms and lifts — no frame, which told you nothing on white artwork
+     * anyway. Carrying one (hold OK, Move) lifts it further, makes it see-through and fades every other tile, so
+     * it reads as held.
+     */
     private void focusTile(View v, boolean has) {
-        v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).translationZ(has ? 8 * dp : 0).setDuration(140).start();
-        v.setForeground(has ? ring(Color.WHITE) : null);
+        boolean carrying = moving != null;
+        float scale = has ? (carrying ? 1.15f : 1.1f) : 1f;
+        v.animate().scaleX(scale).scaleY(scale)
+                .translationZ(has ? (carrying ? 16 : 8) * dp : 0)
+                .alpha(has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f))
+                .setDuration(140).start();
+        if (has && carrying) dimOthers(v);
     }
 
-    private static final int MOVE_COLOR = 0xFF6EC1FF;
-
-    private GradientDrawable ring(int color) {
-        GradientDrawable r = new GradientDrawable();
-        r.setCornerRadius(12 * dp);
-        r.setStroke((int) ((color == MOVE_COLOR ? 4 : 3) * dp), color);
-        return r;
+    /** Fades every tile but this one, for the duration of a move. */
+    private void dimOthers(View focused) {
+        float others = moving != null ? DIM_MOVING : 1f;
+        for (ViewGroup group : new ViewGroup[]{homeGrid, appsGrid, inputsRow}) {
+            if (group == null) continue;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                if (child == focused || child instanceof TextView) continue;   // headers keep their own look
+                child.animate().cancel();
+                child.setAlpha(others);
+                child.setScaleX(1f);
+                child.setScaleY(1f);
+                child.setTranslationZ(0f);
+            }
+        }
     }
 
     private GradientDrawable tileBackground(int color) {

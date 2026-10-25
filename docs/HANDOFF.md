@@ -1,7 +1,8 @@
-# Handoff — CleanYourTV, October 2025
+# Handoff — CleanYourTV, 25 October 2025
 
 Where the work stands, what is still open, and where everything lives. Read the three sections in order:
-**state** (what is on the TV now), **open work** (what to pick up), **map** (where things are in the repo).
+**state** (what is on the TV now), **open work** (what to pick up), **keeping the TV healthy**, **map**
+(where things are in the repo).
 
 ---
 
@@ -10,15 +11,30 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.04** (`versionCode` 204), the Google TV layout as Home |
-| Branch | `claude/zen-euler-0mir9r` (commit 47b7086), ahead of `main` |
-| Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work |
+| Launcher on the TV | **2.12** (`versionCode` 212), the Google TV layout as Home |
+| Branch | `claude/zen-euler-0mir9r`. PR #3 carries 2.05–2.12 |
+| Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
+| Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
 | Screensaver | the TV's own (Google Backdrop). The launcher never changed it; its Clock screensaver stays off. |
 
 ### Version numbers
 `A.BB` in [`launcher/app/build.gradle`](../launcher/app/build.gradle): a fix or minor change raises BB
-(2.04 → 2.05), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+(2.12 → 2.13), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+
+### What each build after the merge added
+Newest first; PR #2 merged at 2.04.
+
+| | |
+|---|---|
+| **2.12** | The selection frame is gone: a selected tile is simply zoomed and lifted. The owner tried the ring (2.09, 2.11) and dimming the others (2.10) and settled on the zoom alone |
+| **2.11** | Selection is the white ring again (2.10's "dim everything else" was tried and turned down for ordinary selection); the carried tile keeps 2.10's lifted, ghosted look with the others faded; the banner shows **only while an app is selected**, so arriving at Home names nothing until Down picks one |
+| **2.10** | The selected tile is now told apart by **dimming the others** (a white ring was invisible on white artwork such as Netflix or the Play Store); a tile being moved is lifted and ghosted instead of framed; and Home from another tab no longer leaves the banner naming whatever was selected over there |
+| **2.09** | **Reverted 2.08's artwork change** (see below); the carried tile's frame now covers the artwork's edges; the hold-OK menu panel is solid, because tiles read straight through the sheer one over a bright wallpaper |
+| **2.08** | The hold-OK menu opens above a tile when there is no room below (bottom-row apps were cut off); a load-average figure stands in where the TV blocks the processor reading; **and an artwork change that was measured worse and reverted in 2.09** |
+| **2.07** | The card shrinks before it hides: every figure where there is room, then the essential few (processor, memory used, storage used, frames), then nothing. Before this it vanished entirely at 2 or more Favorite rows |
+| **2.06** | Memory and storage also shown as used / total. The owner chose to **keep both** the free and used rows |
+| **2.05** | The performance card (Launcher settings → Performance card, off by default) and its `Stats` reader; pressing Home now lands on the Home tab rather than the first app |
 
 ### Build, test, audit
 ```bash
@@ -63,9 +79,8 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Known bugs
-| Bug | Where | Note |
-|---|---|---|
-| The hold-OK menu for apps in the **bottom row** opens past the bottom edge of the screen | `GtvActivity.showMenu()` | Owner saw it in 2.04 and chose to fix it later. The Apple layout already solves this in `MainActivity.onTileLongPressed()`: it measures the panel and opens it **above** the tile when it would not fit below. Copy that approach. |
+None open. The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now measures the panel and opens it
+above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### Open: the APK size budget
 The release APK is **about 880 KB**, and **some 830 KB of that is the two CMU Sans font files**
@@ -83,36 +98,73 @@ python3 -m fontTools.subset launcher/app/src/main/res/font/cmu_sans.ttf \
   --unicodes=U+0020-007E,U+00A0-024F,U+0370-03FF,U+0400-04FF,U+2000-206F,U+20A0-20BF,U+2122,U+2190-21FF,U+2500-257F \
   --layout-features='*' --no-hinting --desubroutinize --output-file=cmu_sans.ttf
 ```
-Also stale because of this: the README card image (`docs/images/card.jpg`) still reads "429 KB launcher". The
-README text is corrected; the image needs regenerating with `tools/readme_card.py`, and its alt text matched to it.
+Also stale because of this: the README card image (`docs/images/card.jpg`) still reads **"429 KB launcher"**. The
+README text, its alt text and `tools/readme_stats.py` now all say 880 KB, so a re-render will be correct — but the
+picture itself could not be rebuilt here: `tools/readme_stats.py` and `readme_card.py` need `Fredoka.ttf`, which is
+not in the repo, and this container's network policy refuses `fonts.google.com` and `cdn.jsdelivr.net`. To finish
+it: get Fredoka (the variable TTF from Google Fonts), then
+`tools/venv/bin/python -I tools/readme_stats.py Fredoka.ttf docs/images/stats.png`, the same for
+`readme_featured.py`, then `readme_card.py Fredoka.ttf docs/images/card.png` — and note the README points at
+`card.jpg`, so the PNG still has to be converted. Leave the TV-model count alone: `tests/test_examples.py` checks
+it against the folders.
 
-### Open question: a streaming app lags (not a launcher bug)
-The owner reports that one of the Asian streaming apps (iQIYI / WeTV / Youku) is slow: **a black screen on a
-fresh start**, then slow browsing and stuttering playback. Nothing is diagnosed or changed yet — this is parked
-waiting for logs from the TV.
+### Diagnosed: a streaming app lags (not a launcher bug)
+**Symptom:** iQIYI / WeTV / Youku showed a black screen on a fresh start, then slow browsing and stuttering.
 
-Leads, in order of suspicion:
-1. **A crashing background service.** An earlier crash check on this TV showed `WeTV qqlivei18n:push` crashing
-   repeatedly. A service that keeps dying and restarting burns CPU and memory and would look exactly like this.
-2. **Ad-blocking DNS.** If a Pi-hole or AdGuard resolver is set for this TV, a swallowed (rather than refused) ad
-   request makes these apps wait for the timeout — the classic cause of a black screen on launch.
-3. **Memory pressure.** These are heavy apps on a 2020 Sony with limited RAM.
-4. **A stale app version or a full `/data`.**
+**Cause, measured over ADB:** the TV has 2.36 GB of RAM and reported **`status critical`, 301 MB free and 0 KB
+cached**. Zero cached means no app can stay warm, so every launch starts from nothing and evicts something else.
+**iQIYI alone held 308–425 MB**, five times any other app. The ad-blocking-DNS theory was ruled out (no resolver
+set on the TV) and `/data` was 84% full.
 
-Diagnostics to ask the owner for (read-only, from `platform-tools`):
+**What fixed it (October 2025):**
 ```powershell
-.\adb.exe shell "pm list packages | findstr /i "iqiyi tencent youku""
-.\adb.exe shell "dumpsys meminfo | findstr /i "Total RAM:  Free RAM:  Used RAM:""
-.\adb.exe shell df /data
-.\adb.exe shell settings get global animator_duration_scale
-.\adb.exe shell "getprop | findstr /i dns"
-# then: logcat -c, open the app with the remote, wait through the black screen, logcat -d > lag.txt
+.\adb.exe shell am force-stop com.iqiyi.i18n.tv
+.\adb.exe shell pm trim-caches 2G
+.\adb.exe shell pm disable-user --user 0 com.google.android.tvrecommendations   # reverse: pm enable <pkg>
 ```
+plus clearing iQIYI's cache on the TV (Settings → Apps → iQIYI → Clear cache; never "Clear data", it logs you out).
+Result: **status normal, 741 MB free, 309 MB cached.**
 
-**Constraint the owner set: nothing may stop the app from updating.** So the fixes on the table are clearing the
-app's *cache* (not its data), stopping only the crashing push service, testing with ad-blocking DNS off,
-updating the app in the Play Store, and lowering the animation scale. **Never** disable the app itself, the Play
-Store, or Play services — that is exactly what would block updates.
+**It comes back.** iQIYI grows again the longer it runs, so the force-stop is the repeatable reset. Nothing here
+touches the app, the Play Store or Play services, so updates keep working — that was the owner's condition.
+
+**Our own share, measured honestly:** the launcher is ~39 MB (peaks near 56 MB with the Apps grid open), of which
+about **22 MB is app artwork held in the native heap** — bitmaps for every installed app, loaded up front in
+`GtvActivity.loadApps()`. Its Java heap is 2.3 MB, so there is no leak. It is a minor contributor next to iQIYI,
+**Tried in 2.08 and reverted in 2.09 — measured worse, not better.** Holding no artwork and loading it per tile in
+`onBindViewHolder` meant every tile scrolling into view decoded a fresh copy, and the selection reloaded a banner
+just to sample the glow colour. The native heap went **21.8 MB → 33.9 MB → 38.0 MB and was still climbing**; the
+visible behaviour was fine (no blank tiles), the memory was not. Trading memory for repeated decoding is the wrong
+trade on this TV.
+
+**Not a leak — measured and cleared (2.09).** A clean run (`am force-stop`, then Home, then two or three minutes of
+Home and the Apps tab with no settings visits) reports **`Activities: 1`, `Views: 59` and a steady native heap of
+19.9 MB**. The 38–50 MB seen earlier came from the testing pattern itself: every settings toggle and every APK
+install makes Home rebuild, and the discarded screens sit in memory until Android collects them. An hour of about
+ten installs and a dozen toggles piles them up; ordinary use does not. Read `Activities` only after a clean start —
+right after a visit to Launcher settings, two or three screens legitimately exist.
+
+Worth improving one day, though not a bug: `GtvActivity` calls `recreate()` for **any** settings change
+(`onResume`, `onActivityResult`, and the package receiver), which re-decodes every app's artwork. Most settings
+could be re-applied without rebuilding.
+
+**If this 18–22 MB is worth reclaiming, the approach to try is downsampling, not on-demand loading:** decode each
+banner at roughly tile size (about 207×116 px at 8 per row) instead of its full resolution, keeping one copy per
+app as now. That reduces the bytes rather than moving the cost around. Measure
+`dumpsys meminfo com.gathin.tvhome` before and after, and do not claim a win without it — 2.08 is the cautionary
+tale.
+
+### The performance card: four figures this TV will not give
+The card (Launcher settings → Performance card, added in 2.05) shows memory, storage, frames, network and uptime
+on the KD-49X8500H. Four of its figures stay blank here, each for a known reason:
+
+| Figure | Why | Possible follow-up |
+|---|---|---|
+| **Processor** | Android 9 blocks apps from `/proc/stat`, and this set also refuses the `cpuidle` fallback, so both sources in `Stats.cpuPercent()` are dead. The Apple layout's stats line has the same gap | **Done in 2.08:** `Stats.loadAverage()` reads `/proc/loadavg` instead and the card shows **Load (1 min)**. A load figure, not a percentage: 1.00 means about one core's worth of work. If that file is closed too, the row stays out |
+| **Temperature** | The thermal sensors are not readable by apps on this set (`Stats.temperatureC()` probes zones 0–11, then gives up). No public API on Android 9 replaces it | None |
+| **Wi‑Fi signal**, **Link speed** | **Confirmed: the TV is wired.** `ip -o addr` shows an address on `eth0` and nothing on `wlan0`, so there is no Wi-Fi to report and leaving the rows out is correct, not a fault | A **Network type** row (Wi‑Fi / Ethernet / offline) was offered and declined as clutter: it would never change on a wired set. The detection already exists in `MainActivity` (`NetworkCapabilities.TRANSPORT_ETHERNET`, which drives the top-bar pill and its `ic_ethernet` icon) |
+
+Nothing is built for these: the owner has not asked for them, and two of the three have no fix.
 
 ### Next phases (from the proposal, [`docs/proposals/google-tv-ui/README.md`](proposals/google-tv-ui/README.md))
 1. **Settings redesign** (§3, the largest item). The owner picked a **right-side panel in the TV's own style**:
@@ -135,11 +187,52 @@ Store, or Play services — that is exactly what would block updates.
 - Rows below dock sets the number of Favorite rows; Home sits on the bottom edge; ⌄⌄ marks the lowest row and
   Down from it opens the Apps tab.
 - Both Google TV popups use the tab style; the Apple layout keeps its own.
+- The performance card keeps **both** the free and the used rows for memory and storage, and shrinks to the
+  essential figures before hiding itself (2.07). No Network type row.
+- Pressing Home leaves the selection on the **Home tab**, not on the first app, and the banner stays hidden until
+  an app is selected.
+- **A selected tile is told apart by the zoom and lift alone — no frame, no dimming.** Three styles were tried on
+  the TV before this one settled: a white ring (2.09, 2.11), which says nothing on white artwork such as Netflix or
+  the Play Store, and dimming every other tile (2.10), which the owner turned down. Dimming survives only while a
+  tile is being carried. Please do not "improve" any of it back.
 - Continuous effects stay off by default; the screensaver stays the TV's own.
 
 ---
 
-## 3. Map of the repository
+## 3. Keeping the TV healthy
+
+The TV is a 2.36 GB set running heavy streaming apps, so memory and storage fill up again over weeks of use. When
+it starts feeling slow, run these from `platform-tools`. Both are safe to repeat, and **neither affects an app's
+ability to update** — that was the owner's condition.
+
+```powershell
+.\adb.exe shell am force-stop com.iqiyi.i18n.tv        # the biggest single consumer: 308-425 MB
+.\adb.exe shell pm trim-caches 2G                       # freed about 700 MB the first time
+```
+
+Check whether it helped — look for `status normal` and a non-zero cached figure:
+```powershell
+.\adb.exe shell "dumpsys meminfo | grep -E 'Total RAM|Free RAM|Used RAM'"
+.\adb.exe shell dumpsys diskstats | head -5
+```
+
+Healthy numbers as of October 2025, after the clean-up: **status normal, 741 MB free, 309 MB cached, 27% of
+`/data` free.** Before it: critical, 301 MB free, **0 KB cached**, 16% free.
+
+Notes for whoever picks this up:
+- **Zero cached is the red flag**, not low free memory. With nothing cached, every app launch is a cold start,
+  which is what made Youku show a black screen on first open (and only the first — the second was warm and fine).
+- Apps still hold about **1 GB of cache** that `trim-caches` will not take. The TV's own **Settings → Apps** lists
+  apps by size and clears each one's cache; that is more reliable than anything queryable over ADB, because
+  `adb shell` cannot read inside `/data/data`.
+- `com.google.android.tvrecommendations` is **disabled** (it only fed rows on Sony's stock home). Reverse with
+  `pm enable com.google.android.tvrecommendations`.
+- Sony's `com.sony.dtv.tvx` holds ~64 MB and was left alone: on some Sony sets it is tied to Live TV or the
+  inputs, so check what depends on it before touching it.
+- **Never** disable a streaming app, the Play Store or Play services to save memory. That breaks updates.
+- Clearing an app's **cache** is safe; clearing its **data** logs you out.
+
+## 4. Map of the repository
 
 A short version. The full one, with every launcher class grouped by job and every test explained, is
 [`MOC.md`](MOC.md).
@@ -197,7 +290,7 @@ tests/                     Python tests; CI runs them (.github/workflows/ci.yml)
 
 ---
 
-## 4. Working with the owner
+## 5. Working with the owner
 
 They are a lead mechanical engineer and the project manager: technical, short on time, and they test every build on
 the real TV. What works best:

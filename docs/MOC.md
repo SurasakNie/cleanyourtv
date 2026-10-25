@@ -11,6 +11,7 @@ Every part of this repository, what it is for, and where to start. The companion
 | Change the launcher | [`launcher/`](#launcher) |
 | Change how Home looks without rebuilding | [`themes/`](#themes) |
 | Fix something that went wrong | [`docs/TROUBLESHOOTING.md`](TROUBLESHOOTING.md) |
+| Speed up a TV that has gone sluggish | [`HANDOFF.md` § Keeping the TV healthy](HANDOFF.md#3-keeping-the-tv-healthy) |
 | See the plan for the new UI | [`docs/proposals/google-tv-ui/`](proposals/google-tv-ui/README.md) |
 
 ---

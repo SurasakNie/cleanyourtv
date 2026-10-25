@@ -149,6 +149,13 @@
         <TextView style="@style/SettingsHint" android:text="@string/hint_preview" />
 
         <TextView
+            android:id="@+id/perfChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="10dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_perf" />
+
+        <TextView
             android:id="@+id/followThemeChoice"
             style="@style/SettingsRow"
             android:layout_marginTop="18dp"

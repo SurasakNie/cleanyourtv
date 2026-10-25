@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/PRESS.md"><img src="docs/images/card.jpg" alt="159 TV models · 52 brands · 24 languages · 429 KB launcher. Featured in TechCrunch, TechRadar, Tom's Guide, Mashable, Android Authority, XDA, FlatpanelsHD, It's FOSS, Phandroid, GIGAZINE, Xataka, WinFuture, Frandroid, Macitynet, Techaeris, TechPP and 63 more: 79 articles from 22 countries. Before: stock Google TV home with a sponsored ad. After: the Clean Your TV launcher." width="800"></a>
+  <a href="docs/PRESS.md"><img src="docs/images/card.jpg" alt="159 TV models · 52 brands · 24 languages · 880 KB launcher. Featured in TechCrunch, TechRadar, Tom's Guide, Mashable, Android Authority, XDA, FlatpanelsHD, It's FOSS, Phandroid, GIGAZINE, Xataka, WinFuture, Frandroid, Macitynet, Techaeris, TechPP and 63 more: 79 articles from 22 countries. Before: stock Google TV home with a sponsored ad. After: the Clean Your TV launcher." width="800"></a>
 </p>
 
 > Vibe coded my parents' TV this afternoon! It was showing a sponsored ad before you could even get
@@ -345,6 +345,7 @@ The **TV** needs Android 8.0 (API 26) or newer: `minSdk` is a compile-time floor
 - **Remote keys**: an optional accessibility service keeps the remote's Input button working on Google TV (`INPUT_KEY_SERVICE=1` at install) and can bring back other buttons only the stock launcher answered, such as the YouTube button (`app_keys` and `input_key_keycodes`, in `config.xml` or a theme; `HOME_KEY_SERVICE=1` reads `app_keys` too), another fixes sticks whose Home key sends ALL_APPS and opens Settings from the remote's gear button, even one Android does not map (`HOME_KEY_SERVICE=1`, scancodes or keycodes in `config.xml`). With `settings_key_panel` the gear opens a [small quick settings panel](docs/images/quick-settings-panel.jpg) instead, over Home or any app: TV settings, Display, Network, Apps and Launcher settings.
 - **Navigation** is deliberate: Up and Down move one row, the top buttons never fall through to tiles and Down from them returns to the dock tile you came from, the last focused app is remembered, and installing or removing an app refreshes the tiles while Home is open.
 - **Artwork**: app banners load at xhdpi or better, so low-density TV UIs do not downsample them before the focus zoom.
+- **Performance card (Launcher settings):** a small card under the clock showing what the TV is doing — processor, free memory, free storage, temperature, frame rate, network rate, Wi-Fi signal, link speed and uptime. Off by default; nothing is read while it is off, and figures the TV keeps from apps are left out rather than shown blank. Everything is read on a background thread from files the launcher may already see; nothing leaves the TV.
 - **Favorite apps (Google TV layout):** hold OK on an app in the Apps tab to add it to the Favorite rows under Your apps, or on a favorite to remove it; Move reorders them. The list is kept in the launcher's own files, separate from the dock.
 - **Version numbers** use `A.BB` (`versionName` in [`launcher/app/build.gradle`](launcher/app/build.gradle)): a bug fix or minor change raises BB (2.00 → 2.01), a major change raises A (2.xx → 3.00). `versionCode` is A×100 + BB (2.01 → 201) and must always go up, or Android refuses the update.
 
