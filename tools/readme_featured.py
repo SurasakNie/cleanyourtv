@@ -1,6 +1,6 @@
-"""Renders the Featured in panel (docs/featured.png), the middle part of the README card.
+"""Renders the Featured in panel (docs/images/featured.png), the middle part of the README card.
 
-Update LOGOS / MORE, then: python3 tools/readme_featured.py Fredoka.ttf docs/featured.png
+Update LOGOS / MORE, then: python3 tools/readme_featured.py Fredoka.ttf docs/images/featured.png
 and rebuild the card with tools/readme_card.py. Logos come from docs/press/."""
 import sys
 from PIL import Image, ImageDraw, ImageFont

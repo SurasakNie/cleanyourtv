@@ -94,6 +94,9 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 
 ## 3. Map of the repository
 
+A short version. The full one, with every launcher class grouped by job and every test explained, is
+[`MOC.md`](MOC.md).
+
 ```
 README.md                  What the project is, quick start, the launcher's own section (settings, keys, versioning)
 PROMPT.md                  The brief this project was built from
@@ -118,7 +121,9 @@ tools/                     Python and shell for the TV itself
 
 themes/                    Five themes (config.json + wallpaper); themes/README.md lists every key
 examples/                  Per-device debloat records (one folder per TV model, hundreds of them)
-docs/                      This handoff, troubleshooting, the remote-key guide, module and card specs, images
+docs/                      This handoff, troubleshooting, the remote-key guide, module and card specs
+  MOC.md                     Map of Content: every folder and file, and where to start for a given task
+  images/                    Every screenshot and rendered image the documents use
   proposals/google-tv-ui/    The full UI proposal: layout, settings, effects, wallpapers, ideas, owner answers
 tests/                     Python tests; CI runs them (.github/workflows/ci.yml). No Android tests run in CI.
 ```
