@@ -199,6 +199,9 @@ public final class GtvActivity extends Activity {
         if (currentTab != TAB_HOME) showTab(TAB_HOME);
         styleTabs();
         if (homeGrid != null) homeGrid.scrollToPosition(0);
+        // The selection sits on the Home tab, so no tile announces itself: name the first app rather than leave
+        // the banner showing whatever was last selected in the Apps tab.
+        if (!dock.isEmpty()) showApp(dock.get(0));
     }
 
     private void build() {
@@ -494,6 +497,16 @@ public final class GtvActivity extends Activity {
         refocusMoving();
     }
 
+    /** Puts the carried tile's lift and ghost on, or takes them off again. */
+    private void styleCarried(View v, boolean carried) {
+        v.animate().cancel();
+        v.animate().scaleX(carried ? 1.15f : 1.1f).scaleY(carried ? 1.15f : 1.1f)
+                .translationZ((carried ? 16 : 8) * dp)
+                .alpha(carried ? GHOST : 1f)
+                .setDuration(140).start();
+        v.setForeground(null);
+    }
+
     /**
      * Move mode: arrows move the tile through Your apps and the Favorite rows as one list (Left/Right one place,
      * Up/Down one row); OK or Back puts it down and saves. Otherwise: Up from a page's top row goes to that page's
@@ -609,7 +622,10 @@ public final class GtvActivity extends Activity {
         int pos = homeItems.indexOf(a);
         homeGrid.post(() -> {
             RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(pos);
-            if (vh != null) vh.itemView.requestFocus();
+            if (vh == null) return;
+            vh.itemView.requestFocus();
+            styleCarried(vh.itemView, false);   // put down: back to an ordinary selection
+            dimOthers(vh.itemView);
         });
     }
 
@@ -618,7 +634,8 @@ public final class GtvActivity extends Activity {
         RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(moving));
         if (vh == null) return;
         vh.itemView.requestFocus();
-        vh.itemView.setForeground(ring(MOVE_COLOR));
+        styleCarried(vh.itemView, true);
+        dimOthers(vh.itemView);
     }
 
     @Override
@@ -1302,12 +1319,15 @@ public final class GtvActivity extends Activity {
                 img.setImageDrawable(null);
                 name.setText(a.label);
             }
-            // A recycled card may still carry the zoom of the tile it showed before.
-            boolean focused = card.isFocused();
+            // A recycled card may still carry the zoom or dimness of the tile it showed before.
+            boolean focused = card.isFocused(), carried = a == moving;
             card.animate().cancel();
-            card.setScaleX(focused ? 1.1f : 1f);
-            card.setScaleY(focused ? 1.1f : 1f);
-            card.setForeground(focused ? ring(a == moving ? MOVE_COLOR : Color.WHITE) : null);
+            float scale = focused ? (moving != null ? 1.15f : 1.1f) : 1f;
+            card.setScaleX(scale);
+            card.setScaleY(scale);
+            card.setTranslationZ(focused ? (moving != null ? 16 : 8) * dp : 0);
+            card.setAlpha(focused ? (carried ? GHOST : 1f) : (moving != null ? DIM_MOVING : DIM));
+            card.setForeground(null);
             card.setOnClickListener(v -> open(a));
             card.setOnLongClickListener(v -> { menu(a, v); return true; });
             card.setOnFocusChangeListener((v, has) -> {
@@ -1319,31 +1339,39 @@ public final class GtvActivity extends Activity {
         @Override public int getItemCount() { return items.size(); }
     }
 
-    private void focusTile(View v, boolean has) {
-        v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).translationZ(has ? 8 * dp : 0).setDuration(140).start();
-        v.setForeground(has ? ring(Color.WHITE) : null);
-    }
-
-    private static final int MOVE_COLOR = 0xFF6EC1FF;
+    /** Tile dimness: the selected one keeps its colour, the rest step back. 1f when nothing is selected. */
+    private static final float DIM = 0.55f, DIM_MOVING = 0.4f, GHOST = 0.75f;
 
     /**
-     * The frame around the selected tile. A single rounded stroke left slivers of artwork showing at the corners,
-     * where the tile's own rounded clip and the stroke do not quite meet, so the carried tile gets a second stroke
-     * just inside the first and a wash over the artwork: it then reads as held, not merely outlined.
+     * The selected tile is told apart by lifting it and fading the others, not by an outline: a white ring is
+     * invisible on the white artwork of Netflix, MonoMax or the Play Store, while dimming reads on any colour.
      */
-    private Drawable ring(int color) {
-        GradientDrawable outer = new GradientDrawable();
-        outer.setCornerRadius(12 * dp);
-        outer.setStroke((int) ((color == MOVE_COLOR ? 4 : 3) * dp), color);
-        if (color != MOVE_COLOR) return outer;
-        GradientDrawable inner = new GradientDrawable();
-        inner.setCornerRadius(10 * dp);
-        inner.setStroke((int) (3 * dp), color);
-        inner.setColor(0x33000000);
-        android.graphics.drawable.LayerDrawable held =
-                new android.graphics.drawable.LayerDrawable(new Drawable[]{inner, outer});
-        held.setLayerInset(0, (int) (3 * dp), (int) (3 * dp), (int) (3 * dp), (int) (3 * dp));
-        return held;
+    private void focusTile(View v, boolean has) {
+        boolean moving = this.moving != null;
+        float scale = has ? (moving ? 1.15f : 1.1f) : 1f;
+        v.animate().scaleX(scale).scaleY(scale)
+                .translationZ(has ? (moving ? 16 : 8) * dp : 0)
+                .alpha(has ? (moving ? GHOST : 1f) : (moving ? DIM_MOVING : DIM))
+                .setDuration(140).start();
+        v.setForeground(null);
+        if (has) dimOthers(v);
+    }
+
+    /** Fades every tile but this one. Called on each selection, so a recycled tile cannot keep a stale dimness. */
+    private void dimOthers(View focused) {
+        float others = moving != null ? DIM_MOVING : DIM;
+        for (ViewGroup group : new ViewGroup[]{homeGrid, appsGrid, inputsRow}) {
+            if (group == null) continue;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                if (child == focused || child instanceof TextView) continue;   // headers keep their own look
+                child.animate().cancel();
+                child.setAlpha(others);
+                child.setScaleX(1f);
+                child.setScaleY(1f);
+                child.setTranslationZ(0f);
+            }
+        }
     }
 
     private GradientDrawable tileBackground(int color) {
