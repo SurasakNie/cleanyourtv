@@ -28,7 +28,6 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView clockChoice;
     private TextView previewChoice;
     private TextView glowChoice;
-    private TextView layoutChoice;
     private TextView fontChoice;
     private TextView ambientChoice, perfChoice;
     private boolean ambientGlow;
@@ -48,6 +47,7 @@ public final class LauncherSettingsActivity extends Activity {
         setContentView(R.layout.activity_launcher_settings);
         Fonts.apply(findViewById(android.R.id.content));
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        fillAbout();
         Config config = Config.load(this);
         columns = config.columns;
         rowsBelowDock = config.rowsBelowDock;
@@ -134,13 +134,6 @@ public final class LauncherSettingsActivity extends Activity {
             }
             idleClockMinutes = next;
             choices.edit().putInt("home_idle_clock_minutes", next).apply();
-            setResult(RESULT_OK);
-            refresh();
-        });
-        layoutChoice = findViewById(R.id.layoutChoice);
-        layoutChoice.setOnClickListener(v -> {
-            choices.edit().putString(GtvActivity.PREF_LAYOUT,
-                    GtvActivity.enabled(this) ? "apple" : GtvActivity.LAYOUT_GTV).apply();
             setResult(RESULT_OK);
             refresh();
         });
@@ -289,6 +282,29 @@ public final class LauncherSettingsActivity extends Activity {
         refresh();
     }
 
+    /**
+     * About this UI: what it is, which build, and the set it is running on. Read-only, and not focusable, so the
+     * remote runs past it instead of stopping on each line. The version comes from the installed package rather
+     * than BuildConfig, which this build does not generate.
+     */
+    private void fillAbout() {
+        String version = getString(R.string.unknown);
+        try {
+            android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long code = android.os.Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            version = getString(R.string.about_version_value, info.versionName, code);
+        } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+            // Cannot happen for our own package, but a missing version must not take the panel down.
+        }
+        ((TextView) findViewById(R.id.aboutVersion)).setText(getString(R.string.about_version, version));
+        ((TextView) findViewById(R.id.aboutLayout)).setText(getString(R.string.about_layout,
+                getString(GtvActivity.enabled(this) ? R.string.layout_gtv : R.string.layout_apple)));
+        ((TextView) findViewById(R.id.aboutTv)).setText(getString(R.string.about_tv,
+                android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL));
+        ((TextView) findViewById(R.id.aboutAndroid)).setText(getString(R.string.about_android,
+                android.os.Build.VERSION.RELEASE, android.os.Build.VERSION.SDK_INT));
+    }
+
     private void refresh() {
         for (int i = 0; i < columnChoices.length; i++) {
             columnChoices[i].setSelected(columns == i + 5);
@@ -318,8 +334,6 @@ public final class LauncherSettingsActivity extends Activity {
         glowChoice.setAlpha(ambientGlow ? 1f : 0.5f);
         ambientChoice.setText(getString(R.string.ambient_state,
                 getString(ambientGlow ? R.string.on : R.string.off)));
-        layoutChoice.setText(getString(R.string.layout_state, getString(
-                GtvActivity.enabled(this) ? R.string.layout_gtv : R.string.layout_apple)));
         ((TextView) findViewById(R.id.hintRows)).setText(
                 GtvActivity.enabled(this) ? R.string.hint_rows_gtv : R.string.hint_rows);
         perfChoice.setText(getString(R.string.perf_state,

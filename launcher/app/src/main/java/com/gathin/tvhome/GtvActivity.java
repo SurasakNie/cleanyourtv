@@ -1011,8 +1011,8 @@ public final class GtvActivity extends Activity {
     private void buildBanner() {
         banner = new LinearLayout(this);
         banner.setOrientation(LinearLayout.VERTICAL);
+        // Plain text over the glow: neither fill nor outline. The glass fill is owed back as an effects switch.
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0x24FFFFFF);          // the glass fill, with no outline: the owner found the border boxy
         g.setCornerRadius(24 * dp);
         banner.setBackground(g);
         banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (22 * dp));

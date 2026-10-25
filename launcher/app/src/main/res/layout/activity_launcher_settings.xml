@@ -48,12 +48,6 @@
             <TextView style="@style/SettingsSection" android:text="@string/section_layout" />
 
             <TextView
-                android:id="@+id/layoutChoice"
-                style="@style/SettingsRow" />
-
-            <TextView style="@style/SettingsHint" android:text="@string/hint_layout" />
-
-            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
@@ -201,6 +195,17 @@
                 style="@style/SettingsRow"
                 android:layout_marginTop="10dp"
                 android:text="@string/tv_settings" />
+
+            <TextView style="@style/SettingsSection" android:text="@string/section_about" />
+
+            <TextView style="@style/SettingsHint" android:layout_marginTop="0dp" android:text="@string/about_what" />
+
+            <TextView android:id="@+id/aboutVersion" style="@style/SettingsAbout" />
+            <TextView android:id="@+id/aboutLayout" style="@style/SettingsAbout" />
+            <TextView android:id="@+id/aboutTv" style="@style/SettingsAbout" />
+            <TextView android:id="@+id/aboutAndroid" style="@style/SettingsAbout" />
+
+            <TextView style="@style/SettingsHint" android:text="@string/about_project" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

@@ -161,6 +161,15 @@
     <string name="section_effects">אפקטים</string>
     <string name="section_extras">נוספים</string>
     <string name="section_tv">הגדרות הטלוויזיה</string>
+    <string name="section_about">על ממשק זה</string>
+    <string name="about_what">מסך בית חלופי ל‑Android TV: לשוניות, כותרת ושורות של האפליקציות שלך, בלי המלצות ובלי שליחת מידע לשום מקום.</string>
+    <string name="about_version">גרסה  %1$s</string>
+    <string name="about_version_value">%1$s (%2$d)</string>
+    <string name="about_layout">פריסה  %1$s</string>
+    <string name="about_tv">טלוויזיה  %1$s</string>
+    <string name="about_android">Android  %1$s (API %2$d)</string>
+    <string name="about_project">חלק מהפרויקט CleanYourTV:‏ github.com/SurasakNie/cleanyourtv</string>
+    <string name="unknown">לא ידוע</string>
     <string name="perf_state">כרטיס ביצועים: %1$s</string>
     <string name="hint_perf">כרטיס קטן מתחת לשעון שמראה מה הטלוויזיה עושה: מעבד, זיכרון, אחסון, טמפרטורה, קצב פריימים, רשת וזמן פעילות. נתונים שהטלוויזיה אינה חושפת פשוט לא יוצגו.</string>
     <string name="perf_title">ביצועים</string>
