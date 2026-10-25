@@ -100,6 +100,12 @@ that firmware, grouped and commented. [`examples/README.md`](../examples/README.
   `README.md` all agree. A new folder without table rows fails CI.
 - A handful of TVs have a longer write-up in [`docs/devices/`](devices/) instead of, or beside, their list.
 
+**Decided (October 2025): this folder stays flat.** Grouping it into brand subfolders was considered and turned
+down: the names already sort by brand, the move would rewrite all 160 rows of the index table plus the TV table in
+`README.md`, the Chinese README, `SHOWCASE.md`, the issue template and the script examples, and — because this is a
+public repository — it would permanently break every outside link to `examples/<model>` in issues, pull requests,
+articles and bookmarks. The cost is real and the gain is cosmetic, so please do not revisit it without a new reason.
+
 ---
 
 ## docs
