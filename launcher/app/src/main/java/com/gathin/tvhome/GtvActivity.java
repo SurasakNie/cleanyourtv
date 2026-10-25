@@ -1012,8 +1012,7 @@ public final class GtvActivity extends Activity {
         banner = new LinearLayout(this);
         banner.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0x24FFFFFF);
-        g.setStroke((int) Math.max(1, dp), 0x3DFFFFFF);
+        g.setColor(0x24FFFFFF);          // the glass fill, with no outline: the owner found the border boxy
         g.setCornerRadius(24 * dp);
         banner.setBackground(g);
         banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (22 * dp));

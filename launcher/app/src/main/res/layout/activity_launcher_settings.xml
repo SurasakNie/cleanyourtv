@@ -17,7 +17,7 @@
 
     <ScrollView
         android:id="@+id/panel"
-        android:layout_width="340dp"
+        android:layout_width="420dp"
         android:layout_height="match_parent"
         android:layout_gravity="end"
         android:background="@drawable/settings_panel"
@@ -38,7 +38,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/launcher_settings"
                 android:textColor="#FFFFFFFF"
-                android:textSize="28sp" />
+                android:textSize="24sp" />
 
             <TextView
                 style="@style/SettingsHint"

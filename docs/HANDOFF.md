@@ -27,6 +27,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.14** | The settings panel is wider (420dp) with slightly smaller text, so more rows fit; the banner lost its outline, keeping the glass fill |
 | **2.13** | Launcher settings is now a **panel down the right-hand side over Home**, in the TV's own style: Home stays visible and dimmed, the rows are grouped under section headings, and the clock and gear step aside while it is open. Every setting from the one-list version is kept. Choice pages come next |
 | **2.12** | The selection frame is gone: a selected tile is simply zoomed and lifted. The owner tried the ring (2.09, 2.11) and dimming the others (2.10) and settled on the zoom alone |
 | **2.11** | Selection is the white ring again (2.10's "dim everything else" was tried and turned down for ordinary selection); the carried tile keeps 2.10's lifted, ghosted look with the others faded; the banner shows **only while an app is selected**, so arriving at Home names nothing until Down picks one |
