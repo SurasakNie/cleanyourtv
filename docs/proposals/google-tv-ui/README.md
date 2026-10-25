@@ -112,6 +112,10 @@ Launcher                                   (left menu)
   ›  opens a choice page
 ```
 
+**Known bug (2.04, owner chose to fix later):** the hold-OK menu for an app in the bottom row opens past the
+bottom edge of the screen. `MainActivity.onTileLongPressed()` already solves this for the Apple layout by measuring
+the panel and opening it above the tile; `GtvActivity.showMenu()` should do the same.
+
 **To add in the redesign (owner notes, 2.02 testing):**
 - **Banner title size**: choice page to adjust the size of the big app name on the Google TV Home banner.
 - **Banner border**: on/off toggle for the glass border around the banner.

@@ -473,6 +473,11 @@ script for it is in [PR #84](https://github.com/Gathin23/cleanyourtv/pull/84).
 **Can I just download the APK?** Build it with the one-line script; it takes a minute and you
 control what goes on your TV. No prebuilt binaries.
 
+## Handoff
+
+[`docs/HANDOFF.md`](docs/HANDOFF.md) is the current state of the work: what is installed on the TV, the open bugs
+and next phases, a map of every folder in this repository, and the rules this project follows.
+
 ## Contributing
 
 The most useful contribution is your TV's debloat list, so the next person with that model does
