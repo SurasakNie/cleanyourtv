@@ -149,6 +149,12 @@
     <string name="gtv_inputs">כניסות</string>
     <string name="gtv_your_apps">האפליקציות שלך</string>
     <string name="gtv_other_apps">אפליקציות מועדפות</string>
+    <string name="gtv_add_favorite">הוספה למועדפים</string>
+    <string name="gtv_remove_favorite">הסרה מהמועדפים</string>
+    <string name="gtv_added_favorite">%1$s נוספה למועדפים</string>
+    <string name="gtv_removed_favorite">%1$s הוסרה מהמועדפים</string>
+    <string name="gtv_favorites_full">רשימת המועדפים מלאה</string>
+    <string name="gtv_favorite_not_saved">לא ניתן לשמור את המועדפים</string>
     <string name="gtv_move">הזזה</string>
     <string name="gtv_move_hint">שמאלה וימינה מזיזים את האפליקציה. OK או חזרה מניחים אותה.</string>
     <string name="hint_rows_gtv">כמה שורות של אפליקציות מועדפות מוצגות מתחת לאפליקציות שלך. 0 מציג רק את האפליקציות שלך.</string>

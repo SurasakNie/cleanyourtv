@@ -118,6 +118,10 @@ public final class GtvActivity extends Activity {
     private boolean bannerFits = true, bannerCompact;
     /** Every app in Home order (saved order, dock_apps, name): the first row is Your apps, then Favorites. */
     private final List<App> ordered = new ArrayList<>();
+    /** The owner's Favorite apps (packages, in their order) shown under Your apps. */
+    private List<String> favPackages = new ArrayList<>();
+    /** The gear or hold-OK menu while it is on screen, so Home and pausing can close it. */
+    private PopupWindow openPopup;
     private LinearLayout inputsRow;
     private int currentTab = TAB_HOME;
     private int tileW, tileH;
@@ -173,6 +177,7 @@ public final class GtvActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (homePage == null) return;
+        closeMenu();
         tabs[TAB_HOME].requestFocus();   // focus out of Apps/Inputs before they hide (see openAppsAt)
         if (currentTab != TAB_HOME) showTab(TAB_HOME);
         styleTabs();
@@ -244,6 +249,7 @@ public final class GtvActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        closeMenu();
         resumed = false;
         handler.removeCallbacks(tick);
     }
@@ -314,29 +320,81 @@ public final class GtvActivity extends Activity {
             }
             return x.label.compareToIgnoreCase(y.label);
         });
+        List<String> saved = Favorites.load(this);
+        if (saved == null) {
+            // First run (or an unreadable file): start with the apps the rows show today, so nothing disappears.
+            saved = new ArrayList<>();
+            for (int i = cols; i < ordered.size() && saved.size() < Favorites.MAX; i++) {
+                saved.add(ordered.get(i).pkg);
+            }
+        }
+        favPackages = new ArrayList<>(saved);
         splitOrdered();
     }
 
-    /** Your apps = the first row of the Home order; Other apps = the rest (the first rows of it are Favorites). */
+    /** Your apps = the first row of the Home order; Favorites = the owner's list, minus anything in Your apps. */
     private void splitOrdered() {
         dock.clear();
         others.clear();
-        for (int i = 0; i < ordered.size(); i++) (i < cols ? dock : others).add(ordered.get(i));
+        for (int i = 0; i < ordered.size() && i < cols; i++) dock.add(ordered.get(i));
+        for (String pkg : favPackages) {
+            for (App a : ordered) {
+                if (a.pkg.equals(pkg) && !dock.contains(a) && !others.contains(a)) others.add(a);
+            }
+        }
         homeItems.clear();
         if (!dock.isEmpty()) {
             homeItems.add(getString(R.string.gtv_your_apps));
             homeItems.addAll(dock);
         }
-        int fav = Math.min(others.size(), cols * rowsBelow);
+        int fav = favouritesShown();
         if (fav > 0) {
             homeItems.add(getString(R.string.gtv_other_apps));
             homeItems.addAll(others.subList(0, fav));
         }
     }
 
+    private int favouritesShown() {
+        return Math.min(others.size(), cols * rowsBelow);
+    }
+
     /** How many apps Home shows: Your apps plus the Favorite rows. */
     private int homeCount() {
-        return Math.min(ordered.size(), cols * (1 + rowsBelow));
+        return dock.size() + favouritesShown();
+    }
+
+    /** The Home tile at this place: Your apps first, then the Favorites that are shown. */
+    private App homeApp(int index) {
+        if (index < 0) return null;
+        if (index < dock.size()) return dock.get(index);
+        int fav = index - dock.size();
+        return fav < favouritesShown() ? others.get(fav) : null;
+    }
+
+    private int homeIndex(App a) {
+        int i = dock.indexOf(a);
+        if (i >= 0) return i;
+        i = others.indexOf(a);
+        return i >= 0 && i < favouritesShown() ? dock.size() + i : -1;
+    }
+
+    /** Adds or removes a Favorite and rebuilds Home in place. */
+    private void setFavourite(App a, boolean favourite) {
+        try {
+            favPackages = favourite ? new ArrayList<>(Favorites.added(favPackages, a.pkg))
+                    : new ArrayList<>(Favorites.removed(favPackages, a.pkg));
+        } catch (IllegalArgumentException e) {
+            Toast.makeText(this, R.string.gtv_favorites_full, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!Favorites.save(this, favPackages)) {
+            Toast.makeText(this, R.string.gtv_favorite_not_saved, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        splitOrdered();
+        homeGrid.getAdapter().notifyDataSetChanged();
+        Toast.makeText(this, getString(favourite ? R.string.gtv_added_favorite : R.string.gtv_removed_favorite,
+                a.label), Toast.LENGTH_SHORT).show();
     }
 
     private static String key(App a) {
@@ -348,6 +406,9 @@ public final class GtvActivity extends Activity {
      * show (the Apple layout's cards) keep their places; the apps take the remaining places in their new order.
      */
     private void saveOrder() {
+        if (!Favorites.save(this, favPackages)) {
+            Toast.makeText(this, R.string.gtv_favorite_not_saved, Toast.LENGTH_SHORT).show();
+        }
         List<String> mine = new ArrayList<>();
         for (App a : ordered) mine.add(key(a));
         Set<String> mineSet = new HashSet<>(mine);
@@ -378,23 +439,31 @@ public final class GtvActivity extends Activity {
         }
     }
 
-    private void menu(App a) {
-        int at = ordered.indexOf(a);
-        boolean inDock = currentTab == TAB_HOME && at >= 0 && at < homeCount();   // any Home tile can move
-        String[] items = inDock
-                ? new String[]{getString(R.string.gtv_open), getString(R.string.gtv_move), getString(R.string.library_app_info)}
-                : new String[]{getString(R.string.gtv_open), getString(R.string.library_app_info)};
-        new AlertDialog.Builder(this).setTitle(a.label).setItems(items, (d, which) -> {
-            if (which == 0) open(a);
-            else if (inDock && which == 1) startMove(a);
-            else {
-                try {
-                    startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.pkg))
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                } catch (ActivityNotFoundException ignored) {
-                }
+    /** Hold OK on a tile: Open, Move (Home only), add or remove a Favorite, and App info. */
+    private void menu(App a, View card) {
+        boolean onHome = currentTab == TAB_HOME && homeIndex(a) >= 0;
+        boolean favourite = others.contains(a) && others.indexOf(a) < favouritesShown();
+        List<Runnable> actions = new ArrayList<>();
+        List<Integer> titles = new ArrayList<>();
+        titles.add(R.string.gtv_open);
+        actions.add(() -> open(a));
+        if (onHome) {
+            titles.add(R.string.gtv_move);
+            actions.add(() -> startMove(a));
+        }
+        if (!dock.contains(a)) {
+            titles.add(favourite ? R.string.gtv_remove_favorite : R.string.gtv_add_favorite);
+            actions.add(() -> setFavourite(a, !favourite));
+        }
+        titles.add(R.string.library_app_info);
+        actions.add(() -> {
+            try {
+                startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.pkg))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (ActivityNotFoundException ignored) {
             }
-        }).show();
+        });
+        showMenu(card, a.label, titles, actions);
     }
 
     // ---- moving a Home tile, and keys -------------------------------------------------------------
@@ -421,7 +490,7 @@ public final class GtvActivity extends Activity {
                 || code == KeyEvent.KEYCODE_BACK;
         if (code == KeyEvent.KEYCODE_HOME) return super.dispatchKeyEvent(e);
         if (e.getAction() != KeyEvent.ACTION_DOWN) return true;   // the up of OK/Back must not open the app
-        int from = ordered.indexOf(moving), to = from;
+        int from = homeIndex(moving), to = from;
         if (code == KeyEvent.KEYCODE_DPAD_LEFT) to = from - 1;
         else if (code == KeyEvent.KEYCODE_DPAD_RIGHT) to = from + 1;
         else if (code == KeyEvent.KEYCODE_DPAD_UP) to = from - cols;
@@ -430,11 +499,39 @@ public final class GtvActivity extends Activity {
             endMove();
             return true;
         }
-        if (from >= 0 && to != from && to >= 0 && to < homeCount()) {
-            ordered.add(to, ordered.remove(from));
+        if (from >= 0 && to != from && to >= 0 && to < homeCount() && moveTo(from, to)) {
             splitOrdered();
             homeGrid.getAdapter().notifyDataSetChanged();
             homeGrid.post(this::refocusMoving);
+        }
+        return true;
+    }
+
+    /**
+     * Moves the carried tile from one Home place to another. Your apps keep the shared order (order.txt, the
+     * dock the Apple TV layout shows too); the Favorite rows keep their own list. Crossing between the two swaps
+     * the apps, so neither section changes size.
+     */
+    private boolean moveTo(int from, int to) {
+        App carried = homeApp(from), other = homeApp(to);
+        if (carried == null || other == null) return false;
+        boolean fromDock = from < dock.size(), toDock = to < dock.size();
+        if (fromDock && toDock) {
+            Collections.swap(ordered, ordered.indexOf(carried), ordered.indexOf(other));
+        } else if (!fromDock && !toDock) {
+            int a = favPackages.indexOf(carried.pkg), b = favPackages.indexOf(other.pkg);
+            if (a < 0 || b < 0) return false;
+            favPackages.add(b, favPackages.remove(a));
+        } else {
+            // One is in Your apps and one is a Favorite: trade places.
+            App inDock = fromDock ? carried : other, fav = fromDock ? other : carried;
+            int at = favPackages.indexOf(fav.pkg);
+            if (at < 0) return false;
+            favPackages.set(at, inDock.pkg);
+            int slot = ordered.indexOf(inDock), favAt = ordered.indexOf(fav);
+            if (slot < 0 || favAt < 0) return false;
+            ordered.set(slot, fav);
+            ordered.set(favAt, inDock);
         }
         return true;
     }
@@ -451,9 +548,9 @@ public final class GtvActivity extends Activity {
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeGrid) {
             int pos = homeGrid.getChildAdapterPosition(f);
             if (pos < 0 || !(homeItems.get(pos) instanceof App)) return false;
-            int at = ordered.indexOf((App) homeItems.get(pos)), n = homeCount();
+            int at = homeIndex((App) homeItems.get(pos)), n = homeCount();
             int lastRowStart = n <= cols ? 0 : cols + ((n - cols - 1) / cols) * cols;
-            if (at < lastRowStart) return false;
+            if (at < 0 || at < lastRowStart) return false;
             openAppsAt(at % cols);
             return true;
         }
@@ -510,39 +607,76 @@ public final class GtvActivity extends Activity {
         if (moving != null) endMove();   // leaving Home while moving keeps the order so far
     }
 
+    // ---- menus (the Google TV look: glass panel, white pill on the selected row) --------------
+
     /** OK on the gear: Launcher settings or the TV's own settings, as in the Apple TV layout. */
     private void showSettingsChoice(View anchor) {
-        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
-        LinearLayout rows = panel.findViewById(R.id.rows);
-        Fonts.apply(panel);
-        PopupWindow popup = new PopupWindow(panel, (int) (220 * dp), ViewGroup.LayoutParams.WRAP_CONTENT, true);
-        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
-        popup.setOutsideTouchable(true);
-        popup.setAnimationStyle(0);
-        addMenuRow(rows, popup, R.string.launcher_settings,
-                () -> startActivityForResult(new Intent(this, LauncherSettingsActivity.class), SETTINGS_REQUEST));
-        addMenuRow(rows, popup, R.string.tv_settings, () -> {
+        List<Integer> titles = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        titles.add(R.string.launcher_settings);
+        actions.add(() -> startActivityForResult(new Intent(this, LauncherSettingsActivity.class), SETTINGS_REQUEST));
+        titles.add(R.string.tv_settings);
+        actions.add(() -> {
             try {
                 startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             } catch (ActivityNotFoundException e) {
                 Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
             }
         });
-        Fonts.apply(rows);
-        popup.showAsDropDown(anchor, 0, (int) (10 * dp), Gravity.END);
-        rows.getChildAt(0).requestFocus();
+        showMenu(anchor, null, titles, actions);
     }
 
-    private void addMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
-        View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
-        row.findViewById(R.id.dot).setVisibility(View.GONE);
-        row.findViewById(R.id.status).setVisibility(View.GONE);
-        ((TextView) row.findViewById(R.id.title)).setText(title);
-        row.setOnClickListener(v -> {
-            popup.dismiss();
-            action.run();
-        });
+    /**
+     * The one menu both the gear and hold OK use, so they match the tabs: a glass panel under (or over) the
+     * tile, each row a pill that turns white with dark text when selected.
+     */
+    private void showMenu(View anchor, String heading, List<Integer> titles, List<Runnable> actions) {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xF21B2029);
+        bg.setStroke((int) Math.max(1, 1.5f * dp), 0x33FFFFFF);
+        bg.setCornerRadius(20 * dp);
+        panel.setBackground(bg);
+        panel.setPadding((int) (8 * dp), (int) (8 * dp), (int) (8 * dp), (int) (8 * dp));
+        panel.setElevation(12 * dp);
+
+        PopupWindow popup = new PopupWindow(panel, (int) (300 * dp), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
+        popup.setOutsideTouchable(true);
+        popup.setAnimationStyle(0);
+        popup.setOnDismissListener(() -> { if (openPopup == popup) openPopup = null; });
+        openPopup = popup;
+
+        if (heading != null) {
+            TextView h = new TextView(this);
+            h.setText(heading);
+            h.setTextColor(0xFF9AA5B4);
+            h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            h.setSingleLine(true);
+            h.setPadding((int) (16 * dp), (int) (6 * dp), (int) (16 * dp), (int) (8 * dp));
+            panel.addView(h);
+        }
+        for (int i = 0; i < titles.size(); i++) {
+            panel.addView(menuRow(popup, getString(titles.get(i)), actions.get(i)));
+        }
+        Fonts.apply(panel);
+        popup.showAsDropDown(anchor, 0, (int) (10 * dp), Gravity.END);
+        panel.getChildAt(heading == null ? 0 : 1).requestFocus();
+    }
+
+    private TextView menuRow(PopupWindow popup, String title, Runnable action) {
+        TextView row = new TextView(this);
+        row.setText(title);
+        row.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        row.setSingleLine(true);
+        row.setFocusable(true);
+        row.setPadding((int) (16 * dp), (int) (11 * dp), (int) (16 * dp), (int) (11 * dp));
+        styleMenuRow(row, false);
+        row.setOnFocusChangeListener((v, has) -> styleMenuRow((TextView) v, has));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.bottomMargin = (int) (2 * dp);
+        row.setLayoutParams(lp);
         // The OK-up that opened the menu must not activate its first row.
         final boolean[] pressed = {false};
         row.setOnKeyListener((v, code, event) -> {
@@ -559,7 +693,27 @@ public final class GtvActivity extends Activity {
             }
             return true;
         });
-        rows.addView(row);
+        row.setOnClickListener(v -> {
+            popup.dismiss();
+            action.run();
+        });
+        return row;
+    }
+
+    private void styleMenuRow(TextView row, boolean focused) {
+        GradientDrawable g = new GradientDrawable();
+        g.setCornerRadius(14 * dp);
+        g.setColor(focused ? Color.WHITE : Color.TRANSPARENT);
+        row.setBackground(g);
+        row.setTextColor(focused ? 0xFF111111 : 0xFFE3E8EF);
+    }
+
+    /** Nothing of ours stays on screen when Home is pressed or another app comes in front. */
+    private void closeMenu() {
+        if (openPopup != null) {
+            openPopup.dismiss();
+            openPopup = null;
+        }
     }
 
     // ---- background, top bar, banner ------------------------------------------------------------
@@ -979,7 +1133,7 @@ public final class GtvActivity extends Activity {
             card.setScaleY(focused ? 1.1f : 1f);
             card.setForeground(focused ? ring(a == moving ? MOVE_COLOR : Color.WHITE) : null);
             card.setOnClickListener(v -> open(a));
-            card.setOnLongClickListener(v -> { menu(a); return true; });
+            card.setOnLongClickListener(v -> { menu(a, v); return true; });
             card.setOnFocusChangeListener((v, has) -> {
                 focusTile(v, has);
                 if (has) showApp(a);
