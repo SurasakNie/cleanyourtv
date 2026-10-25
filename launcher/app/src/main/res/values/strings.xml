@@ -161,6 +161,15 @@
     <string name="section_effects">Effects</string>
     <string name="section_extras">Extras</string>
     <string name="section_tv">TV settings</string>
+    <string name="section_about">About this UI</string>
+    <string name="about_what">A replacement Home screen for Android TV: tabs, a banner and rows of your own apps, with no recommendations and nothing sent anywhere.</string>
+    <string name="about_version">Version  %1$s</string>
+    <string name="about_version_value">%1$s (%2$d)</string>
+    <string name="about_layout">Layout  %1$s</string>
+    <string name="about_tv">TV  %1$s</string>
+    <string name="about_android">Android  %1$s (API %2$d)</string>
+    <string name="about_project">Part of the CleanYourTV project: github.com/SurasakNie/cleanyourtv</string>
+    <string name="unknown">Unknown</string>
     <string name="perf_state">Performance card: %1$s</string>
     <string name="hint_perf">A small card under the clock showing what the TV is doing: processor, memory, storage, temperature, frame rate, network and uptime. Figures this TV keeps private are left out.</string>
     <string name="perf_title">Performance</string>
@@ -184,5 +193,18 @@
     <string name="gtv_favorite_not_saved">Couldn\'t save Favorites</string>
     <string name="gtv_move_hint">Left and Right move the app. OK or Back puts it down.</string>
     <string name="hint_rows_gtv">How many rows of Favorite apps show under Your apps. 0 shows only Your apps.</string>
-    <string name="gtv_failed">The Google TV layout failed to start, so Home switched back to Apple TV.</string>
+    <string name="recovery_title">Home could not start</string>
+    <string name="recovery_body">The launcher could not build its Home screen. Try again, or open the TV\'s settings to pick another home screen.</string>
+    <string name="recovery_retry">Try again</string>
+    <string name="page_back_hint">OK picks · Back returns to the list</string>
+    <string name="banner_size_state">Banner title size: %1$s</string>
+    <string name="banner_size_small">Small</string>
+    <string name="banner_size_medium">Medium</string>
+    <string name="banner_size_large">Large</string>
+    <string name="hint_banner_size">How large the selected app\'s name is over the wallpaper.</string>
+    <string name="banner_border_state">Banner outline: %1$s</string>
+    <string name="hint_banner_border">A hairline edge around the banner.</string>
+    <string name="banner_fill_state">Banner glass fill: %1$s</string>
+    <string name="hint_banner_fill">A dark glass panel behind the banner\'s text, which helps over a bright picture.</string>
+    <string name="banner_size_title">Banner title size</string>
 </resources>

@@ -42,7 +42,7 @@
         android:allowBackup="false"
         android:localeConfig="@xml/locales_config">
 
-        <!-- Google TV layout (Launcher settings, Layout). MainActivity stays HOME and opens this one. -->
+        <!-- Home itself. MainActivity stays the HOME component and opens this one; see MainActivity. -->
         <activity
             android:name=".GtvActivity"
             android:exported="false"

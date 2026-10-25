@@ -55,39 +55,42 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Google TV-style Home (Launcher settings, Layout: Google TV): tabs (Home · Apps · Inputs), a glass banner
- * naming the selected app over the wallpaper and its colour glow, and rows of app banners. MainActivity stays the
- * HOME component and opens this screen when the layout is chosen, so the TV's default-home setting never changes.
+ * Google TV-style Home: tabs (Home · Apps · Inputs), a banner naming the selected app over the wallpaper and
+ * its colour glow, and rows of app banners. The only layout there is, since the Apple TV one was removed.
+ * MainActivity stays the HOME component and opens this screen, so the TV's default-home setting never changes.
  * Built in code; no network, no new permission.
  */
 public final class GtvActivity extends Activity {
-    static final String PREF_LAYOUT = "layout";
-    static final String LAYOUT_GTV = "gtv";
     private static final int SETTINGS_REQUEST = 7;
     private static final int TAB_HOME = 0, TAB_APPS = 1, TAB_INPUTS = 2;
 
     /** Crash guard: the process id that is building this screen, cleared once it has drawn. */
     private static final String PREF_STARTING = "gtv_starting_pid";
 
+    /** Set when building this screen threw, so the next HOME press shows the recovery screen, not a crash loop. */
+    private static final String PREF_FAILED = "gtv_failed";
+
     /**
      * True when the last start of this screen never finished drawing in a process that has since died (it
-     * crashed). MainActivity then falls back to the Apple TV layout instead of redirecting into a crash loop.
+     * crashed), or when building it threw outright. MainActivity shows its recovery screen instead of coming
+     * back here; before the Apple TV layout was removed, falling back to that layout was what this guarded.
      */
-    static boolean lastStartFailed(Context ctx) {
-        int pid = ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getInt(PREF_STARTING, 0);
-        return pid != 0 && pid != android.os.Process.myPid();
+    static boolean startFailed(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        int pid = prefs.getInt(PREF_STARTING, 0);
+        return (pid != 0 && pid != android.os.Process.myPid()) || prefs.getBoolean(PREF_FAILED, false);
     }
 
-    /** Switches back to the Apple TV layout and says why. */
-    static void fallBack(Context ctx) {
+    /** Records a failure to build this screen. Committed, not applied: the process may be about to go. */
+    private static void recordFailure(Context ctx) {
         ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
-                .remove(PREF_STARTING).putString(PREF_LAYOUT, "apple").commit();
-        android.widget.Toast.makeText(ctx, R.string.gtv_failed, android.widget.Toast.LENGTH_LONG).show();
+                .remove(PREF_STARTING).putBoolean(PREF_FAILED, true).commit();
     }
 
-    static boolean enabled(Context ctx) {
-        return LAYOUT_GTV.equals(ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
-                .getString(PREF_LAYOUT, LAYOUT_GTV.equals(ctx.getString(R.string.default_layout)) ? LAYOUT_GTV : "apple"));
+    /** "Try again" on the recovery screen: forget the failure so this screen is given another go. */
+    static void clearFailure(Context ctx) {
+        ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
+                .remove(PREF_STARTING).remove(PREF_FAILED).commit();
     }
 
     /**
@@ -108,6 +111,10 @@ public final class GtvActivity extends Activity {
     private View glow;
     private GradientDrawable glowDrawable;
     private TextView title, subtitle, clock;
+    /** One dot per app in Your apps; the selected one stretches into a pill. */
+    private LinearLayout dots;
+    private int dotShown = -1;
+    private android.animation.ValueAnimator dotAnimator;
     private LinearLayout banner;
     private final TextView[] tabs = new TextView[3];
     private FrameLayout content;
@@ -120,6 +127,8 @@ public final class GtvActivity extends Activity {
     private LinearLayout topRight;
     /** Apps per row (Launcher settings) and rows of Favorite apps under Your apps (Rows below dock). */
     private int cols, rowsBelow;
+    /** The banner title's size in sp (Launcher settings); the compact title is 16 less. */
+    private int bannerSp = BANNER_SP_DEFAULT;
     private List<String> dockApps;
     /** The Home tile being moved (hold OK, Move), or null. */
     private App moving;
@@ -150,6 +159,15 @@ public final class GtvActivity extends Activity {
     private static final int CONTENT_TOP_DP = 90, HEADER_DP = 40, ARROW_DP = 30, GRID_PAD_DP = 10, GAP_DP = 18;
     private final List<App> dock = new ArrayList<>(), others = new ArrayList<>(), all = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /**
+     * Idle time on Home before the launcher's own clock screen, 0 for off (Launcher settings, or
+     * home_idle_clock_minutes). It only ever starts from Home: some TVs' own screens do not keep the display
+     * awake, so the system screensaver can cut into a programme, which is why this screen exists at all.
+     * MainActivity did this until 2.19 turned it into a shim, and nothing did it between then and 2.21.
+     */
+    private long idleClockMs;
+    private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             clock.setText(DateFormat.getTimeFormat(GtvActivity.this).format(new Date()));
@@ -169,12 +187,14 @@ public final class GtvActivity extends Activity {
         try {
             build();
         } catch (RuntimeException e) {
-            fallBack(this);
-            openAppleLayout();
+            recordFailure(this);
+            startActivity(MainActivity.recovery(this));
+            finish();
+            overridePendingTransition(0, 0);
             return;
         }
-        // Drawn: this start succeeded.
-        root.post(() -> prefs.edit().remove(PREF_STARTING).apply());
+        // Drawn: this start succeeded, so any earlier failure is stale and the recovery screen steps aside.
+        root.post(() -> prefs.edit().remove(PREF_STARTING).remove(PREF_FAILED).apply());
         IntentFilter pf = new IntentFilter();
         pf.addAction(Intent.ACTION_PACKAGE_ADDED);
         pf.addAction(Intent.ACTION_PACKAGE_REMOVED);
@@ -212,6 +232,7 @@ public final class GtvActivity extends Activity {
         int screenW = getResources().getDisplayMetrics().widthPixels;
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
+        idleClockMs = cfg.homeIdleClockMinutes * 60_000L;
         dockApps = cfg.dockApps;
         int screenH = getResources().getDisplayMetrics().heightPixels;
         tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * GAP_DP * dp) / cols);
@@ -262,7 +283,6 @@ public final class GtvActivity extends Activity {
         super.onResume();
         if (settingsChanged) {
             settingsChanged = false;
-            if (!enabled(this)) { openAppleLayout(); return; }
             recreate();
             return;
         }
@@ -271,6 +291,7 @@ public final class GtvActivity extends Activity {
         handler.removeCallbacks(tick);
         handler.post(tick);
         startPerf();
+        armIdleClock();
     }
 
     @Override
@@ -280,6 +301,20 @@ public final class GtvActivity extends Activity {
         stopPerf();
         resumed = false;
         handler.removeCallbacks(tick);
+        // Leaving Home cancels it: a delayed start that outlived this would put the clock over an open app.
+        handler.removeCallbacks(showIdleClock);
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        armIdleClock();
+    }
+
+    /** Starts the idle countdown again from now; off when the setting is 0 or Home is not in front. */
+    private void armIdleClock() {
+        handler.removeCallbacks(showIdleClock);
+        if (idleClockMs > 0 && resumed) handler.postDelayed(showIdleClock, idleClockMs);
     }
 
     @Override
@@ -294,7 +329,7 @@ public final class GtvActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != SETTINGS_REQUEST || resultCode != RESULT_OK) return;
         settingsChanged = false;
-        if (!enabled(this)) openAppleLayout(); else recreate();
+        recreate();
     }
 
     /** Home is never left with Back: from the content Back goes to the tabs, from the tabs it does nothing. */
@@ -302,12 +337,6 @@ public final class GtvActivity extends Activity {
     public void onBackPressed() {
         View f = getCurrentFocus();
         if (f != null && !isTab(f)) tabs[currentTab].requestFocus();
-    }
-
-    private void openAppleLayout() {
-        startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
-        finish();
-        overridePendingTransition(0, 0);
     }
 
     // ---- apps ------------------------------------------------------------------------------------
@@ -420,6 +449,7 @@ public final class GtvActivity extends Activity {
             return;
         }
         splitOrdered();
+        buildDots();
         homeGrid.getAdapter().notifyDataSetChanged();
         Toast.makeText(this, getString(favourite ? R.string.gtv_added_favorite : R.string.gtv_removed_favorite,
                 a.label), Toast.LENGTH_SHORT).show();
@@ -1011,30 +1041,120 @@ public final class GtvActivity extends Activity {
     private void buildBanner() {
         banner = new LinearLayout(this);
         banner.setOrientation(LinearLayout.VERTICAL);
+        // Plain text over the glow by default; the fill and the outline are each a switch in Launcher settings,
+        // which is how the owner wanted them back after 2.15 took them off the screen.
+        SharedPreferences look = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        bannerSp = look.getInt(PREF_BANNER_SP, BANNER_SP_DEFAULT);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0x24FFFFFF);          // the glass fill, with no outline: the owner found the border boxy
         g.setCornerRadius(24 * dp);
+        if (look.getBoolean(PREF_BANNER_FILL, false)) g.setColor(0xCC0B0D12);
+        if (look.getBoolean(PREF_BANNER_BORDER, false)) g.setStroke((int) (1 * dp), 0x33FFFFFF);
         banner.setBackground(g);
-        banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (22 * dp));
+        // The bottom padding is all the clearance the banner keeps from the rows, so it sits close to them.
+        banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (16 * dp));
         title = new TextView(this);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 46);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, bannerSp);
         title.setSingleLine(true);
         banner.addView(title);
         subtitle = new TextView(this);
         subtitle.setTextColor(0xFFC3CAD4);
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        banner.addView(subtitle);
+        // The dots come first and the "Last opened" line after them: with the order the other way round, the dots
+        // jumped up whenever an app had never been opened and that line was empty.
+        dots = new LinearLayout(this);
+        dots.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-2, -2);
+        dlp.topMargin = (int) (14 * dp);
+        banner.addView(dots, dlp);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-2, -2);
+        slp.topMargin = (int) (12 * dp);
+        banner.addView(subtitle, slp);
+        buildDots();
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams((int) (420 * dp), -2, Gravity.TOP | Gravity.START);
         lp.leftMargin = sidePad;
         lp.topMargin = (int) (110 * dp);
         root.addView(banner, lp);
     }
 
+    /** A dot for each app in Your apps, the selected one wider. Rebuilt whenever the dock itself changes. */
+    private void buildDots() {
+        if (dots == null) return;
+        if (dotAnimator != null) dotAnimator.cancel();
+        dots.removeAllViews();
+        dotShown = -1;
+        for (int i = 0; i < dock.size(); i++) {
+            View dot = new View(this);
+            dot.setBackground(dotDrawable(false));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams((int) (DOT_DP * dp), (int) (DOT_DP * dp));
+            lp.rightMargin = (int) (7 * dp);
+            dots.addView(dot, lp);
+        }
+    }
+
+    private static final int DOT_DP = 6, DOT_WIDE_DP = 22;
+
+    /** Banner look, all from Launcher settings: the title's size in sp, and whether it has an outline or a fill. */
+    static final String PREF_BANNER_SP = "gtv_banner_title_sp";
+    static final String PREF_BANNER_BORDER = "gtv_banner_border";
+    static final String PREF_BANNER_FILL = "gtv_banner_fill";
+    static final int BANNER_SP_DEFAULT = 46;
+
+    private GradientDrawable dotDrawable(boolean selected) {
+        GradientDrawable d = new GradientDrawable();
+        d.setCornerRadius(DOT_DP * dp / 2f);
+        d.setColor(selected ? Color.WHITE : 0x59FFFFFF);
+        return d;
+    }
+
+    /**
+     * Stretches the selected dot into a pill and lets every other one shrink back.
+     *
+     * Each run starts from the widths the dots actually have, not from the widths they would have at rest, and it
+     * moves all of them rather than just the two either side of the move. Holding left or right outruns the 140 ms
+     * animation, and the first version — which animated only the new dot and the one before it, from their resting
+     * widths — stranded every dot further back part-way open, leaving a row of dashes.
+     *
+     * Only Your apps has dots: a position in that row is what the banner is describing, so the indicator steps
+     * aside for any other row.
+     */
+    private void showDot(int index) {
+        if (dots == null) return;
+        dots.setVisibility(index >= 0 ? View.VISIBLE : View.GONE);
+        if (index < 0 || index >= dots.getChildCount() || index == dotShown) return;
+        dotShown = index;
+        if (dotAnimator != null) dotAnimator.cancel();
+        final int narrow = (int) (DOT_DP * dp), wide = (int) (DOT_WIDE_DP * dp);
+        final int[] from = new int[dots.getChildCount()];
+        for (int i = 0; i < from.length; i++) {
+            View dot = dots.getChildAt(i);
+            from[i] = dot.getLayoutParams().width;
+            dot.setBackground(dotDrawable(i == index));
+        }
+        dotAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        dotAnimator.setDuration(140);
+        dotAnimator.addUpdateListener(an -> {
+            float t = (float) an.getAnimatedValue();
+            for (int i = 0; i < from.length && i < dots.getChildCount(); i++) {
+                int to = i == index ? wide : narrow;
+                setDotWidth(dots.getChildAt(i), from[i] + Math.round((to - from[i]) * t));
+            }
+        });
+        dotAnimator.start();
+    }
+
+    private static void setDotWidth(View dot, int width) {
+        ViewGroup.LayoutParams lp = dot.getLayoutParams();
+        if (lp.width == width) return;
+        lp.width = width;
+        dot.setLayoutParams(lp);
+    }
+
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
         appSelected = true;
         updateBanner();
+        showDot(dock.indexOf(a));
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
@@ -1079,17 +1199,22 @@ public final class GtvActivity extends Activity {
     private void fitBanner() {
         if (topBar == null || homeGrid.getHeight() == 0) return;
         int gap = (int) (12 * dp);
+        int rowsTop = content.getTop() + homePage.getTop() + homeGrid.getTop();
         int roomTop = topBar.getBottom() + gap;
-        int roomBottom = content.getTop() + homePage.getTop() + homeGrid.getTop() - gap;
+        int roomBottom = rowsTop - gap;            // the performance card keeps the gap it has always had
+        // The banner carries its own 16 dp of bottom padding, which is the clearance it keeps from the rows: a
+        // further gap on top of that left the text floating well above the row it names.
+        int bannerBottom = rowsTop;
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) banner.getLayoutParams();
         setBannerCompact(false);
         int h = bannerHeight();
         int top;
-        if (roomBottom - (int) (110 * dp) >= h) top = (int) (110 * dp);
-        else if (roomBottom - roomTop >= h) top = roomTop;
+        // The banner belongs with the rows it names: sit its foot just above "Your apps" and grow upward.
+        if (bannerBottom - h >= roomTop) top = bannerBottom - h;
+        else if (bannerBottom - roomTop >= h) top = roomTop;
         else {
             setBannerCompact(true);
-            top = roomBottom - roomTop >= bannerHeight() ? roomTop : -1;
+            top = bannerBottom - roomTop >= bannerHeight() ? roomTop : -1;
         }
         layoutPerfCard(roomBottom);
         bannerFits = top >= 0;
@@ -1135,7 +1260,8 @@ public final class GtvActivity extends Activity {
 
     private void setBannerCompact(boolean compact) {
         bannerCompact = compact;
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 30 : 46);
+        // The compact title keeps its old distance from the full one (46 sp down to 30), whatever size is chosen.
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? Math.max(24, bannerSp - 16) : bannerSp);
         if (compact) subtitle.setVisibility(View.GONE);
     }
 
@@ -1426,8 +1552,7 @@ public final class GtvActivity extends Activity {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.HORIZONTAL);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0x26FFFFFF);
-        g.setStroke((int) Math.max(1, dp), 0x33FFFFFF);
+        g.setColor(0x33FFFFFF);          // frosted, no outline: the owner found the hairline edge busy
         g.setCornerRadius(28 * dp);
         l.setBackground(g);
         return l;
@@ -1450,12 +1575,10 @@ public final class GtvActivity extends Activity {
     private void stylePill(TextView t, boolean focused, boolean selected) {
         GradientDrawable g = new GradientDrawable();
         g.setCornerRadius(22 * dp);
-        // Selected (not focused) is a dark glass pill with a white edge, so it stays readable over a bright glow.
+        // Selected (not focused) is a darker frosted pill, with no outline, which still reads over a bright glow.
         if (focused) g.setColor(Color.WHITE);
-        else if (selected) {
-            g.setColor(0x991B2029);
-            g.setStroke((int) Math.max(1, 1.5f * dp), 0xCCFFFFFF);
-        } else g.setColor(Color.TRANSPARENT);
+        else if (selected) g.setColor(0xA61B2029);
+        else g.setColor(Color.TRANSPARENT);
         t.setBackground(g);
         int text = focused ? 0xFF111111 : selected ? Color.WHITE : 0xFFE3E8EF;
         t.setTextColor(text);
