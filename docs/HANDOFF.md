@@ -132,7 +132,18 @@ just to sample the glow colour. The native heap went **21.8 MB → 33.9 MB → 3
 visible behaviour was fine (no blank tiles), the memory was not. Trading memory for repeated decoding is the wrong
 trade on this TV.
 
-**If this 22 MB is worth reclaiming, the approach to try is downsampling, not on-demand loading:** decode each
+**Not a leak — measured and cleared (2.09).** A clean run (`am force-stop`, then Home, then two or three minutes of
+Home and the Apps tab with no settings visits) reports **`Activities: 1`, `Views: 59` and a steady native heap of
+19.9 MB**. The 38–50 MB seen earlier came from the testing pattern itself: every settings toggle and every APK
+install makes Home rebuild, and the discarded screens sit in memory until Android collects them. An hour of about
+ten installs and a dozen toggles piles them up; ordinary use does not. Read `Activities` only after a clean start —
+right after a visit to Launcher settings, two or three screens legitimately exist.
+
+Worth improving one day, though not a bug: `GtvActivity` calls `recreate()` for **any** settings change
+(`onResume`, `onActivityResult`, and the package receiver), which re-decodes every app's artwork. Most settings
+could be re-applied without rebuilding.
+
+**If this 18–22 MB is worth reclaiming, the approach to try is downsampling, not on-demand loading:** decode each
 banner at roughly tile size (about 207×116 px at 8 per row) instead of its full resolution, keeping one copy per
 app as now. That reduces the bytes rather than moving the cost around. Measure
 `dumpsys meminfo com.gathin.tvhome` before and after, and do not claim a win without it — 2.08 is the cautionary
