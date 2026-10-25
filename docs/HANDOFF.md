@@ -221,7 +221,9 @@ resources are already out of the package.
 What is still shipped, and why, if it ever matters: `GlassView` and `SkyView` (AGP generates keep rules from
 layout XML, and `activity_main.xml` is still in the source tree when R8 runs), and `Cards`, which is genuinely
 reachable — `Config` parses the festive skin, `Festival.parse` calls `Cards.cleanLabel`. Getting those last three
-out would mean changing code rather than deleting files, for 13 KB.
+out would mean changing code rather than deleting files, for 13 KB. **The owner's call: leave them.** The 13 KB
+buys nothing, and the code is there to be picked up again if any of it comes back in the Google TV layout. Do not
+"tidy" this away.
 
 **Off limits, on the owner's instruction:** the remote's Settings button path stays exactly as it is.
 `QuickSettingsActivity`, the `ACTION_LAUNCHER_SETTINGS` string and the shim's handling of it were not changed by
