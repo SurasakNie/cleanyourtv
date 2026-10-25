@@ -189,5 +189,7 @@
     <string name="gtv_move_hint">שמאלה וימינה מזיזים את האפליקציה. OK או חזרה מניחים אותה.</string>
     <string name="hint_rows_gtv">כמה שורות של אפליקציות מועדפות מוצגות מתחת לאפליקציות שלך. 0 מציג רק את האפליקציות שלך.</string>
     <string name="gtv_open">פתיחה</string>
-    <string name="gtv_failed">פריסת Google TV לא הצליחה להיפתח, ולכן מסך הבית חזר ל-Apple TV.</string>
+    <string name="recovery_title">מסך הבית לא נפתח</string>
+    <string name="recovery_body">המפעיל לא הצליח לבנות את מסך הבית. נסו שוב, או פתחו את הגדרות הטלוויזיה כדי לבחור מסך בית אחר.</string>
+    <string name="recovery_retry">נסו שוב</string>
 </resources>

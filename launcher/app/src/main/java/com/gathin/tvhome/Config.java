@@ -30,7 +30,7 @@ import java.util.Map;
  * unknown or badly typed key is ignored, so a theme can change the dock and the look without a rebuild:
  * {@code tools/theme.sh themes/<name>} pushes a theme folder there and restarts Home.
  *
- * Read once in {@link MainActivity#onCreate}; nothing here touches the network.
+ * Read once while Home is being built; nothing here touches the network.
  */
 final class Config {
     private static final String TAG = "TvHome.Config";

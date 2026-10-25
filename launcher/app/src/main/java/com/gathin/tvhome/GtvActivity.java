@@ -55,39 +55,42 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Google TV-style Home (Launcher settings, Layout: Google TV): tabs (Home · Apps · Inputs), a glass banner
- * naming the selected app over the wallpaper and its colour glow, and rows of app banners. MainActivity stays the
- * HOME component and opens this screen when the layout is chosen, so the TV's default-home setting never changes.
+ * Google TV-style Home: tabs (Home · Apps · Inputs), a banner naming the selected app over the wallpaper and
+ * its colour glow, and rows of app banners. The only layout there is, since the Apple TV one was removed.
+ * MainActivity stays the HOME component and opens this screen, so the TV's default-home setting never changes.
  * Built in code; no network, no new permission.
  */
 public final class GtvActivity extends Activity {
-    static final String PREF_LAYOUT = "layout";
-    static final String LAYOUT_GTV = "gtv";
     private static final int SETTINGS_REQUEST = 7;
     private static final int TAB_HOME = 0, TAB_APPS = 1, TAB_INPUTS = 2;
 
     /** Crash guard: the process id that is building this screen, cleared once it has drawn. */
     private static final String PREF_STARTING = "gtv_starting_pid";
 
+    /** Set when building this screen threw, so the next HOME press shows the recovery screen, not a crash loop. */
+    private static final String PREF_FAILED = "gtv_failed";
+
     /**
      * True when the last start of this screen never finished drawing in a process that has since died (it
-     * crashed). MainActivity then falls back to the Apple TV layout instead of redirecting into a crash loop.
+     * crashed), or when building it threw outright. MainActivity shows its recovery screen instead of coming
+     * back here; before the Apple TV layout was removed, falling back to that layout was what this guarded.
      */
-    static boolean lastStartFailed(Context ctx) {
-        int pid = ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getInt(PREF_STARTING, 0);
-        return pid != 0 && pid != android.os.Process.myPid();
+    static boolean startFailed(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        int pid = prefs.getInt(PREF_STARTING, 0);
+        return (pid != 0 && pid != android.os.Process.myPid()) || prefs.getBoolean(PREF_FAILED, false);
     }
 
-    /** Switches back to the Apple TV layout and says why. */
-    static void fallBack(Context ctx) {
+    /** Records a failure to build this screen. Committed, not applied: the process may be about to go. */
+    private static void recordFailure(Context ctx) {
         ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
-                .remove(PREF_STARTING).putString(PREF_LAYOUT, "apple").commit();
-        android.widget.Toast.makeText(ctx, R.string.gtv_failed, android.widget.Toast.LENGTH_LONG).show();
+                .remove(PREF_STARTING).putBoolean(PREF_FAILED, true).commit();
     }
 
-    static boolean enabled(Context ctx) {
-        return LAYOUT_GTV.equals(ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
-                .getString(PREF_LAYOUT, LAYOUT_GTV.equals(ctx.getString(R.string.default_layout)) ? LAYOUT_GTV : "apple"));
+    /** "Try again" on the recovery screen: forget the failure so this screen is given another go. */
+    static void clearFailure(Context ctx) {
+        ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
+                .remove(PREF_STARTING).remove(PREF_FAILED).commit();
     }
 
     /**
@@ -173,12 +176,14 @@ public final class GtvActivity extends Activity {
         try {
             build();
         } catch (RuntimeException e) {
-            fallBack(this);
-            openAppleLayout();
+            recordFailure(this);
+            startActivity(MainActivity.recovery(this));
+            finish();
+            overridePendingTransition(0, 0);
             return;
         }
-        // Drawn: this start succeeded.
-        root.post(() -> prefs.edit().remove(PREF_STARTING).apply());
+        // Drawn: this start succeeded, so any earlier failure is stale and the recovery screen steps aside.
+        root.post(() -> prefs.edit().remove(PREF_STARTING).remove(PREF_FAILED).apply());
         IntentFilter pf = new IntentFilter();
         pf.addAction(Intent.ACTION_PACKAGE_ADDED);
         pf.addAction(Intent.ACTION_PACKAGE_REMOVED);
@@ -266,7 +271,6 @@ public final class GtvActivity extends Activity {
         super.onResume();
         if (settingsChanged) {
             settingsChanged = false;
-            if (!enabled(this)) { openAppleLayout(); return; }
             recreate();
             return;
         }
@@ -298,7 +302,7 @@ public final class GtvActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != SETTINGS_REQUEST || resultCode != RESULT_OK) return;
         settingsChanged = false;
-        if (!enabled(this)) openAppleLayout(); else recreate();
+        recreate();
     }
 
     /** Home is never left with Back: from the content Back goes to the tabs, from the tabs it does nothing. */
@@ -306,12 +310,6 @@ public final class GtvActivity extends Activity {
     public void onBackPressed() {
         View f = getCurrentFocus();
         if (f != null && !isTab(f)) tabs[currentTab].requestFocus();
-    }
-
-    private void openAppleLayout() {
-        startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
-        finish();
-        overridePendingTransition(0, 0);
     }
 
     // ---- apps ------------------------------------------------------------------------------------

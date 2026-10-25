@@ -298,7 +298,7 @@ public final class LauncherSettingsActivity extends Activity {
         }
         ((TextView) findViewById(R.id.aboutVersion)).setText(getString(R.string.about_version, version));
         ((TextView) findViewById(R.id.aboutLayout)).setText(getString(R.string.about_layout,
-                getString(GtvActivity.enabled(this) ? R.string.layout_gtv : R.string.layout_apple)));
+                getString(R.string.layout_gtv)));
         ((TextView) findViewById(R.id.aboutTv)).setText(getString(R.string.about_tv,
                 android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL));
         ((TextView) findViewById(R.id.aboutAndroid)).setText(getString(R.string.about_android,
@@ -334,8 +334,7 @@ public final class LauncherSettingsActivity extends Activity {
         glowChoice.setAlpha(ambientGlow ? 1f : 0.5f);
         ambientChoice.setText(getString(R.string.ambient_state,
                 getString(ambientGlow ? R.string.on : R.string.off)));
-        ((TextView) findViewById(R.id.hintRows)).setText(
-                GtvActivity.enabled(this) ? R.string.hint_rows_gtv : R.string.hint_rows);
+        ((TextView) findViewById(R.id.hintRows)).setText(R.string.hint_rows_gtv);
         perfChoice.setText(getString(R.string.perf_state,
                 getString(choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));

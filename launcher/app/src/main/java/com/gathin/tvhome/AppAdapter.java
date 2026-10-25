@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * App tiles. The first {@link MainActivity#COLUMNS} positions are the pinned dock (favourites, fixed order,
+ * App tiles. The first {@code columns} positions are the pinned dock (favourites, fixed order,
  * then empty slots up to a full row, see {@link DockSlots}), then the module cards the owner chose to show
  * (by label), the rest is alphabetical.
  */
