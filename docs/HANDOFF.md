@@ -27,6 +27,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 |---|---|
 | **2.05** | The performance card (Launcher settings → Performance card, off by default) and its `Stats` reader; pressing Home now lands on the Home tab rather than the first app |
 | **2.06** | Memory and storage also shown as used / total. The owner chose to **keep both** the free and used rows |
+| **2.12** | The selection frame is gone: a selected tile is simply zoomed and lifted. The owner tried the ring (2.09, 2.11) and dimming the others (2.10) and settled on the zoom alone |
 | **2.11** | Selection is the white ring again (2.10's "dim everything else" was tried and turned down for ordinary selection); the carried tile keeps 2.10's lifted, ghosted look with the others faded; the banner shows **only while an app is selected**, so arriving at Home names nothing until Down picks one |
 | **2.10** | The selected tile is now told apart by **dimming the others** (a white ring was invisible on white artwork such as Netflix or the Play Store); a tile being moved is lifted and ghosted instead of framed; and Home from another tab no longer leaves the banner naming whatever was selected over there |
 | **2.09** | **Reverted 2.08's artwork change** (see below); the carried tile's frame now covers the artwork's edges; the hold-OK menu panel is solid, because tiles read straight through the sheer one over a bright wallpaper |
@@ -188,8 +189,10 @@ Nothing is built for these: the owner has not asked for them, and two of the thr
   essential figures before hiding itself (2.07). No Network type row.
 - Pressing Home leaves the selection on the **Home tab**, not on the first app, and the banner stays hidden until
   an app is selected.
-- **Selection is a white ring; dimming the other tiles is reserved for a move.** Dimming for ordinary selection was
-  built in 2.10 and turned down — please do not "improve" it back.
+- **A selected tile is told apart by the zoom and lift alone — no frame, no dimming.** Three styles were tried on
+  the TV before this one settled: a white ring (2.09, 2.11), which says nothing on white artwork such as Netflix or
+  the Play Store, and dimming every other tile (2.10), which the owner turned down. Dimming survives only while a
+  tile is being carried. Please do not "improve" any of it back.
 - Continuous effects stay off by default; the screensaver stays the TV's own.
 
 ---

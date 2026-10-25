@@ -506,7 +506,6 @@ public final class GtvActivity extends Activity {
                 .translationZ((carried ? 16 : 8) * dp)
                 .alpha(carried ? GHOST : 1f)
                 .setDuration(140).start();
-        v.setForeground(carried ? null : ring());
     }
 
     /**
@@ -1352,7 +1351,6 @@ public final class GtvActivity extends Activity {
             card.setScaleY(scale);
             card.setTranslationZ(focused ? (carrying ? 16 : 8) * dp : 0);
             card.setAlpha(focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f));
-            card.setForeground(focused && !carrying ? ring() : null);
             card.setOnClickListener(v -> open(a));
             card.setOnLongClickListener(v -> { menu(a, v); return true; });
             card.setOnFocusChangeListener((v, has) -> {
@@ -1368,8 +1366,9 @@ public final class GtvActivity extends Activity {
     private static final float DIM_MOVING = 0.4f, GHOST = 0.75f;
 
     /**
-     * An ordinary selection: the tile zooms, lifts and takes a white ring. Carrying one (hold OK, Move) instead
-     * lifts it further, makes it see-through and fades every other tile, so it reads as held rather than outlined.
+     * An ordinary selection: the tile simply zooms and lifts — no frame, which told you nothing on white artwork
+     * anyway. Carrying one (hold OK, Move) lifts it further, makes it see-through and fades every other tile, so
+     * it reads as held.
      */
     private void focusTile(View v, boolean has) {
         boolean carrying = moving != null;
@@ -1378,16 +1377,7 @@ public final class GtvActivity extends Activity {
                 .translationZ(has ? (carrying ? 16 : 8) * dp : 0)
                 .alpha(has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f))
                 .setDuration(140).start();
-        v.setForeground(has && !carrying ? ring() : null);
         if (has && carrying) dimOthers(v);
-    }
-
-    /** The white frame on the selected tile. */
-    private Drawable ring() {
-        GradientDrawable r = new GradientDrawable();
-        r.setCornerRadius(12 * dp);
-        r.setStroke((int) (3 * dp), Color.WHITE);
-        return r;
     }
 
     /** Fades every tile but this one, for the duration of a move. */
