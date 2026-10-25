@@ -1,7 +1,7 @@
-"""Stacks the README stat strip, the Featured in panel and the before/after TVs into one card (docs/card.png).
+"""Stacks the README stat strip, the Featured in panel and the before/after TVs into one card (docs/images/card.png).
 
 Run tools/readme_stats.py and tools/readme_featured.py first, then:
-python3 tools/readme_card.py Fredoka.ttf docs/card.png
+python3 tools/readme_card.py Fredoka.ttf docs/images/card.png
 """
 import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -15,8 +15,8 @@ def spaced(d, cx, y, t, font, sp, fill):
     for c in t: d.text((x, y), c, font=font, fill=fill); x += d.textlength(c, font=font) + sp
 
 # the TV screens, cropped to the bezel; the Wi-Fi name on the after shot is blurred
-before = Image.open("docs/stock-home.jpg").convert("RGB").crop((130, 216, 1317, 864))
-after = Image.open("docs/new-home.jpg").convert("RGB")
+before = Image.open("docs/images/stock-home.jpg").convert("RGB").crop((130, 216, 1317, 864))
+after = Image.open("docs/images/new-home.jpg").convert("RGB")
 box = (1150, 236, 1240, 280); after.paste(after.crop(box).filter(ImageFilter.GaussianBlur(9)), box)
 after = after.crop((203, 138, 1467, 792))
 PAD, ARROW = 70, 90
@@ -33,7 +33,7 @@ ax, ay = W / 2, 90 + th / 2
 d.line([(ax - 26, ay), (ax + 26, ay)], fill=GREEN, width=5)
 d.line([(ax + 8, ay - 16), (ax + 27, ay), (ax + 8, ay + 16)], fill=GREEN, width=5, joint="curve")
 
-parts = [Image.open("docs/stats.png").convert("RGB"), Image.open("docs/featured.png").convert("RGB"), tv]
+parts = [Image.open("docs/images/stats.png").convert("RGB"), Image.open("docs/images/featured.png").convert("RGB"), tv]
 SEP = 24  # extra air on each side of a divider
 H = sum(p.height for p in parts) + 2 * SEP * (len(parts) - 1)
 card = Image.new("RGB", (W, H), BG); d = ImageDraw.Draw(card); y = 0

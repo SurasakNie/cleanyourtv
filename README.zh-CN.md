@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://cleanyour.tv"><img src="docs/banner.png" alt="CleanYourTV：让电视桌面回归简洁" width="800"></a>
+  <a href="https://cleanyour.tv"><img src="docs/images/banner.png" alt="CleanYourTV：让电视桌面回归简洁" width="800"></a>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 本文介绍通用功能和使用方法。不同机型、地区和固件的应用包及限制可能不同，请先核对自己的设备。功能变化以[英文 README](README.md)为准，具体机型记录见[机型清单](examples/README.md)。
 
-![原生 Google TV 桌面与 CleanYourTV 桌面对比](docs/stock-vs-new-side.jpg)
+![原生 Google TV 桌面与 CleanYourTV 桌面对比](docs/images/stock-vs-new-side.jpg)
 
 ## 工作原理
 
@@ -55,7 +55,7 @@
 - **主题**：通过配置文件调整颜色、壁纸、快捷栏和列数，无需重新编译。
 - **模块卡片**：其他应用可以提供桌面卡片，需用户同意才会显示。
 
-![应用聚焦效果](docs/focus-2-up-netflix.png)
+![应用聚焦效果](docs/images/focus-2-up-netflix.png)
 
 ### 在电视上调整设置
 

@@ -243,6 +243,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** rows_below_dock 0 with a dock: the rows below are hidden while the dock has focus (no half-cut row). */
     private boolean hideBelowDock;
     private boolean homeResumed;
+    /** onCreate handed Home over to GtvActivity (Layout: Google TV). */
+    private boolean redirected;
     /** A Launcher settings choice changed while Home was in the background: rebuild on return. */
     private boolean settingsChanged;
     private final android.content.SharedPreferences.OnSharedPreferenceChangeListener settingsListener =
@@ -324,6 +326,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Layout: Google TV. This stays the HOME component (so the TV's default home never changes) and hands
+        // over to GtvActivity straight away, before drawing anything.
+        // If its last start crashed, fall back to this layout instead of looping.
+        if (GtvActivity.enabled(this) && GtvActivity.lastStartFailed(this)) GtvActivity.fallBack(this);
+        if (GtvActivity.enabled(this)) {
+            redirected = true;
+            startActivity(new Intent(this, GtvActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+            // The quick settings panel's "Launcher settings" comes through here: pass it on.
+            if (savedInstanceState == null && ACTION_LAUNCHER_SETTINGS.equals(getIntent().getAction())) {
+                startActivity(new Intent(this, LauncherSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            }
+            finish();
+            overridePendingTransition(0, 0);
+            return;
+        }
         setContentView(R.layout.activity_main);
         Fonts.apply(findViewById(android.R.id.content));
         density = getResources().getDisplayMetrics().density;
@@ -542,7 +560,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
             return true;
         });
-        btnSettings.setOnClickListener(v -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        btnSettings.setOnClickListener(v -> showSettingsChoice());
         btnReorder = findViewById(R.id.btnReorder);
         btnReorder.setOnClickListener(v -> toggleReorder());
         btnReorder.setVisibility(cfg.reorderButton ? View.VISIBLE : View.GONE);
@@ -559,6 +577,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (cfg.wifiLabelWidth > 0) btnWifi.setMaxWidth(Math.round(cfg.wifiLabelWidth * density));
             else makeIconOnly(btnWifi);
             makeIconOnly((TextView) btnSettings);
+            makeIconOnly((TextView) btnInputs);
         }
         btnSettings.setOnLongClickListener(v -> {
             showSettingsMenu();
@@ -678,6 +697,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         if (openLauncherSettingsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
         grid.scrollToPosition(0);
@@ -695,6 +715,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStart() {
         super.onStart();
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         stopped = false;
         started = true;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -710,6 +731,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         if (settingsChanged) {
             settingsChanged = false;
             recreate();
@@ -764,6 +786,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         if (requestCode == LAUNCHER_SETTINGS_REQUEST && resultCode == RESULT_OK) recreate();
     }
 
@@ -851,6 +874,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onUserInteraction() {
         super.onUserInteraction();
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         restartIdleClock();
     }
 
@@ -862,6 +886,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onPause() {
         super.onPause();
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         homeResumed = false;
         root.removeCallbacks(showIdleClock);
         inputPreview.stop();
@@ -885,6 +910,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onStop() {
         super.onStop();
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         started = false;
         unregisterReceiver(packageReceiver);
         unregisterReceiver(timeReceiver);
@@ -901,6 +927,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onTrimMemory(int level) {
         super.onTrimMemory(level);
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         // RUNNING_LOW and CRITICAL also arrive while Home is visible when an accessibility service keeps the
         // process in the foreground; never blank the screen the owner is looking at.
         boolean due = level >= TRIM_MEMORY_BACKGROUND
@@ -919,6 +946,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
+        if (redirected) return;   // handed over to GtvActivity: no views or receivers were set up
         if (hasFocus) {
             if (libraryFocusPending && appLibrary == null) focusLibrary();
             showCardPrompt();
@@ -928,6 +956,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (redirected) return;   // handed over to GtvActivity in onCreate: nothing was set up
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(settingsListener);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
@@ -971,6 +1000,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (redirected) return super.dispatchKeyEvent(event);
         if (handleSettingsKey(event)) return true;
         if (!reordering) return super.dispatchKeyEvent(event);
         if (dockEditing) return dispatchDockEdit(event);
@@ -1351,7 +1381,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
+        float y = fitHero(dockTopInRoot);
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic) showHeroArt(position);
         applyGlowStyle(position);
@@ -1410,6 +1440,40 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             hero.setY(y);
         }
+    }
+
+    /**
+     * Where the app name goes above the dock: 40 dp over it, but never higher than 12 dp under the top bar. With
+     * many rows below the dock the room shrinks, so the name gets smaller (48 sp down to 26 sp) and, when even that
+     * doesn't fit, is hidden; it never overlaps the clock or the top-right buttons.
+     */
+    private float fitHero(float dockTopInRoot) {
+        if (hero.getVisibility() == View.GONE) return dockTopInRoot - 40 * density - hero.getHeight();   // dock title off
+        View bar = findViewById(R.id.topButtons);
+        View left = findViewById(R.id.leftBlock);
+        int[] rootAt = new int[2], at = new int[2];
+        root.getLocationInWindow(rootAt);
+        float barBottom = 0;
+        for (View v : new View[]{bar, left}) {
+            if (v == null || v.getVisibility() != View.VISIBLE) continue;
+            v.getLocationInWindow(at);
+            barBottom = Math.max(barBottom, at[1] - rootAt[1] + v.getHeight());
+        }
+        float minY = barBottom + 12 * density;
+        float maxBottom = dockTopInRoot - 14 * density - 26 * density;
+        int widthSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        for (int sp = 48; sp >= 26; sp -= 2) {
+            heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+            hero.measure(widthSpec, widthSpec);
+            int h = hero.getMeasuredHeight();
+            if (maxBottom - h >= minY) {
+                hero.setVisibility(View.VISIBLE);
+                return maxBottom - h;
+            }
+        }
+        heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
+        hero.setVisibility(View.INVISIBLE);
+        return minY;
     }
 
     /** The shelf's text for this dock app: its name and, on the cinematic shelf, "Last opened" and the dots. */
@@ -2633,6 +2697,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // ---- launcher settings and module cards -------------------------------------------------------
 
     /** Keep a normal Settings click for the TV; the launcher's choices live behind hold OK. */
+    /** OK on the Settings icon: pick Launcher settings or the TV's own settings (hold OK keeps the longer menu). */
+    private void showSettingsChoice() {
+        View anchor = findViewById(R.id.btnSettings);
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (200 * density));
+        addSettingsMenuRow(rows, popup, R.string.launcher_settings, () -> startActivityForResult(
+                new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST));
+        addSettingsMenuRow(rows, popup, R.string.tv_settings, () -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
+        dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar)
+                ? Gravity.START : Gravity.END);
+        rows.getChildAt(0).requestFocus();
+    }
+
     private void showSettingsMenu() {
         View anchor = findViewById(R.id.btnSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);

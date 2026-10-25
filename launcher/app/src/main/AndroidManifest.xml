@@ -42,6 +42,16 @@
         android:allowBackup="false"
         android:localeConfig="@xml/locales_config">
 
+        <!-- Google TV layout (Launcher settings, Layout). MainActivity stays HOME and opens this one. -->
+        <activity
+            android:name=".GtvActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"
+            android:screenOrientation="landscape" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -140,4 +140,24 @@
     <string name="hint_clock">הצגת שעון אחרי שמסך הבית לא נגעו בו זמן זה. כבוי משאיר את שומר המסך של הטלוויזיה.</string>
     <string name="hint_preview">חלון חי קטן של כניסת HDMI במסך הבית. OK פותח במסך מלא; לחיצה ארוכה ל־OK לאפשרויות נוספות.</string>
     <string name="hint_font">הגופן של השעון, השמות והתפריטים. CMU Sans Serif הוא גרסת הסנס של Computer Modern, הגופן הקלאסי של LaTeX.</string>
+    <string name="layout_state">פריסה: %1$s</string>
+    <string name="layout_gtv">Google TV</string>
+    <string name="layout_apple">Apple TV</string>
+    <string name="hint_layout">Google TV: לשוניות, באנר ושורות של אפליקציות. Apple TV: רציף אחד ורשת.</string>
+    <string name="gtv_home">בית</string>
+    <string name="gtv_apps">אפליקציות</string>
+    <string name="gtv_inputs">כניסות</string>
+    <string name="gtv_your_apps">האפליקציות שלך</string>
+    <string name="gtv_other_apps">אפליקציות מועדפות</string>
+    <string name="gtv_add_favorite">הוספה למועדפים</string>
+    <string name="gtv_remove_favorite">הסרה מהמועדפים</string>
+    <string name="gtv_added_favorite">%1$s נוספה למועדפים</string>
+    <string name="gtv_removed_favorite">%1$s הוסרה מהמועדפים</string>
+    <string name="gtv_favorites_full">רשימת המועדפים מלאה</string>
+    <string name="gtv_favorite_not_saved">לא ניתן לשמור את המועדפים</string>
+    <string name="gtv_move">הזזה</string>
+    <string name="gtv_move_hint">שמאלה וימינה מזיזים את האפליקציה. OK או חזרה מניחים אותה.</string>
+    <string name="hint_rows_gtv">כמה שורות של אפליקציות מועדפות מוצגות מתחת לאפליקציות שלך. 0 מציג רק את האפליקציות שלך.</string>
+    <string name="gtv_open">פתיחה</string>
+    <string name="gtv_failed">פריסת Google TV לא הצליחה להיפתח, ולכן מסך הבית חזר ל-Apple TV.</string>
 </resources>

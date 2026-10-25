@@ -144,4 +144,24 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+    <string name="layout_state">Layout: %1$s</string>
+    <string name="layout_gtv">Google TV</string>
+    <string name="layout_apple">Apple TV</string>
+    <string name="hint_layout">Google TV: tabs, a banner and rows of apps. Apple TV: one dock and a grid.</string>
+    <string name="gtv_home">Home</string>
+    <string name="gtv_apps">Apps</string>
+    <string name="gtv_inputs">Inputs</string>
+    <string name="gtv_your_apps">Your apps</string>
+    <string name="gtv_other_apps">Favorite apps</string>
+    <string name="gtv_open">Open</string>
+    <string name="gtv_move">Move</string>
+    <string name="gtv_add_favorite">Add to Favorites</string>
+    <string name="gtv_remove_favorite">Remove from Favorites</string>
+    <string name="gtv_added_favorite">%1$s added to Favorites</string>
+    <string name="gtv_removed_favorite">%1$s removed from Favorites</string>
+    <string name="gtv_favorites_full">Favorites is full</string>
+    <string name="gtv_favorite_not_saved">Couldn\'t save Favorites</string>
+    <string name="gtv_move_hint">Left and Right move the app. OK or Back puts it down.</string>
+    <string name="hint_rows_gtv">How many rows of Favorite apps show under Your apps. 0 shows only Your apps.</string>
+    <string name="gtv_failed">The Google TV layout failed to start, so Home switched back to Apple TV.</string>
 </resources>

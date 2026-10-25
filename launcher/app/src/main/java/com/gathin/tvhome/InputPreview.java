@@ -61,7 +61,10 @@ final class InputPreview {
     boolean enabled() { return prefs.getBoolean(PREF_ON, false); }
 
     /** HDMI ports in name order, without hidden ones and without HDMI-CEC device sub-inputs. */
-    List<Port> ports() {
+    List<Port> ports() { return ports(ctx); }
+
+    /** HDMI ports for any screen (Google TV layout Inputs tab too). */
+    static List<Port> ports(Context ctx) {
         List<Port> out = new ArrayList<>();
         TvInputManager tim = (TvInputManager) ctx.getSystemService(Context.TV_INPUT_SERVICE);
         if (tim == null) return out;

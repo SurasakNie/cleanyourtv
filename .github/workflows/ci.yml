@@ -48,4 +48,7 @@ jobs:
         run: |
           size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)
           echo "release APK: $((size / 1024)) KB"
-          test "$size" -lt 450560 || { echo "APK is over 440 KB; the launcher targets 1 GB TVs, keep it small"; exit 1; }
+          # 900 KB. About 830 KB of the APK is the two CMU Sans font files, so this budget leaves the fonts
+          # alone while still catching real growth in code and resources. Trimming the fonts to the glyphs the
+          # launcher shows would save some 600 KB if the budget ever needs to come back down (see docs/HANDOFF.md).
+          test "$size" -lt 921600 || { echo "APK is over 900 KB; the launcher targets 1 GB TVs, keep it small"; exit 1; }
