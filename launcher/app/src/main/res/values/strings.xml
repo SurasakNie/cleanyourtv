@@ -161,6 +161,8 @@
     <string name="perf_cpu">Processor</string>
     <string name="perf_memory">Memory free</string>
     <string name="perf_storage">Storage free</string>
+    <string name="perf_memory_used">Memory used</string>
+    <string name="perf_storage_used">Storage used</string>
     <string name="perf_temperature">Temperature</string>
     <string name="perf_frames">Frames</string>
     <string name="perf_network">Network</string>

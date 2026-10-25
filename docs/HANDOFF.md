@@ -113,6 +113,18 @@ about **22 MB is app artwork held in the native heap** — bitmaps for every ins
 but worth trimming: load each tile's artwork when it comes on screen and release it afterwards, the normal
 RecyclerView pattern. Queued as a small 2.05 change, not urgent.
 
+### The performance card: four figures this TV will not give
+The card (Launcher settings → Performance card, added in 2.05) shows memory, storage, frames, network and uptime
+on the KD-49X8500H. Four of its figures stay blank here, each for a known reason:
+
+| Figure | Why | Possible follow-up |
+|---|---|---|
+| **Processor** | Android 9 blocks apps from `/proc/stat`, and this set also refuses the `cpuidle` fallback, so both sources in `Stats.cpuPercent()` are dead. The Apple layout's stats line has the same gap | `/proc/loadavg` as a third source — a load figure, not a percentage |
+| **Temperature** | The thermal sensors are not readable by apps on this set (`Stats.temperatureC()` probes zones 0–11, then gives up). No public API on Android 9 replaces it | None |
+| **Wi‑Fi signal**, **Link speed** | Most likely because the TV is on **wired Ethernet**, in which case leaving them out is correct. Confirm with `dumpsys connectivity` before building anything | A **Network type** row (Wi‑Fi / Ethernet / offline), reusing the detection `MainActivity` already has (`NetworkCapabilities.TRANSPORT_ETHERNET`, which drives the top-bar pill and its `ic_ethernet` icon) |
+
+Nothing is built for these: the owner has not asked for them, and two of the three have no fix.
+
 ### Next phases (from the proposal, [`docs/proposals/google-tv-ui/README.md`](proposals/google-tv-ui/README.md))
 1. **Settings redesign** (§3, the largest item). The owner picked a **right-side panel in the TV's own style**:
    dark panel sliding in from the right over Home, title on top, one list, Back closes it, choices open as the

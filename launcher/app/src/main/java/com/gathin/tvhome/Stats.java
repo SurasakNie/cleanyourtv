@@ -47,10 +47,18 @@ final class Stats {
         List<Item> items = new ArrayList<>();
         int cpu = cpuPercent();
         if (cpu >= 0) items.add(new Item(R.string.perf_cpu, cpu + "%"));
-        long mem = memAvailableMb();
-        if (mem >= 0) items.add(new Item(R.string.perf_memory, mem + " MB"));
-        String storage = formatGb(Environment.getDataDirectory().getFreeSpace());
+        long[] mem = memoryMb();
+        if (mem[0] >= 0) items.add(new Item(R.string.perf_memory, mem[0] + " MB"));
+        if (mem[0] >= 0 && mem[1] > 0) {
+            items.add(new Item(R.string.perf_memory_used, usedOfTotalMb(mem[1] - mem[0], mem[1])));
+        }
+        long freeBytes = Environment.getDataDirectory().getFreeSpace();
+        long totalBytes = Environment.getDataDirectory().getTotalSpace();
+        String storage = formatGb(freeBytes);
         if (!storage.isEmpty()) items.add(new Item(R.string.perf_storage, storage));
+        if (totalBytes > 0 && freeBytes >= 0 && freeBytes <= totalBytes) {
+            items.add(new Item(R.string.perf_storage_used, usedOfTotalBytes(totalBytes - freeBytes, totalBytes)));
+        }
         int temp = temperatureC();
         if (temp > 0) items.add(new Item(R.string.perf_temperature, temp + "°C"));
         int fps = frameRate;
@@ -155,18 +163,42 @@ final class Stats {
 
     // ---- memory and storage ----------------------------------------------------------------------
 
-    long memAvailableMb() {
+    /** {available, total} in MB, either -1 when /proc/meminfo did not give it. One pass over the file. */
+    long[] memoryMb() {
+        long available = -1, total = -1;
         try (BufferedReader r = new BufferedReader(new FileReader("/proc/meminfo"))) {
             String line;
-            while ((line = r.readLine()) != null) {
-                if (line.startsWith("MemAvailable:")) {
-                    String[] t = line.split("\\s+");
-                    return t.length >= 2 ? Long.parseLong(t[1]) / 1024 : -1;
-                }
+            while ((line = r.readLine()) != null && (available < 0 || total < 0)) {
+                if (line.startsWith("MemAvailable:")) available = kbValue(line);
+                else if (line.startsWith("MemTotal:")) total = kbValue(line);
             }
         } catch (IOException | NumberFormatException ignored) {
         }
-        return -1;
+        return new long[]{available, total};
+    }
+
+    /** The kilobyte figure on a /proc/meminfo line, in MB. -1 when the line is not shaped as expected. */
+    private static long kbValue(String line) {
+        String[] t = line.split("\\s+");
+        if (t.length < 2) return -1;
+        try {
+            return Long.parseLong(t[1]) / 1024;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** "1.7 / 2.3 GB" from megabytes, or "640 / 2300 MB" when the total is under a gigabyte. */
+    private static String usedOfTotalMb(long usedMb, long totalMb) {
+        if (totalMb >= 1024) {
+            return String.format(Locale.US, "%.1f / %.1f GB", usedMb / 1024.0, totalMb / 1024.0);
+        }
+        return usedMb + " / " + totalMb + " MB";
+    }
+
+    private static String usedOfTotalBytes(long used, long total) {
+        double gb = 1024.0 * 1024 * 1024;
+        return String.format(Locale.US, "%.1f / %.1f GB", used / gb, total / gb);
     }
 
     static String formatGb(long bytes) {

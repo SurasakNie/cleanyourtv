@@ -161,6 +161,8 @@
     <string name="perf_cpu">מעבד</string>
     <string name="perf_memory">זיכרון פנוי</string>
     <string name="perf_storage">אחסון פנוי</string>
+    <string name="perf_memory_used">זיכרון בשימוש</string>
+    <string name="perf_storage_used">אחסון בשימוש</string>
     <string name="perf_temperature">טמפרטורה</string>
     <string name="perf_frames">פריימים</string>
     <string name="perf_network">רשת</string>
