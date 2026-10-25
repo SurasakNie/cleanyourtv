@@ -429,6 +429,10 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(choices.getBoolean(GtvActivity.PREF_BANNER_BORDER, false) ? R.string.on : R.string.off)));
         bannerFillChoice.setText(getString(R.string.banner_fill_state,
                 getString(choices.getBoolean(GtvActivity.PREF_BANNER_FILL, false) ? R.string.on : R.string.off)));
+        // The launcher's clock screen is not in the APK (the owner keeps the TV's own screensaver), so the row
+        // that set its idle time has nothing to start. Hidden, not deleted, like the rows below it.
+        findViewById(R.id.clockChoice).setVisibility(android.view.View.GONE);
+        findViewById(R.id.hintClock).setVisibility(android.view.View.GONE);
         int unread = EFFECTS_READY ? android.view.View.VISIBLE : android.view.View.GONE;
         for (int id : new int[]{R.id.glowChoice, R.id.hintGlow, R.id.animationsChoice, R.id.hintAnimations,
                 R.id.advancedChoice, R.id.hintAdvanced, R.id.cinematicChoice, R.id.hintCinematic,

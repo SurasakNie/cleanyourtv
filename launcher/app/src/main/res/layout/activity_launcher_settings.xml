@@ -179,7 +179,7 @@
                 android:id="@+id/clockChoice"
                 style="@style/SettingsRow" />
 
-            <TextView style="@style/SettingsHint" android:text="@string/hint_clock" />
+            <TextView android:id="@+id/hintClock" style="@style/SettingsHint" android:text="@string/hint_clock" />
 
             <TextView
                 android:id="@+id/previewChoice"

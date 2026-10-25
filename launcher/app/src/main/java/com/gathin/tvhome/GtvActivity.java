@@ -160,14 +160,6 @@ public final class GtvActivity extends Activity {
     private final List<App> dock = new ArrayList<>(), others = new ArrayList<>(), all = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    /**
-     * Idle time on Home before the launcher's own clock screen, 0 for off (Launcher settings, or
-     * home_idle_clock_minutes). It only ever starts from Home: some TVs' own screens do not keep the display
-     * awake, so the system screensaver can cut into a programme, which is why this screen exists at all.
-     * MainActivity did this until 2.19 turned it into a shim, and nothing did it between then and 2.21.
-     */
-    private long idleClockMs;
-    private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             clock.setText(DateFormat.getTimeFormat(GtvActivity.this).format(new Date()));
@@ -232,7 +224,6 @@ public final class GtvActivity extends Activity {
         int screenW = getResources().getDisplayMetrics().widthPixels;
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
-        idleClockMs = cfg.homeIdleClockMinutes * 60_000L;
         dockApps = cfg.dockApps;
         int screenH = getResources().getDisplayMetrics().heightPixels;
         tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * GAP_DP * dp) / cols);
@@ -291,7 +282,6 @@ public final class GtvActivity extends Activity {
         handler.removeCallbacks(tick);
         handler.post(tick);
         startPerf();
-        armIdleClock();
     }
 
     @Override
@@ -301,20 +291,6 @@ public final class GtvActivity extends Activity {
         stopPerf();
         resumed = false;
         handler.removeCallbacks(tick);
-        // Leaving Home cancels it: a delayed start that outlived this would put the clock over an open app.
-        handler.removeCallbacks(showIdleClock);
-    }
-
-    @Override
-    public void onUserInteraction() {
-        super.onUserInteraction();
-        armIdleClock();
-    }
-
-    /** Starts the idle countdown again from now; off when the setting is 0 or Home is not in front. */
-    private void armIdleClock() {
-        handler.removeCallbacks(showIdleClock);
-        if (idleClockMs > 0 && resumed) handler.postDelayed(showIdleClock, idleClockMs);
     }
 
     @Override
