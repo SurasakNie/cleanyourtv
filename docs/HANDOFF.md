@@ -67,6 +67,34 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 |---|---|---|
 | The hold-OK menu for apps in the **bottom row** opens past the bottom edge of the screen | `GtvActivity.showMenu()` | Owner saw it in 2.04 and chose to fix it later. The Apple layout already solves this in `MainActivity.onTileLongPressed()`: it measures the panel and opens it **above** the tile when it would not fit below. Copy that approach. |
 
+### Open question: a streaming app lags (not a launcher bug)
+The owner reports that one of the Asian streaming apps (iQIYI / WeTV / Youku) is slow: **a black screen on a
+fresh start**, then slow browsing and stuttering playback. Nothing is diagnosed or changed yet — this is parked
+waiting for logs from the TV.
+
+Leads, in order of suspicion:
+1. **A crashing background service.** An earlier crash check on this TV showed `WeTV qqlivei18n:push` crashing
+   repeatedly. A service that keeps dying and restarting burns CPU and memory and would look exactly like this.
+2. **Ad-blocking DNS.** If a Pi-hole or AdGuard resolver is set for this TV, a swallowed (rather than refused) ad
+   request makes these apps wait for the timeout — the classic cause of a black screen on launch.
+3. **Memory pressure.** These are heavy apps on a 2020 Sony with limited RAM.
+4. **A stale app version or a full `/data`.**
+
+Diagnostics to ask the owner for (read-only, from `platform-tools`):
+```powershell
+.\adb.exe shell "pm list packages | findstr /i "iqiyi tencent youku""
+.\adb.exe shell "dumpsys meminfo | findstr /i "Total RAM:  Free RAM:  Used RAM:""
+.\adb.exe shell df /data
+.\adb.exe shell settings get global animator_duration_scale
+.\adb.exe shell "getprop | findstr /i dns"
+# then: logcat -c, open the app with the remote, wait through the black screen, logcat -d > lag.txt
+```
+
+**Constraint the owner set: nothing may stop the app from updating.** So the fixes on the table are clearing the
+app's *cache* (not its data), stopping only the crashing push service, testing with ad-blocking DNS off,
+updating the app in the Play Store, and lowering the animation scale. **Never** disable the app itself, the Play
+Store, or Play services — that is exactly what would block updates.
+
 ### Next phases (from the proposal, [`docs/proposals/google-tv-ui/README.md`](proposals/google-tv-ui/README.md))
 1. **Settings redesign** (§3, the largest item). The owner picked a **right-side panel in the TV's own style**:
    dark panel sliding in from the right over Home, title on top, one list, Back closes it, choices open as the
