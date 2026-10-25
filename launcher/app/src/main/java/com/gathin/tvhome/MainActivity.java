@@ -560,7 +560,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             open(systemIntent(Settings.ACTION_WIFI_SETTINGS));
             return true;
         });
-        btnSettings.setOnClickListener(v -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        btnSettings.setOnClickListener(v -> showSettingsChoice());
         btnReorder = findViewById(R.id.btnReorder);
         btnReorder.setOnClickListener(v -> toggleReorder());
         btnReorder.setVisibility(cfg.reorderButton ? View.VISIBLE : View.GONE);
@@ -1381,7 +1381,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void showHero(int position, float dockTopInRoot) {
         String label = adapter.labelAt(position);
         int color = adapter.ambientColorAt(position);
-        float y = dockTopInRoot - 14 * density - 26 * density - hero.getHeight();
+        float y = fitHero(dockTopInRoot);
         boolean changed = !label.contentEquals(heroName.getText());
         if (cinematic) showHeroArt(position);
         applyGlowStyle(position);
@@ -1440,6 +1440,40 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         } else {
             hero.setY(y);
         }
+    }
+
+    /**
+     * Where the app name goes above the dock: 40 dp over it, but never higher than 12 dp under the top bar. With
+     * many rows below the dock the room shrinks, so the name gets smaller (48 sp down to 26 sp) and, when even that
+     * doesn't fit, is hidden; it never overlaps the clock or the top-right buttons.
+     */
+    private float fitHero(float dockTopInRoot) {
+        if (hero.getVisibility() == View.GONE) return dockTopInRoot - 40 * density - hero.getHeight();   // dock title off
+        View bar = findViewById(R.id.topButtons);
+        View left = findViewById(R.id.leftBlock);
+        int[] rootAt = new int[2], at = new int[2];
+        root.getLocationInWindow(rootAt);
+        float barBottom = 0;
+        for (View v : new View[]{bar, left}) {
+            if (v == null || v.getVisibility() != View.VISIBLE) continue;
+            v.getLocationInWindow(at);
+            barBottom = Math.max(barBottom, at[1] - rootAt[1] + v.getHeight());
+        }
+        float minY = barBottom + 12 * density;
+        float maxBottom = dockTopInRoot - 14 * density - 26 * density;
+        int widthSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+        for (int sp = 48; sp >= 26; sp -= 2) {
+            heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+            hero.measure(widthSpec, widthSpec);
+            int h = hero.getMeasuredHeight();
+            if (maxBottom - h >= minY) {
+                hero.setVisibility(View.VISIBLE);
+                return maxBottom - h;
+            }
+        }
+        heroName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48);
+        hero.setVisibility(View.INVISIBLE);
+        return minY;
     }
 
     /** The shelf's text for this dock app: its name and, on the cinematic shelf, "Last opened" and the dots. */
@@ -2663,6 +2697,22 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     // ---- launcher settings and module cards -------------------------------------------------------
 
     /** Keep a normal Settings click for the TV; the launcher's choices live behind hold OK. */
+    /** OK on the Settings icon: pick Launcher settings or the TV's own settings (hold OK keeps the longer menu). */
+    private void showSettingsChoice() {
+        View anchor = findViewById(R.id.btnSettings);
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        PopupWindow popup = glassPopup(panel, (int) (200 * density));
+        addSettingsMenuRow(rows, popup, R.string.launcher_settings, () -> startActivityForResult(
+                new Intent(this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST));
+        addSettingsMenuRow(rows, popup, R.string.tv_settings, () -> open(systemIntent(Settings.ACTION_SETTINGS)));
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        popup.setWidth(Math.max((int) (200 * density), panel.getMeasuredWidth()));
+        dropIn(popup, panel, anchor, getResources().getBoolean(R.bool.rtl_menu_bar)
+                ? Gravity.START : Gravity.END);
+        rows.getChildAt(0).requestFocus();
+    }
+
     private void showSettingsMenu() {
         View anchor = findViewById(R.id.btnSettings);
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);

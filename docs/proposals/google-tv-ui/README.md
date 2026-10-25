@@ -112,6 +112,11 @@ Launcher                                   (left menu)
   ›  opens a choice page
 ```
 
+**To add in the redesign (owner notes, 2.02 testing):**
+- **Banner title size**: choice page to adjust the size of the big app name on the Google TV Home banner.
+- **Banner border**: on/off toggle for the glass border around the banner.
+- Rows below dock now applies to both layouts (Google TV: rows of Favorite apps), so drop its "Apple TV only" mark.
+
 ### 3.2 Navigation rules
 
 | Action | Result |

@@ -33,7 +33,6 @@ import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.Toast;
 import android.widget.TextView;
 
@@ -104,16 +103,25 @@ public final class GtvActivity extends Activity {
     private final TextView[] tabs = new TextView[3];
     private FrameLayout content;
     private View homePage, appsPage, inputsPage;
-    private RecyclerView firstHomeRow, appsGrid;
-    private ScrollView homeScroll;
-    /** Apps per row (Launcher settings) and rows of Other apps under Your apps (Rows below dock). */
+    /** Home: one grid of Your apps (first row) and Favorite apps (Rows below dock), with a header over each. */
+    private RecyclerView homeGrid, appsGrid;
+    private final List<Object> homeItems = new ArrayList<>();
+    private LinearLayout topBar;
+    /** Apps per row (Launcher settings) and rows of Favorite apps under Your apps (Rows below dock). */
     private int cols, rowsBelow;
     private List<String> dockApps;
-    /** The Your apps tile being moved (hold OK, Move), or null. */
+    /** The Home tile being moved (hold OK, Move), or null. */
     private App moving;
+    /** False when the banner can't fit between the top bar and the rows (then only the glow shows). */
+    private boolean bannerFits = true, bannerCompact;
+    /** Every app in Home order (saved order, dock_apps, name): the first row is Your apps, then Favorites. */
+    private final List<App> ordered = new ArrayList<>();
     private LinearLayout inputsRow;
     private int currentTab = TAB_HOME;
     private int tileW, tileH;
+    /** Left padding of the grids and the banner: 48 dp, more when tiles had to shrink (keeps the grid centred). */
+    private int sidePad;
+    private static final int CONTENT_TOP_DP = 90, HEADER_DP = 40, ARROW_DP = 30, GRID_PAD_DP = 10, GAP_DP = 18;
     private final List<App> dock = new ArrayList<>(), others = new ArrayList<>(), all = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
@@ -165,11 +173,7 @@ public final class GtvActivity extends Activity {
         if (homePage == null) return;
         showTab(TAB_HOME);
         styleTabs();
-        if (homeScroll != null) homeScroll.scrollTo(0, 0);
-        if (firstHomeRow != null) {
-            firstHomeRow.scrollToPosition(0);
-            firstHomeRow.post(() -> focusFirst(firstHomeRow));
-        }
+        if (homeGrid != null) homeGrid.post(this::focusHomeFirst);
     }
 
     private void build() {
@@ -179,8 +183,20 @@ public final class GtvActivity extends Activity {
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
         dockApps = cfg.dockApps;
-        tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * 18 * dp) / cols);
+        int screenH = getResources().getDisplayMetrics().heightPixels;
+        tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * GAP_DP * dp) / cols);
         tileH = tileW * 9 / 16;
+        // Home must fit under the top bar: Your apps + Favorite rows, their headers, padding and the chevron.
+        // When it doesn't (5 or 6 per row with 2-3 rows), tiles shrink to fit and the grid stays centred.
+        int rowsShown = 1 + rowsBelow;
+        float fixed = (CONTENT_TOP_DP + 2 * GRID_PAD_DP + (rowsBelow > 0 ? 2 : 1) * HEADER_DP + ARROW_DP
+                + rowsShown * GAP_DP) * dp;
+        int maxTileH = (int) ((screenH - fixed) / rowsShown);
+        if (tileH > maxTileH) {
+            tileH = maxTileH;
+            tileW = tileH * 16 / 9;
+        }
+        sidePad = Math.max((int) (48 * dp), (int) ((screenW - cols * tileW - (cols - 1) * GAP_DP * dp) / 2));
         loadApps(cfg);
 
         root = new FrameLayout(this);
@@ -192,7 +208,7 @@ public final class GtvActivity extends Activity {
         content = new FrameLayout(this);
         content.setClipChildren(false);
         FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(-1, -1);
-        clp.topMargin = (int) (300 * dp);
+        clp.topMargin = (int) (CONTENT_TOP_DP * dp);
         root.addView(content, clp);
         homePage = buildHome();
         appsPage = buildApps();
@@ -205,7 +221,7 @@ public final class GtvActivity extends Activity {
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(settingsListener);
         if (!dock.isEmpty()) showApp(dock.get(0));
         else if (!all.isEmpty()) showApp(all.get(0));
-        root.post(() -> { if (firstHomeRow != null) focusFirst(firstHomeRow); });
+        root.post(this::focusHomeFirst);
     }
 
     @Override
@@ -282,7 +298,8 @@ public final class GtvActivity extends Activity {
         // Your apps and Other apps follow the Apple TV layout's order (AppAdapter): the owner's saved order
         // (order.txt), then dock_apps, then name. Your apps = the first row, so both layouts share one dock.
         Map<String, Integer> ranks = Order.ranks(Order.load(Order.file(this)), cfg.dockApps);
-        List<App> ordered = new ArrayList<>(all);
+        ordered.clear();
+        ordered.addAll(all);
         Collections.sort(ordered, (x, y) -> {
             int saved = Order.compare(ranks, key(x), key(y));
             if (saved != 0) return saved;
@@ -294,7 +311,29 @@ public final class GtvActivity extends Activity {
             }
             return x.label.compareToIgnoreCase(y.label);
         });
+        splitOrdered();
+    }
+
+    /** Your apps = the first row of the Home order; Other apps = the rest (the first rows of it are Favorites). */
+    private void splitOrdered() {
+        dock.clear();
+        others.clear();
         for (int i = 0; i < ordered.size(); i++) (i < cols ? dock : others).add(ordered.get(i));
+        homeItems.clear();
+        if (!dock.isEmpty()) {
+            homeItems.add(getString(R.string.gtv_your_apps));
+            homeItems.addAll(dock);
+        }
+        int fav = Math.min(others.size(), cols * rowsBelow);
+        if (fav > 0) {
+            homeItems.add(getString(R.string.gtv_other_apps));
+            homeItems.addAll(others.subList(0, fav));
+        }
+    }
+
+    /** How many apps Home shows: Your apps plus the Favorite rows. */
+    private int homeCount() {
+        return Math.min(ordered.size(), cols * (1 + rowsBelow));
     }
 
     private static String key(App a) {
@@ -307,8 +346,7 @@ public final class GtvActivity extends Activity {
      */
     private void saveOrder() {
         List<String> mine = new ArrayList<>();
-        for (App a : dock) mine.add(key(a));
-        for (App a : others) mine.add(key(a));
+        for (App a : ordered) mine.add(key(a));
         Set<String> mineSet = new HashSet<>(mine);
         List<String> keys = new ArrayList<>();
         Order old = Order.load(Order.file(this));
@@ -338,7 +376,8 @@ public final class GtvActivity extends Activity {
     }
 
     private void menu(App a) {
-        boolean inDock = dock.contains(a);
+        int at = ordered.indexOf(a);
+        boolean inDock = currentTab == TAB_HOME && at >= 0 && at < homeCount();   // any Home tile can move
         String[] items = inDock
                 ? new String[]{getString(R.string.gtv_open), getString(R.string.gtv_move), getString(R.string.library_app_info)}
                 : new String[]{getString(R.string.gtv_open), getString(R.string.library_app_info)};
@@ -355,7 +394,7 @@ public final class GtvActivity extends Activity {
         }).show();
     }
 
-    // ---- moving a Your apps tile ----------------------------------------------------------------
+    // ---- moving a Home tile, and keys -------------------------------------------------------------
 
     private void startMove(App a) {
         moving = a;
@@ -363,45 +402,97 @@ public final class GtvActivity extends Activity {
         refocusMoving();
     }
 
-    /** Left/Right move the tile within Your apps; OK or Back puts it down and saves. Other keys do nothing. */
+    /**
+     * Move mode: arrows move the tile through Your apps and the Favorite rows as one list (Left/Right one place,
+     * Up/Down one row); OK or Back puts it down and saves. Otherwise: Up from a page's top row goes to that page's
+     * tab, and Down from Home's lowest row goes to the Apps tab.
+     */
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (moving == null) return super.dispatchKeyEvent(e);
         int code = e.getKeyCode();
+        if (moving == null) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN && handleEdgeKey(code)) return true;
+            return super.dispatchKeyEvent(e);
+        }
         boolean drop = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
                 || code == KeyEvent.KEYCODE_BACK;
         if (code == KeyEvent.KEYCODE_HOME) return super.dispatchKeyEvent(e);
         if (e.getAction() != KeyEvent.ACTION_DOWN) return true;   // the up of OK/Back must not open the app
-        int from = dock.indexOf(moving);
-        if (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            int to = from + (code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
-            if (from >= 0 && to >= 0 && to < dock.size()) {
-                Collections.swap(dock, from, to);
-                firstHomeRow.getAdapter().notifyItemMoved(from, to);
-                firstHomeRow.scrollToPosition(to);
-                firstHomeRow.post(this::refocusMoving);
-            }
-        } else if (drop && e.getRepeatCount() == 0) {
+        int from = ordered.indexOf(moving), to = from;
+        if (code == KeyEvent.KEYCODE_DPAD_LEFT) to = from - 1;
+        else if (code == KeyEvent.KEYCODE_DPAD_RIGHT) to = from + 1;
+        else if (code == KeyEvent.KEYCODE_DPAD_UP) to = from - cols;
+        else if (code == KeyEvent.KEYCODE_DPAD_DOWN) to = from + cols;
+        else if (drop && e.getRepeatCount() == 0) {
             endMove();
+            return true;
+        }
+        if (from >= 0 && to != from && to >= 0 && to < homeCount()) {
+            ordered.add(to, ordered.remove(from));
+            splitOrdered();
+            homeGrid.getAdapter().notifyDataSetChanged();
+            homeGrid.post(this::refocusMoving);
         }
         return true;
+    }
+
+    private boolean handleEdgeKey(int code) {
+        View f = getCurrentFocus();
+        if (f == null || !inside(f, content)) return false;
+        if (code == KeyEvent.KEYCODE_DPAD_UP) {
+            View next = f.focusSearch(View.FOCUS_UP);
+            if (next != null && inside(next, content)) return false;
+            tabs[currentTab].requestFocus();
+            return true;
+        }
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeGrid) {
+            int pos = homeGrid.getChildAdapterPosition(f);
+            if (pos < 0 || !(homeItems.get(pos) instanceof App)) return false;
+            int at = ordered.indexOf((App) homeItems.get(pos)), n = homeCount();
+            int lastRowStart = n <= cols ? 0 : cols + ((n - cols - 1) / cols) * cols;
+            if (at < lastRowStart) return false;
+            openAppsAt(at % cols);
+            return true;
+        }
+        return false;
+    }
+
+    /** Down from Home's lowest row: the Apps tab, on the app in the same column of its top row. */
+    private void openAppsAt(int column) {
+        showTab(TAB_APPS);
+        styleTabs();
+        if (all.isEmpty()) return;
+        appsGrid.scrollToPosition(0);
+        int pos = Math.min(column, all.size() - 1);
+        appsGrid.post(() -> {
+            RecyclerView.ViewHolder vh = appsGrid.findViewHolderForAdapterPosition(pos);
+            if (vh != null) vh.itemView.requestFocus();
+            else focusFirst(appsGrid);
+        });
+    }
+
+    private static boolean inside(View v, View parent) {
+        for (View p = v; p != null; p = p.getParent() instanceof View ? (View) p.getParent() : null) {
+            if (p == parent) return true;
+        }
+        return false;
     }
 
     private void endMove() {
         App a = moving;
         moving = null;
         saveOrder();
-        firstHomeRow.getAdapter().notifyDataSetChanged();
-        int pos = dock.indexOf(a);
-        firstHomeRow.post(() -> {
-            RecyclerView.ViewHolder vh = firstHomeRow.findViewHolderForAdapterPosition(pos);
+        homeGrid.getAdapter().notifyDataSetChanged();
+        int pos = homeItems.indexOf(a);
+        homeGrid.post(() -> {
+            RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(pos);
             if (vh != null) vh.itemView.requestFocus();
         });
     }
 
     private void refocusMoving() {
-        int pos = dock.indexOf(moving);
-        RecyclerView.ViewHolder vh = firstHomeRow.findViewHolderForAdapterPosition(pos);
+        if (moving == null) return;
+        RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(moving));
         if (vh == null) return;
         vh.itemView.requestFocus();
         vh.itemView.setForeground(ring(MOVE_COLOR));
@@ -466,6 +557,7 @@ public final class GtvActivity extends Activity {
 
     private void buildTopBar() {
         LinearLayout bar = glassStrip();
+        topBar = bar;
         bar.setPadding((int) (6 * dp), (int) (6 * dp), (int) (6 * dp), (int) (6 * dp));
         String[] names = {getString(R.string.gtv_home), getString(R.string.gtv_apps), getString(R.string.gtv_inputs)};
         for (int i = 0; i < 3; i++) {
@@ -535,7 +627,7 @@ public final class GtvActivity extends Activity {
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         banner.addView(subtitle);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams((int) (420 * dp), -2, Gravity.TOP | Gravity.START);
-        lp.leftMargin = (int) (48 * dp);
+        lp.leftMargin = sidePad;
         lp.topMargin = (int) (110 * dp);
         root.addView(banner, lp);
     }
@@ -545,55 +637,107 @@ public final class GtvActivity extends Activity {
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
-        subtitle.setVisibility(when > 0 ? View.VISIBLE : View.GONE);
+        subtitle.setVisibility(when > 0 && !bannerCompact ? View.VISIBLE : View.GONE);
         glowDrawable.setColors(new int[]{(a.color & 0x00FFFFFF) | 0xA6000000, (a.color & 0x00FFFFFF) | 0x33000000, 0x00000000});
     }
 
     // ---- pages -----------------------------------------------------------------------------------
 
     /**
-     * Your apps (one row), then Other apps: as many rows as "Rows below dock" (0 = none), each as wide as
-     * "Apps per row". The page scrolls when the rows don't fit; every app is still in the Apps tab.
+     * Home: Your apps, then as many Favorite rows as "Rows below dock" (0 = none), each "Apps per row" wide, sitting
+     * on the bottom edge with the double chevron under the lowest row (Down opens the Apps tab). The banner takes
+     * the room left above them.
      */
     private View buildHome() {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
+        page.setGravity(Gravity.BOTTOM);
         page.setClipChildren(false);
-        if (!dock.isEmpty()) {
-            page.addView(header(getString(R.string.gtv_your_apps)));
-            firstHomeRow = row(dock);
-            page.addView(firstHomeRow);
-        }
-        List<App> shown = others.subList(0, Math.min(others.size(), cols * rowsBelow));
-        if (!shown.isEmpty()) {
-            page.addView(header(getString(R.string.gtv_other_apps)));
-            RecyclerView r = grid(new ArrayList<>(shown));
-            int rows = (shown.size() + cols - 1) / cols;
-            r.setNestedScrollingEnabled(false);
-            r.setLayoutParams(new LinearLayout.LayoutParams(-1, (int) (rows * (tileH + 18 * dp) + 20 * dp)));
-            page.addView(r);
-            if (firstHomeRow == null) firstHomeRow = r;
-        }
-        homeScroll = new ScrollView(this);
-        homeScroll.setVerticalScrollBarEnabled(false);
-        homeScroll.addView(page, new FrameLayout.LayoutParams(-1, -2));
-        return homeScroll;
+        page.setClipToPadding(false);
+        homeGrid = grid(homeItems);
+        homeGrid.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
+        page.addView(homeGrid);
+        ImageView more = new ImageView(this);
+        more.setImageResource(R.drawable.ic_more_below);
+        more.setAlpha(0.75f);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(-2, (int) ((ARROW_DP - 10) * dp));
+        mlp.gravity = Gravity.CENTER_HORIZONTAL;
+        mlp.bottomMargin = (int) (10 * dp);
+        page.addView(more, mlp);
+        // Refit the banner only when the rows' block actually moves (not on every layout pass).
+        homeGrid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (t != ot || b != ob) v.post(this::fitBanner);
+        });
+        return page;
     }
 
-    /** A grid of tiles exactly cols wide: the right padding leaves room for the last tile's 18 dp gap. */
-    private RecyclerView grid(List<App> apps) {
+    /**
+     * Places the banner between the top bar and the Home rows: full size where it fits, a smaller title without
+     * the "Last opened" line where only that fits, otherwise hidden. Never overlaps the top bar or the rows.
+     */
+    private void fitBanner() {
+        if (topBar == null || homeGrid.getHeight() == 0) return;
+        int gap = (int) (12 * dp);
+        int roomTop = topBar.getBottom() + gap;
+        int roomBottom = content.getTop() + homePage.getTop() + homeGrid.getTop() - gap;
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) banner.getLayoutParams();
+        setBannerCompact(false);
+        int h = bannerHeight();
+        int top;
+        if (roomBottom - (int) (110 * dp) >= h) top = (int) (110 * dp);
+        else if (roomBottom - roomTop >= h) top = roomTop;
+        else {
+            setBannerCompact(true);
+            top = roomBottom - roomTop >= bannerHeight() ? roomTop : -1;
+        }
+        bannerFits = top >= 0;
+        if (bannerFits && lp.topMargin != top) {
+            lp.topMargin = top;
+            banner.setLayoutParams(lp);
+        }
+        banner.setVisibility(currentTab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    private void setBannerCompact(boolean compact) {
+        bannerCompact = compact;
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 30 : 46);
+        if (compact) subtitle.setVisibility(View.GONE);
+    }
+
+    /** The banner's height with its "Last opened" line (when not compact), whatever the current app shows. */
+    private int bannerHeight() {
+        CharSequence text = subtitle.getText();
+        int vis = subtitle.getVisibility();
+        subtitle.setText("Xg");
+        subtitle.setVisibility(bannerCompact ? View.GONE : View.VISIBLE);
+        banner.measure(View.MeasureSpec.makeMeasureSpec(banner.getLayoutParams().width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.UNSPECIFIED);
+        subtitle.setText(text);
+        subtitle.setVisibility(vis);
+        return banner.getMeasuredHeight();
+    }
+
+    /** A grid exactly cols wide (the right padding leaves room for the last tile's 18 dp gap); headers span a row. */
+    private RecyclerView grid(List<?> items) {
         RecyclerView r = new RecyclerView(this);
-        r.setLayoutManager(new GridLayoutManager(this, cols));
-        r.setAdapter(new TileAdapter(apps));
-        r.setPadding((int) (48 * dp), (int) (10 * dp), (int) (30 * dp), (int) (10 * dp));
+        GridLayoutManager glm = new GridLayoutManager(this, cols);
+        glm.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override public int getSpanSize(int position) {
+                return items.get(position) instanceof String ? cols : 1;
+            }
+        });
+        r.setLayoutManager(glm);
+        r.setAdapter(new TileAdapter(items));
+        r.setPadding(sidePad, (int) (GRID_PAD_DP * dp), sidePad - (int) (GAP_DP * dp), (int) (GRID_PAD_DP * dp));
         r.setClipToPadding(false);
         r.setClipChildren(false);
+        r.setItemAnimator(null);
         return r;
     }
 
     private View buildApps() {
         appsGrid = grid(all);
-        appsGrid.setPadding((int) (48 * dp), (int) (8 * dp), (int) (30 * dp), (int) (40 * dp));
+        appsGrid.setPadding(sidePad, (int) (8 * dp), sidePad - (int) (GAP_DP * dp), (int) (40 * dp));
         appsGrid.setClipToPadding(false);
         appsGrid.setClipChildren(false);
         return appsGrid;
@@ -607,25 +751,46 @@ public final class GtvActivity extends Activity {
         page.setClipToPadding(false);
         page.addView(header(getString(R.string.gtv_inputs)));
         inputsRow = new LinearLayout(this);
-        inputsRow.setPadding((int) (48 * dp), (int) (10 * dp), 0, (int) (10 * dp));
+        inputsRow.setPadding(sidePad, (int) (10 * dp), 0, (int) (10 * dp));
         inputsRow.setClipChildren(false);
         inputsRow.setClipToPadding(false);
         for (InputPreview.Port p : InputPreview.ports(this)) {
-            TextView t = new TextView(this);
-            t.setText(p.label);
-            t.setTextColor(Color.WHITE);
-            t.setGravity(Gravity.CENTER);
-            // Long names ("HDMI 3 (eARC/ARC)") use two lines and shrink to fit the tile.
-            t.setMaxLines(2);
-            t.setPadding((int) (8 * dp), (int) (4 * dp), (int) (8 * dp), (int) (4 * dp));
-            t.setAutoSizeTextTypeUniformWithConfiguration(11, 16, 1, TypedValue.COMPLEX_UNIT_SP);
-            t.setFocusable(true);
-            t.setBackground(tileBackground(0xFF1B2029));
-            t.setOnClickListener(v -> openInput(p.id));
-            t.setOnFocusChangeListener((v, has) -> focusTile(v, has));
+            // Every port name sits at the same height; extra text in brackets ("eARC/ARC") is a small caption
+            // at the bottom, so HDMI 3 lines up with the others.
+            String label = String.valueOf(p.label);
+            String name = label, caption = null;
+            int open = label.indexOf(" (");
+            if (open > 0 && label.endsWith(")")) {
+                name = label.substring(0, open);
+                caption = label.substring(open + 2, label.length() - 1);
+            }
+            FrameLayout tile = new FrameLayout(this);
+            tile.setFocusable(true);
+            tile.setBackground(tileBackground(0xFF1B2029));
+            tile.setContentDescription(label);
+            TextView n = new TextView(this);
+            n.setText(name);
+            n.setTextColor(Color.WHITE);
+            n.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+            n.setSingleLine(true);
+            n.setGravity(Gravity.CENTER);
+            n.setTranslationY(-tileH * 0.12f);
+            tile.addView(n, new FrameLayout.LayoutParams(-1, -1));
+            if (caption != null) {
+                TextView c = new TextView(this);
+                c.setText(caption);
+                c.setTextColor(0xFFC3CAD4);
+                c.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+                c.setSingleLine(true);
+                FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+                clp.bottomMargin = (int) (tileH * 0.08f);
+                tile.addView(c, clp);
+            }
+            tile.setOnClickListener(v -> openInput(p.id));
+            tile.setOnFocusChangeListener((v, has) -> focusTile(v, has));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileW, tileH);
             lp.rightMargin = (int) (18 * dp);
-            inputsRow.addView(t, lp);
+            inputsRow.addView(tile, lp);
         }
         page.addView(inputsRow);
         return page;
@@ -646,18 +811,19 @@ public final class GtvActivity extends Activity {
         homePage.setVisibility(tab == TAB_HOME ? View.VISIBLE : View.GONE);
         appsPage.setVisibility(tab == TAB_APPS ? View.VISIBLE : View.GONE);
         inputsPage.setVisibility(tab == TAB_INPUTS ? View.VISIBLE : View.GONE);
-        // The banner belongs to Home; Apps and Inputs use the full height.
-        banner.setVisibility(tab == TAB_HOME ? View.VISIBLE : View.INVISIBLE);
-        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) content.getLayoutParams();
-        int top = (int) ((tab == TAB_HOME ? 300 : 90) * dp);
-        if (lp != null && lp.topMargin != top) {
-            lp.topMargin = top;
-            content.setLayoutParams(lp);
-        }
+        // The banner belongs to Home (when it fits above the rows); Apps and Inputs use the full height.
+        banner.setVisibility(tab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    /** Home's first app (Your apps, first place). */
+    private void focusHomeFirst() {
+        if (homeGrid == null || dock.isEmpty()) return;
+        RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(dock.get(0)));
+        if (vh != null) vh.itemView.requestFocus();
     }
 
     private void focusContent() {
-        if (currentTab == TAB_HOME && firstHomeRow != null) focusFirst(firstHomeRow);
+        if (currentTab == TAB_HOME) focusHomeFirst();
         else if (currentTab == TAB_APPS) focusFirst(appsGrid);
         else if (currentTab == TAB_INPUTS && inputsRow.getChildCount() > 0) inputsRow.getChildAt(0).requestFocus();
     }
@@ -680,27 +846,32 @@ public final class GtvActivity extends Activity {
         h.setText(text);
         h.setTextColor(0xFFDFE5EE);
         h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
-        h.setPadding((int) (48 * dp), (int) (14 * dp), 0, (int) (6 * dp));
+        h.setPadding(sidePad, (int) (14 * dp), 0, (int) (6 * dp));
         return h;
     }
 
-    private RecyclerView row(List<App> apps) {
-        RecyclerView r = new RecyclerView(this);
-        r.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        r.setAdapter(new TileAdapter(apps));
-        r.setPadding((int) (48 * dp), (int) (10 * dp), (int) (48 * dp), (int) (10 * dp));
-        r.setClipToPadding(false);
-        r.setClipChildren(false);
-        r.setLayoutParams(new LinearLayout.LayoutParams(-1, (int) (tileH + 20 * dp)));
-        return r;
-    }
-
+    /** Tiles of one grid; a String item is a row header ("Your apps", "Favorite apps") across the grid. */
     private final class TileAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-        private final List<App> apps;
-        TileAdapter(List<App> apps) { this.apps = apps; }
+        private static final int HEADER = 1, TILE = 0;
+        private final List<?> items;
+        TileAdapter(List<?> items) { this.items = items; }
+
+        @Override public int getItemViewType(int position) {
+            return items.get(position) instanceof String ? HEADER : TILE;
+        }
 
         @NonNull @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == HEADER) {
+                TextView h = new TextView(GtvActivity.this);
+                h.setTextColor(0xFFDFE5EE);
+                h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+                h.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
+                h.setPadding((int) (2 * dp), 0, 0, 0);
+                h.setLayoutParams(new RecyclerView.LayoutParams(-1, (int) (HEADER_DP * dp)));
+                Fonts.apply(h);
+                return new RecyclerView.ViewHolder(h) { };
+            }
             FrameLayout card = new FrameLayout(GtvActivity.this);
             card.setFocusable(true);
             RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(tileW, tileH);
@@ -726,7 +897,12 @@ public final class GtvActivity extends Activity {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder h, int position) {
-            App a = apps.get(position);
+            Object item = items.get(position);
+            if (item instanceof String) {
+                ((TextView) h.itemView).setText((String) item);
+                return;
+            }
+            App a = (App) item;
             FrameLayout card = (FrameLayout) h.itemView;
             ImageView img = (ImageView) card.getChildAt(0);
             TextView name = (TextView) card.getChildAt(1);
@@ -738,22 +914,21 @@ public final class GtvActivity extends Activity {
                 img.setImageDrawable(null);
                 name.setText(a.label);
             }
+            // A recycled card may still carry the zoom of the tile it showed before.
+            boolean focused = card.isFocused();
+            card.animate().cancel();
+            card.setScaleX(focused ? 1.1f : 1f);
+            card.setScaleY(focused ? 1.1f : 1f);
+            card.setForeground(focused ? ring(a == moving ? MOVE_COLOR : Color.WHITE) : null);
             card.setOnClickListener(v -> open(a));
             card.setOnLongClickListener(v -> { menu(a); return true; });
             card.setOnFocusChangeListener((v, has) -> {
                 focusTile(v, has);
                 if (has) showApp(a);
-                if (has && apps == dock && homeScroll != null) homeScroll.smoothScrollTo(0, 0);
-            });
-            // Up from Your apps always goes to the Home tab, not the tab that happens to be above.
-            card.setOnKeyListener(apps != dock ? null : (v, code, e) -> {
-                if (code != KeyEvent.KEYCODE_DPAD_UP || moving != null) return false;
-                if (e.getAction() == KeyEvent.ACTION_DOWN) tabs[TAB_HOME].requestFocus();
-                return true;
             });
         }
 
-        @Override public int getItemCount() { return apps.size(); }
+        @Override public int getItemCount() { return items.size(); }
     }
 
     private void focusTile(View v, boolean has) {

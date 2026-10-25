@@ -148,10 +148,10 @@
     <string name="gtv_apps">אפליקציות</string>
     <string name="gtv_inputs">כניסות</string>
     <string name="gtv_your_apps">האפליקציות שלך</string>
-    <string name="gtv_other_apps">אפליקציות נוספות</string>
+    <string name="gtv_other_apps">אפליקציות מועדפות</string>
     <string name="gtv_move">הזזה</string>
     <string name="gtv_move_hint">שמאלה וימינה מזיזים את האפליקציה. OK או חזרה מניחים אותה.</string>
-    <string name="hint_rows_gtv">כמה שורות של אפליקציות אחרות מוצגות מתחת לאפליקציות שלך. 0 מציג רק את האפליקציות שלך.</string>
+    <string name="hint_rows_gtv">כמה שורות של אפליקציות מועדפות מוצגות מתחת לאפליקציות שלך. 0 מציג רק את האפליקציות שלך.</string>
     <string name="gtv_open">פתיחה</string>
     <string name="gtv_failed">פריסת Google TV לא הצליחה להיפתח, ולכן מסך הבית חזר ל-Apple TV.</string>
 </resources>
