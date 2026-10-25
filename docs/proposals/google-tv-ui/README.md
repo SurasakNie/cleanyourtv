@@ -16,7 +16,7 @@ blocks; the real launcher shows each app's own banner.
 | 3 | Google TV layout | New Home: tabs, banner, rows, Apps tab, Inputs tab; Apple TV layout kept as fallback | 1–2 |
 | 4 | Continue watching | Test row from apps' "watch next" data; hides itself if the TV blocks it | 3 |
 | 5 | Effects | Glow, focus styles, focus extras, background motion, transitions, dim when idle | 5 |
-| 6 | Wallpaper sets | Gradients, Thailand, Seasonal, Space, Abstract, Solid; time of day; blur | 6 |
+| 6 | Wallpaper sets | Gradients, Thailand, Seasonal, Space, Abstract, Solid; time of day; blur; online daily pictures (opt-in) and a PC download script | 6 |
 | 7 | Polish | Remote navigation on every edge, Hebrew strings (CI), README | 4 |
 
 **Decisions already made**
@@ -241,6 +241,37 @@ For comparison: the one-list style (not chosen)
 | Blur | Off · Soft · Strong |
 | Quality | Standard · High |
 
+### 5.5 Online and Google wallpapers
+
+**Sources**
+
+| Source | What it is | Licence (to verify before adding anything to the repo) | Use |
+|---|---|---|---|
+| Google Ambient mode / Backdrop (`com.google.android.backdrop`, installed on this TV) | Google's photo and art screensaver | Google's | As the TV screensaver only; no way for other apps to use its pictures |
+| Google Earth View | About 2,600 satellite landscapes, offered free as wallpapers | Google and data providers; personal use | Download for personal use; never committed to the repo |
+| Google Arts & Culture | Famous artworks | Each museum's; no public API | Not used |
+| Pixel wallpapers | Google phone wallpapers | Google's; no redistribution | Not used |
+| Wikimedia Commons Picture of the Day | Daily high-quality photo, often 4K | CC / public domain (per image) | Recommended daily source |
+| NASA Astronomy Picture of the Day | Daily space photo | Mostly public domain | Optional daily source |
+| Unsplash | Large free photo library | Unsplash licence; needs a free API key | Optional |
+| Bing daily image (Microsoft) | Daily photo | Microsoft's; personal use | Optional |
+
+**Three ways, all included**
+
+| Option | How it works | Internet | Launcher stays offline | Phase |
+|---|---|---|---|---|
+| **A. Online wallpapers in the launcher** | Setting **Look › Wallpaper › Online: Off · Wikimedia daily · NASA daily · Earth View · Bing daily**; downloads one picture a day (only while Home is idle, Wi-Fi/Ethernet), caches the last 7, falls back to the offline set when there is no connection | Yes | **No**: adds the `INTERNET` permission, **Off by default**; the app's audit result "no network" changes | 6 |
+| **B. PC download script** | `tools/wallpapers_online.py` (+ `.ps1`): downloads today's / a chosen number of pictures from the sources above at full quality, writes credits, pushes them with ADB into the launcher's `wallpapers/` folder | On the PC only | Yes | 6 |
+| **C. Google's own screensaver** | TV Settings › Device Preferences › Screen saver › Backdrop / Ambient mode; the launcher's Clock screensaver stays Off | Yes (Google) | Yes (no change) | Now, no code |
+
+**Wallpaper page additions (Look › Wallpaper)**
+
+| Setting | Options | Notes |
+|---|---|---|
+| Online | Off · Wikimedia daily · NASA daily · Earth View · Bing daily | Option A; Off by default |
+| Keep | 1 · 7 · 30 pictures | Cache size on the TV |
+| Credit | On / Off | Small photographer / source line in a corner (required by some licences) |
+
 ---
 
 ## 6. Ideas from other launchers (GitHub topic `android-tv-launcher`)
@@ -270,7 +301,7 @@ Each phase ends with one APK to install and test on the TV.
 | 3 | Continue watching test | `GtvActivity` | Row shows or hides with reason |
 | 4 | Polish: D-pad edges, Hebrew layout/strings, README, CI tests | `layout-iw`, `values-iw`, docs | `python3 -m unittest`, CI |
 | 5 | Effects: Ribbon, focus styles, focus extras, background motion, transitions, dim when idle | `MainActivity`/`GtvActivity`, `GlowStyle` | Each option; smoothness |
-| 6 | Wallpaper sets and options (sets, time of day, blur, USB) | `tools/`, `themes/`, `Config` | Each set; memory |
+| 6 | Wallpaper sets and options (sets, time of day, blur, USB); online wallpapers: launcher option A (opt-in) and PC script B | `tools/`, `themes/`, `Config`, `AndroidManifest.xml` (`INTERNET`) | Each set; memory; online Off = no network use |
 
 ### 7.1 Risks
 
@@ -281,12 +312,14 @@ Each phase ends with one APK to install and test on the TV.
 | APK size (fonts already +430 KB) | Larger download | Keep new assets code-drawn; JPEG quality 95 only where needed |
 | Scope growth | Long project | One phase at a time; new ideas go to a later phase |
 | Signing key lives in this session | Updates refused if lost | User keeps `cleanyourtv-debug.keystore` |
+| Online wallpapers add `INTERNET` | Launcher no longer "no network" | Off by default; downloads only pictures, nothing sent about the TV or its use; offline fallback |
+| Picture licences | Some sources forbid redistribution | Never commit downloaded pictures; show credit; verify each source's terms first |
 
 ### 7.2 Not recommended
 
 | Item | Reason |
 |---|---|
-| Weather, daily photos (Bing/NASA), Google Photos, IP-camera tile | Need internet; the launcher is offline by design |
+| Weather, Google Photos, IP-camera tile | Need internet for more than pictures; out of scope (daily wallpapers are now covered, opt-in, in 5.5) |
 | Replacing the Apple TV layout | Keep as fallback |
 
 ---
@@ -300,3 +333,6 @@ Each phase ends with one APK to install and test on the TV.
 | 3 | Effects that run all the time (particles, aurora): include? | Yes, off by default |
 | 4 | Which new wallpaper sets first? | Gradients, Thailand, Seasonal |
 | 5 | USB-stick wallpapers (needs storage permission)? | Later |
+| 6 | Online wallpapers in the launcher (A): accept adding `INTERNET`, Off by default? | Yes, opt-in |
+| 7 | Default online source | Wikimedia Commons Picture of the Day |
+| 8 | Switch the TV screensaver to Google Backdrop / Ambient now (C)? | Yes, no code needed |
