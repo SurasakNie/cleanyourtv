@@ -68,7 +68,7 @@ Every installed app, grouped (Streaming · Tools · Inputs).
 | Layout | Google TV · Apple TV | Google TV |
 | Navigation | Top tabs · Side rail | Top tabs |
 | Layout style (Home) | Tabs + banner · Posters · Minimal | Tabs + banner |
-| Banner | App name + glow · Wallpaper · Off | App name + glow |
+| Banner | App name + glow · Wallpaper · Glass panel · Live input · Off | **Glass panel** |
 | Row: Your apps | On / Off | On |
 | Row: Inputs | On / Off | On |
 | Row: Other apps | On / Off | On |
@@ -410,7 +410,32 @@ Each phase ends with one APK to install and test on the TV.
 
 ---
 
-## 8. Questions for review
+## 8. Answers (owner, review round 1)
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | First phase | **Phase 1 (Google TV layout) first**, settings redesign after |
+| 2 | Default Banner | **Glass panel** (6.1 #1) |
+| 3 | Always-running effects | Include, **off by default** |
+| 4 | New wallpaper sets | **All**: Gradients, Thailand, Seasonal, Space (+ Solid, Abstract) |
+| 5 | USB-stick wallpapers | Later |
+| 6 | Online wallpapers in the launcher | **Yes, opt-in** (adds `INTERNET`, Off by default) |
+| 7 | Online sources | Wikimedia daily, Google Earth View, NASA daily, **National Geographic**, **Apple** |
+| 8 | Screensaver | Keep current |
+
+**Licence check for Q7** (to confirm before Phase 6; my understanding, not yet verified against current terms):
+
+| Source | Licence | Plan |
+|---|---|---|
+| Wikimedia Commons Picture of the Day | Free (CC / public domain, per image) | Include; show credit |
+| NASA APOD | Mostly public domain (some images credited to others) | Include; show credit |
+| Google Earth View | Google's; personal use, no redistribution | Download on the TV for personal display only; never stored in the repo |
+| National Geographic Photo of the Day | **Not free**: National Geographic / photographer copyright | Personal display only, if their terms allow automated download; otherwise drop |
+| Apple (aerial screensavers / macOS wallpapers) | **Not free**: Apple copyright; aerials are large 4K videos | Personal display only, if allowed; likely drop (video, size, terms) |
+
+Only sources whose terms allow it will ship; the others stay out until checked.
+
+### Original questions
 
 | # | Question | Suggested answer |
 |---|---|---|
