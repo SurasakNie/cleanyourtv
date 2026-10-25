@@ -207,4 +207,12 @@
     <string name="banner_fill_state">Banner glass fill: %1$s</string>
     <string name="hint_banner_fill">A dark glass panel behind the banner\'s text, which helps over a bright picture.</string>
     <string name="banner_size_title">Banner title size</string>
+    <string name="gtv_add_to_dock">Add to Your apps</string>
+    <string name="gtv_remove_from_dock">Remove from Your apps</string>
+    <string name="gtv_added_to_dock">%1$s added to Your apps</string>
+    <string name="gtv_removed_from_dock">%1$s removed from Your apps</string>
+    <string name="gtv_dock_full">Your apps is full</string>
+    <string name="gtv_dock_not_saved">Couldn\'t save Your apps</string>
+    <string name="gtv_dock_last_app">Your apps keeps at least one app</string>
+    <string name="gtv_dock_has_everything">Every app is already in Your apps</string>
 </resources>

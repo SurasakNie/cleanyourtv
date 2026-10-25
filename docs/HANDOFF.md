@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.22** (`versionCode` 222). **Confirmed on the TV:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. **Under test:** the idle clock. Still unconfirmed: 2.18's page-indicator fix |
+| Launcher on the TV | **2.23** (`versionCode` 223). **Confirmed on the TV:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. **Under test:** the idle clock. Still unconfirmed: 2.18's page-indicator fix |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. **PR #5 (83bd67f): 2.15–2.21** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -27,6 +27,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.23** | **Your apps becomes a dock the owner keeps.** It is its own scrolling row now, not the first `columns` apps of one list: **Apps per row sets how many are on screen**, moving right brings the next one in, and the selected tile is kept in the **middle of the screen** except at the two ends (`CentreManager` answers `onRequestChildFocus` itself and scrolls to centre; the row clamps at its edges). The **last tile is a +** that lists every app not in the row, and **holding OK on an app offers Remove from Your apps**. The row is the owner's list in **`gtv_dock.txt`** (new `DockApps`, the shape of `Favorites`, MAX 32), seeded from `dock_apps` the first time so an updating TV keeps what it had. The page indicator hides above 12 apps rather than drawing a thicket of dots |
 | **2.22** | **The launcher's clock screen is out of the APK** — the owner keeps the TV's own screensaver. The manifest no longer declares `ClockActivity` (Home's idle clock) or `ClockDream` (the selectable screensaver), `GtvActivity` loses the idle timer it gained in 2.21, and the **Clock** row is hidden in the panel. Verified: **0 mentions of either component in the packaged manifest, 0 class names in the dex, and `dream_clock.xml` shrunk out**. `ClockActivity.java`, `ClockDream.java`, `ClockScene.java` and both `dream_clock.xml` files stay in the tree — re-declaring the two components is all it takes to bring the feature back. **The clock in Home's top-right corner is untouched:** it is a `TextView` in the top bar fed by the minute `tick`, nothing to do with this |
 | **2.21** | **The settings panel is finished, and the idle clock is back.** Choices now open as **a page inside the panel** (Wallpaper, Font, and Glow when it returns): the list steps aside, the page takes its place at the same width with the current choice marked, and Back returns to the list with the row still focused — no more pop-ups. New: **Banner title size** (Small 34 / Medium 46 / Large 58) and, in Effects, **Banner outline** and **Banner glass fill**, both off by default, which is 2.15's fill and border given back as switches. Five rows the Google TV layout does not read — Glow, Animations, Advanced effects, Cinematic, App names — are **hidden** behind `EFFECTS_READY` in `LauncherSettingsActivity`, values untouched. **Bug fix:** the idle clock (`ClockActivity`) had not started since 2.19 — `MainActivity.onUserInteraction` used to arm it and the shim dropped that; `GtvActivity` arms it now, cancelling on pause so it can never appear over an open app |
 | **2.19** | **The Apple TV layout is out of the APK.** `MainActivity` is now a 141-line shim: it keeps the HOME and LEANBACK intent filters (the TV's default-home setting names it, so that must not move) and opens `GtvActivity`. The Apple layout was also the fallback when Home failed to build, so it is replaced by a **recovery screen** in the shim — "Home could not start", with **Try again** and **TV settings** — drawn from nothing but that class, since the configuration, theme or fonts may be what failed. The `layout` preference, `GtvActivity.enabled()` and `fallBack()` are gone; a failure is recorded in `gtv_failed` and cleared when Home next draws. R8 drops the now unreferenced Apple code: the APK falls **598 KB → 440 KB**. The sources stay in the tree: 2.20 deleted them and was reverted on the owner's word — the removal was only ever meant to be from the APK |
@@ -88,7 +89,9 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Waiting on a test
-2.22 is a removal, so the test is that **nothing changed**: Home as before, **the top-right clock still ticking**, the TV's own screensaver still starting, and no Clock row in the panel.
+2.23 changes Home's structure, so it needs a careful look: six tiles at *Apps per row = 6*, Right bringing the next app in with the selection staying centred, the first and last tiles resting at the edges, **+** adding, hold-OK removing, and **nothing overlapping at Rows below dock 0 and 3**. Up from the row must still land on the Home tab, and Down must reach the Favorite rows (or the Apps tab when there are none).
+
+2.22 was a removal, so its test is that **nothing changed**: Home as before, **the top-right clock still ticking**, the TV's own screensaver still starting, and no Clock row in the panel.
 
 2.18's page-indicator fix (hold left or right across the dock) has never been confirmed on screen either.
 
@@ -256,7 +259,7 @@ diverges permanently and makes merging from upstream painful — the owner chose
 
 ### Decisions already made (do not re-ask)
 - Google TV layout is the default (`default_layout` in `config.xml`).
-- Your apps is the **same dock** as the Apple TV layout, kept in `order.txt`.
+- Your apps **was** the same dock as the Apple TV layout, kept in `order.txt`. Since 2.23 it is the owner's own list in `gtv_dock.txt` (`DockApps`), seeded from `dock_apps`; `order.txt` still decides the sort order of the apps, not which ones are in the row. **Move no longer crosses between Your apps and the Favorite rows** — it reorders within each — because the row's membership is now changed on purpose with + and hold-OK, and a move across the boundary would change it silently.
 - Favorite apps are the owner's own list (`gtv_favorites.txt`), **Google TV layout only**; the Apple layout keeps
   showing all apps under the dock.
 - Rows below dock sets the number of Favorite rows; Home sits on the bottom edge; ⌄⌄ marks the lowest row and

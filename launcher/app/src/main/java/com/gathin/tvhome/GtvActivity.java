@@ -37,6 +37,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.ScrollView;
 import android.widget.Toast;
 import android.widget.TextView;
 
@@ -120,8 +121,16 @@ public final class GtvActivity extends Activity {
     private FrameLayout content;
     private View homePage, appsPage, inputsPage;
     /** Home: one grid of Your apps (first row) and Favorite apps (Rows below dock), with a header over each. */
-    private RecyclerView homeGrid, appsGrid;
+    private RecyclerView homeGrid, appsGrid, dockRow;
+    /** The "Your apps" heading above the dock row; the banner and the card are fitted above it. */
+    private TextView dockHeader;
     private final List<Object> homeItems = new ArrayList<>();
+    /** Your apps: the owner's dock (DockApps), plus the + tile at the end. */
+    private final List<Object> dockItems = new ArrayList<>();
+    /** The packages in Your apps, in the owner's order; gtv_dock.txt, seeded from dock_apps. */
+    private List<String> dockPackages = new ArrayList<>();
+    /** The + tile's place in dockItems: its own type, so the adapter can tell it from an app. */
+    private static final Object PLUS = new Object();
     private LinearLayout topBar;
     /** The clock and gear strip: hidden while the settings panel is open, which sits over that corner. */
     private LinearLayout topRight;
@@ -230,8 +239,11 @@ public final class GtvActivity extends Activity {
         tileH = tileW * 9 / 16;
         // Home must fit under the top bar: Your apps + Favorite rows, their headers, padding and the chevron.
         // When it doesn't (5 or 6 per row with 2-3 rows), tiles shrink to fit and the grid stays centred.
+        // Your apps is its own row since 2.23, with its own 2 x GRID_PAD_DP, and the grid below keeps its own
+        // whenever it has rows to show — so the padding counted here follows the structure.
         int rowsShown = 1 + rowsBelow;
-        float fixed = (CONTENT_TOP_DP + 2 * GRID_PAD_DP + (rowsBelow > 0 ? 2 : 1) * HEADER_DP + ARROW_DP
+        float fixed = (CONTENT_TOP_DP + (rowsBelow > 0 ? 4 : 2) * GRID_PAD_DP
+                + (rowsBelow > 0 ? 2 : 1) * HEADER_DP + ARROW_DP
                 + rowsShown * GAP_DP) * dp;
         int maxTileH = (int) ((screenH - fixed) / rowsShown);
         if (tileH > maxTileH) {
@@ -353,6 +365,20 @@ public final class GtvActivity extends Activity {
             }
             return x.label.compareToIgnoreCase(y.label);
         });
+        List<String> savedDock = DockApps.load(this);
+        if (savedDock == null) {
+            // First run on 2.23, or an unreadable file: start from dock_apps, so the row looks as it did.
+            savedDock = new ArrayList<>();
+            for (String pkg : cfg.dockApps) {
+                if (savedDock.size() >= DockApps.MAX || savedDock.contains(pkg)) continue;
+                if (LibraryApps.validPackage(pkg)) savedDock.add(pkg);
+            }
+            // Nothing configured: the first apps of the Home order, as many as fit, which is what 2.22 showed.
+            for (int i = 0; savedDock.isEmpty() && i < ordered.size() && i < cols; i++) {
+                savedDock.add(ordered.get(i).pkg);
+            }
+        }
+        dockPackages = new ArrayList<>(savedDock);
         List<String> saved = Favorites.load(this);
         if (saved == null) {
             // First run (or an unreadable file): start with the apps the rows show today, so nothing disappears.
@@ -365,21 +391,27 @@ public final class GtvActivity extends Activity {
         splitOrdered();
     }
 
-    /** Your apps = the first row of the Home order; Favorites = the owner's list, minus anything in Your apps. */
+    /**
+     * Your apps = the owner's dock, in their order, however many it holds; Favorites = their other list, minus
+     * anything already in Your apps. The dock is its own scrolling row, so only the Favorite rows are in the grid.
+     */
     private void splitOrdered() {
         dock.clear();
         others.clear();
-        for (int i = 0; i < ordered.size() && i < cols; i++) dock.add(ordered.get(i));
+        for (String pkg : dockPackages) {
+            for (App a : ordered) {
+                if (a.pkg.equals(pkg) && !dock.contains(a)) dock.add(a);
+            }
+        }
         for (String pkg : favPackages) {
             for (App a : ordered) {
                 if (a.pkg.equals(pkg) && !dock.contains(a) && !others.contains(a)) others.add(a);
             }
         }
+        dockItems.clear();
+        dockItems.addAll(dock);
+        dockItems.add(PLUS);
         homeItems.clear();
-        if (!dock.isEmpty()) {
-            homeItems.add(getString(R.string.gtv_your_apps));
-            homeItems.addAll(dock);
-        }
         int fav = favouritesShown();
         if (fav > 0) {
             homeItems.add(getString(R.string.gtv_other_apps));
@@ -431,6 +463,68 @@ public final class GtvActivity extends Activity {
                 a.label), Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * Puts an app in Your apps or takes it out, and rebuilds Home in place. The last app stays: an empty row
+     * would leave only the + tile, and nothing names the screen.
+     */
+    private void setInDock(App a, boolean inDock) {
+        if (!inDock && dock.size() <= 1) {
+            Toast.makeText(this, R.string.gtv_dock_last_app, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<String> next;
+        try {
+            next = inDock ? DockApps.added(dockPackages, a.pkg) : DockApps.removed(dockPackages, a.pkg);
+        } catch (IllegalArgumentException e) {
+            Toast.makeText(this, R.string.gtv_dock_full, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!DockApps.save(this, next)) {
+            Toast.makeText(this, R.string.gtv_dock_not_saved, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        dockPackages = new ArrayList<>(next);
+        splitOrdered();
+        buildDots();
+        dockRow.getAdapter().notifyDataSetChanged();
+        homeGrid.getAdapter().notifyDataSetChanged();
+        Toast.makeText(this, getString(inDock ? R.string.gtv_added_to_dock : R.string.gtv_removed_from_dock,
+                a.label), Toast.LENGTH_SHORT).show();
+        if (inDock) dockRow.post(() -> focusDock(dock.size() - 1));
+    }
+
+    /** The + tile: every app that is not in Your apps yet, in the Apps tab's order. */
+    private void showDockChooser(View anchor) {
+        List<String> titles = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
+        for (App a : all) {
+            if (dock.contains(a)) continue;
+            titles.add(a.label);
+            actions.add(() -> setInDock(a, true));
+        }
+        if (titles.isEmpty()) {
+            Toast.makeText(this, R.string.gtv_dock_has_everything, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        showMenu(anchor, getString(R.string.gtv_add_to_dock), titles, actions);
+    }
+
+    /** Focuses a place in Your apps, which also scrolls the row to put it in the middle. */
+    private void focusDock(int index) {
+        if (dockRow == null || index < 0 || index >= dockItems.size()) return;
+        RecyclerView.ViewHolder vh = dockRow.findViewHolderForAdapterPosition(index);
+        if (vh != null) {
+            vh.itemView.requestFocus();
+            return;
+        }
+        // Not laid out yet: scroll to it, then take the focus once the row has caught up.
+        dockRow.scrollToPosition(index);
+        dockRow.post(() -> {
+            RecyclerView.ViewHolder then = dockRow.findViewHolderForAdapterPosition(index);
+            if (then != null) then.itemView.requestFocus();
+        });
+    }
+
     private static String key(App a) {
         return a.component.flattenToShortString();
     }
@@ -442,6 +536,9 @@ public final class GtvActivity extends Activity {
     private void saveOrder() {
         if (!Favorites.save(this, favPackages)) {
             Toast.makeText(this, R.string.gtv_favorite_not_saved, Toast.LENGTH_SHORT).show();
+        }
+        if (!DockApps.save(this, dockPackages)) {
+            Toast.makeText(this, R.string.gtv_dock_not_saved, Toast.LENGTH_SHORT).show();
         }
         List<String> mine = new ArrayList<>();
         for (App a : ordered) mine.add(key(a));
@@ -477,19 +574,25 @@ public final class GtvActivity extends Activity {
     private void menu(App a, View card) {
         boolean onHome = currentTab == TAB_HOME && homeIndex(a) >= 0;
         boolean favourite = others.contains(a) && others.indexOf(a) < favouritesShown();
+        boolean inDock = dock.contains(a);
         List<Runnable> actions = new ArrayList<>();
-        List<Integer> titles = new ArrayList<>();
-        titles.add(R.string.gtv_open);
+        List<String> titles = new ArrayList<>();
+        titles.add(getString(R.string.gtv_open));
         actions.add(() -> open(a));
         if (onHome) {
-            titles.add(R.string.gtv_move);
+            titles.add(getString(R.string.gtv_move));
             actions.add(() -> startMove(a));
         }
-        if (!dock.contains(a)) {
-            titles.add(favourite ? R.string.gtv_remove_favorite : R.string.gtv_add_favorite);
+        if (inDock) {
+            titles.add(getString(R.string.gtv_remove_from_dock));
+            actions.add(() -> setInDock(a, false));
+        } else {
+            titles.add(getString(R.string.gtv_add_to_dock));
+            actions.add(() -> setInDock(a, true));
+            titles.add(getString(favourite ? R.string.gtv_remove_favorite : R.string.gtv_add_favorite));
             actions.add(() -> setFavourite(a, !favourite));
         }
-        titles.add(R.string.library_app_info);
+        titles.add(getString(R.string.library_app_info));
         actions.add(() -> {
             try {
                 startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.pkg))
@@ -534,16 +637,19 @@ public final class GtvActivity extends Activity {
         if (code == KeyEvent.KEYCODE_HOME) return super.dispatchKeyEvent(e);
         if (e.getAction() != KeyEvent.ACTION_DOWN) return true;   // the up of OK/Back must not open the app
         int from = homeIndex(moving), to = from;
+        boolean inDock = from >= 0 && from < dock.size();
+        // In Your apps the row is one line, so Up and Down have nothing to move through.
         if (code == KeyEvent.KEYCODE_DPAD_LEFT) to = from - 1;
         else if (code == KeyEvent.KEYCODE_DPAD_RIGHT) to = from + 1;
-        else if (code == KeyEvent.KEYCODE_DPAD_UP) to = from - cols;
-        else if (code == KeyEvent.KEYCODE_DPAD_DOWN) to = from + cols;
+        else if (!inDock && code == KeyEvent.KEYCODE_DPAD_UP) to = from - cols;
+        else if (!inDock && code == KeyEvent.KEYCODE_DPAD_DOWN) to = from + cols;
         else if (drop && e.getRepeatCount() == 0) {
             endMove();
             return true;
         }
         if (from >= 0 && to != from && to >= 0 && to < homeCount() && moveTo(from, to)) {
             splitOrdered();
+            dockRow.getAdapter().notifyDataSetChanged();
             homeGrid.getAdapter().notifyDataSetChanged();
             homeGrid.post(this::refocusMoving);
         }
@@ -551,30 +657,27 @@ public final class GtvActivity extends Activity {
     }
 
     /**
-     * Moves the carried tile from one Home place to another. Your apps keep the shared order (order.txt, the
-     * dock the Apple TV layout shows too); the Favorite rows keep their own list. Crossing between the two swaps
-     * the apps, so neither section changes size.
+     * Moves the carried tile from one Home place to another. Your apps reorder their own list (gtv_dock.txt) and
+     * the Favorite rows reorder theirs.
+     *
+     * Crossing between the two used to trade one app for the other, back when Your apps was simply the first row
+     * of one list and had to stay the same size. Since 2.23 the dock is a list the owner adds to with + and takes
+     * from by holding OK, so a move across the boundary would quietly change what is in it — it is refused, and
+     * the explicit actions do that job.
      */
     private boolean moveTo(int from, int to) {
         App carried = homeApp(from), other = homeApp(to);
         if (carried == null || other == null) return false;
         boolean fromDock = from < dock.size(), toDock = to < dock.size();
-        if (fromDock && toDock) {
-            Collections.swap(ordered, ordered.indexOf(carried), ordered.indexOf(other));
-        } else if (!fromDock && !toDock) {
+        if (fromDock != toDock) return false;
+        if (fromDock) {
+            int a = dockPackages.indexOf(carried.pkg), b = dockPackages.indexOf(other.pkg);
+            if (a < 0 || b < 0) return false;
+            dockPackages.add(b, dockPackages.remove(a));
+        } else {
             int a = favPackages.indexOf(carried.pkg), b = favPackages.indexOf(other.pkg);
             if (a < 0 || b < 0) return false;
             favPackages.add(b, favPackages.remove(a));
-        } else {
-            // One is in Your apps and one is a Favorite: trade places.
-            App inDock = fromDock ? carried : other, fav = fromDock ? other : carried;
-            int at = favPackages.indexOf(fav.pkg);
-            if (at < 0) return false;
-            favPackages.set(at, inDock.pkg);
-            int slot = ordered.indexOf(inDock), favAt = ordered.indexOf(fav);
-            if (slot < 0 || favAt < 0) return false;
-            ordered.set(slot, fav);
-            ordered.set(favAt, inDock);
         }
         return true;
     }
@@ -588,11 +691,24 @@ public final class GtvActivity extends Activity {
             tabs[currentTab].requestFocus();
             return true;
         }
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == dockRow) {
+            // Down from Your apps: into the Favorite rows when there are any, otherwise on to the Apps tab.
+            if (favouritesShown() > 0 && !others.isEmpty()) {
+                RecyclerView.ViewHolder vh =
+                        homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(others.get(0)));
+                if (vh != null) {
+                    vh.itemView.requestFocus();
+                    return true;
+                }
+            }
+            openAppsAt(0);
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeGrid) {
             int pos = homeGrid.getChildAdapterPosition(f);
-            if (pos < 0 || !(homeItems.get(pos) instanceof App)) return false;
-            int at = homeIndex((App) homeItems.get(pos)), n = homeCount();
-            int lastRowStart = n <= cols ? 0 : cols + ((n - cols - 1) / cols) * cols;
+            if (pos < 0 || pos >= homeItems.size() || !(homeItems.get(pos) instanceof App)) return false;
+            int at = others.indexOf((App) homeItems.get(pos)), shown = favouritesShown();
+            int lastRowStart = shown <= cols ? 0 : ((shown - 1) / cols) * cols;
             if (at < 0 || at < lastRowStart) return false;
             openAppsAt(at % cols);
             return true;
@@ -628,10 +744,10 @@ public final class GtvActivity extends Activity {
         App a = moving;
         moving = null;
         saveOrder();
+        dockRow.getAdapter().notifyDataSetChanged();
         homeGrid.getAdapter().notifyDataSetChanged();
-        int pos = homeItems.indexOf(a);
         homeGrid.post(() -> {
-            RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(pos);
+            RecyclerView.ViewHolder vh = holderOf(a);
             if (vh == null) return;
             vh.itemView.requestFocus();
             styleCarried(vh.itemView, false);   // put down: back to an ordinary selection
@@ -641,11 +757,19 @@ public final class GtvActivity extends Activity {
 
     private void refocusMoving() {
         if (moving == null) return;
-        RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(moving));
+        RecyclerView.ViewHolder vh = holderOf(moving);
         if (vh == null) return;
         vh.itemView.requestFocus();
         styleCarried(vh.itemView, true);
         dimOthers(vh.itemView);
+    }
+
+    /** The tile showing this app, wherever it is: Your apps, or the Favorite rows. */
+    private RecyclerView.ViewHolder holderOf(App a) {
+        int at = dockItems.indexOf(a);
+        if (at >= 0) return dockRow.findViewHolderForAdapterPosition(at);
+        at = homeItems.indexOf(a);
+        return at >= 0 ? homeGrid.findViewHolderForAdapterPosition(at) : null;
     }
 
     @Override
@@ -656,13 +780,16 @@ public final class GtvActivity extends Activity {
 
     // ---- menus (the Google TV look: glass panel, white pill on the selected row) --------------
 
+    /** More rows than this and the menu scrolls: the + tile's chooser can list every app on the TV. */
+    private static final int MENU_ROWS_BEFORE_SCROLL = 8;
+
     /** OK on the gear: Launcher settings or the TV's own settings, as in the Apple TV layout. */
     private void showSettingsChoice(View anchor) {
-        List<Integer> titles = new ArrayList<>();
+        List<String> titles = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
-        titles.add(R.string.launcher_settings);
+        titles.add(getString(R.string.launcher_settings));
         actions.add(this::openSettings);
-        titles.add(R.string.tv_settings);
+        titles.add(getString(R.string.tv_settings));
         actions.add(() -> {
             try {
                 startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -683,7 +810,7 @@ public final class GtvActivity extends Activity {
      * The one menu both the gear and hold OK use, so they match the tabs: a glass panel under (or over) the
      * tile, each row a pill that turns white with dark text when selected.
      */
-    private void showMenu(View anchor, String heading, List<Integer> titles, List<Runnable> actions) {
+    private void showMenu(View anchor, String heading, List<String> titles, List<Runnable> actions) {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
@@ -710,12 +837,23 @@ public final class GtvActivity extends Activity {
             h.setPadding((int) (16 * dp), (int) (6 * dp), (int) (16 * dp), (int) (8 * dp));
             panel.addView(h);
         }
+        LinearLayout rows = new LinearLayout(this);
+        rows.setOrientation(LinearLayout.VERTICAL);
         for (int i = 0; i < titles.size(); i++) {
-            panel.addView(menuRow(popup, getString(titles.get(i)), actions.get(i)));
+            rows.addView(menuRow(popup, titles.get(i), actions.get(i)));
+        }
+        if (titles.size() > MENU_ROWS_BEFORE_SCROLL) {
+            ScrollView scroller = new ScrollView(this);
+            scroller.setScrollbarFadingEnabled(false);
+            scroller.addView(rows);
+            panel.addView(scroller, new LinearLayout.LayoutParams(-1,
+                    (int) (getResources().getDisplayMetrics().heightPixels * 0.55f)));
+        } else {
+            panel.addView(rows);
         }
         Fonts.apply(panel);
         showPanel(popup, panel, anchor);
-        panel.getChildAt(heading == null ? 0 : 1).requestFocus();
+        rows.getChildAt(0).requestFocus();
     }
 
     /**
@@ -1056,6 +1194,14 @@ public final class GtvActivity extends Activity {
     /** A dot for each app in Your apps, the selected one wider. Rebuilt whenever the dock itself changes. */
     private void buildDots() {
         if (dots == null) return;
+        // One dot per app reads well for a row of five to eight. A long row would be a thicket of them, so past
+        // DOTS_MAX the indicator steps aside instead.
+        if (dock.size() > DOTS_MAX) {
+            if (dotAnimator != null) dotAnimator.cancel();
+            dots.removeAllViews();
+            dotShown = -1;
+            return;
+        }
         if (dotAnimator != null) dotAnimator.cancel();
         dots.removeAllViews();
         dotShown = -1;
@@ -1069,6 +1215,8 @@ public final class GtvActivity extends Activity {
     }
 
     private static final int DOT_DP = 6, DOT_WIDE_DP = 22;
+    /** Above this many apps in Your apps the page indicator hides rather than drawing a dot for each. */
+    private static final int DOTS_MAX = 12;
 
     /** Banner look, all from Launcher settings: the title's size in sp, and whether it has an outline or a fill. */
     static final String PREF_BANNER_SP = "gtv_banner_title_sp";
@@ -1096,7 +1244,7 @@ public final class GtvActivity extends Activity {
      */
     private void showDot(int index) {
         if (dots == null) return;
-        dots.setVisibility(index >= 0 ? View.VISIBLE : View.GONE);
+        dots.setVisibility(index >= 0 && dots.getChildCount() > 0 ? View.VISIBLE : View.GONE);
         if (index < 0 || index >= dots.getChildCount() || index == dotShown) return;
         dotShown = index;
         if (dotAnimator != null) dotAnimator.cancel();
@@ -1151,6 +1299,10 @@ public final class GtvActivity extends Activity {
         page.setGravity(Gravity.BOTTOM);
         page.setClipChildren(false);
         page.setClipToPadding(false);
+        dockHeader = header(getString(R.string.gtv_your_apps));
+        dockHeader.setPadding(sidePad + (int) (2 * dp), 0, 0, 0);
+        page.addView(dockHeader, new LinearLayout.LayoutParams(-1, (int) (HEADER_DP * dp)));
+        page.addView(dockRow = dockRow(), new LinearLayout.LayoutParams(-1, -2));
         homeGrid = grid(homeItems);
         homeGrid.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         page.addView(homeGrid);
@@ -1165,7 +1317,52 @@ public final class GtvActivity extends Activity {
         homeGrid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (t != ot || b != ob) v.post(this::fitBanner);
         });
+        dockRow.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (t != ot || b != ob) v.post(this::fitBanner);
+        });
         return page;
+    }
+
+    /**
+     * Your apps: one row that scrolls, so it can hold more apps than fit on screen. Apps per row sets how many
+     * are on screen; moving right brings the next one in, and the selected tile is kept in the middle of the
+     * screen except at the two ends, where the row has nothing left to scroll.
+     */
+    private RecyclerView dockRow() {
+        RecyclerView r = new RecyclerView(this);
+        r.setLayoutManager(new CentreManager());
+        r.setAdapter(new TileAdapter(dockItems));
+        r.setPadding(sidePad, (int) (GRID_PAD_DP * dp), sidePad, (int) (GRID_PAD_DP * dp));
+        r.setClipToPadding(false);
+        r.setClipChildren(false);
+        r.setItemAnimator(null);
+        r.setHorizontalScrollBarEnabled(false);
+        return r;
+    }
+
+    /**
+     * Keeps the focused tile in the middle of the row. RecyclerView's own "scroll it just into view" is turned
+     * off (onRequestChildFocus answers true) and replaced by a scroll to centre, which the row clamps at its ends
+     * by itself — so the first and last tiles sit at the edges instead of being dragged to the middle.
+     */
+    private final class CentreManager extends LinearLayoutManager {
+        CentreManager() {
+            super(GtvActivity.this, LinearLayoutManager.HORIZONTAL, false);
+        }
+
+        @Override
+        protected void calculateExtraLayoutSpace(@NonNull RecyclerView.State state, @NonNull int[] extra) {
+            extra[0] = tileW;
+            extra[1] = tileW;
+        }
+
+        @Override
+        public boolean onRequestChildFocus(@NonNull RecyclerView parent, @NonNull RecyclerView.State state,
+                                           @NonNull View child, View focused) {
+            int to = (child.getLeft() + child.getRight()) / 2 - parent.getWidth() / 2;
+            if (to != 0) parent.smoothScrollBy(to, 0);
+            return true;
+        }
     }
 
     /**
@@ -1173,9 +1370,10 @@ public final class GtvActivity extends Activity {
      * the "Last opened" line where only that fits, otherwise hidden. Never overlaps the top bar or the rows.
      */
     private void fitBanner() {
-        if (topBar == null || homeGrid.getHeight() == 0) return;
+        if (topBar == null || dockHeader == null || dockRow == null || dockRow.getHeight() == 0) return;
         int gap = (int) (12 * dp);
-        int rowsTop = content.getTop() + homePage.getTop() + homeGrid.getTop();
+        // The rows' block starts at the "Your apps" heading now that the dock is a row of its own above the grid.
+        int rowsTop = content.getTop() + homePage.getTop() + dockHeader.getTop();
         int roomTop = topBar.getBottom() + gap;
         int roomBottom = rowsTop - gap;            // the performance card keeps the gap it has always had
         // The banner carries its own 16 dp of bottom padding, which is the clearance it keeps from the rows: a
@@ -1354,10 +1552,10 @@ public final class GtvActivity extends Activity {
         if (perfCard != null) perfCard.setVisibility(tab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
     }
 
-    /** Home's first app (Your apps, first place). */
+    /** Home's first app (Your apps, first place), or the + tile when the dock is empty. */
     private void focusHomeFirst() {
-        if (homeGrid == null || dock.isEmpty()) return;
-        RecyclerView.ViewHolder vh = homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(dock.get(0)));
+        if (dockRow == null) return;
+        RecyclerView.ViewHolder vh = dockRow.findViewHolderForAdapterPosition(0);
         if (vh != null) vh.itemView.requestFocus();
     }
 
@@ -1391,12 +1589,14 @@ public final class GtvActivity extends Activity {
 
     /** Tiles of one grid; a String item is a row header ("Your apps", "Favorite apps") across the grid. */
     private final class TileAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-        private static final int HEADER = 1, TILE = 0;
+        private static final int HEADER = 1, TILE = 0, PLUS_TILE = 2;
         private final List<?> items;
         TileAdapter(List<?> items) { this.items = items; }
 
         @Override public int getItemViewType(int position) {
-            return items.get(position) instanceof String ? HEADER : TILE;
+            Object item = items.get(position);
+            if (item instanceof String) return HEADER;
+            return item == PLUS ? PLUS_TILE : TILE;
         }
 
         @NonNull @Override
@@ -1410,6 +1610,20 @@ public final class GtvActivity extends Activity {
                 h.setLayoutParams(new RecyclerView.LayoutParams(-1, (int) (HEADER_DP * dp)));
                 Fonts.apply(h);
                 return new RecyclerView.ViewHolder(h) { };
+            }
+            if (viewType == PLUS_TILE) {
+                TextView plus = new TextView(GtvActivity.this);
+                plus.setFocusable(true);
+                plus.setText("+");
+                plus.setTextColor(0xFFC3CAD4);
+                plus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34);
+                plus.setGravity(Gravity.CENTER);
+                plus.setContentDescription(getString(R.string.gtv_add_to_dock));
+                RecyclerView.LayoutParams plp = new RecyclerView.LayoutParams(tileW, tileH);
+                plp.rightMargin = (int) (18 * dp);
+                plus.setLayoutParams(plp);
+                Fonts.apply(plus);
+                return new RecyclerView.ViewHolder(plus) { };
             }
             FrameLayout card = new FrameLayout(GtvActivity.this);
             card.setFocusable(true);
@@ -1439,6 +1653,19 @@ public final class GtvActivity extends Activity {
             Object item = items.get(position);
             if (item instanceof String) {
                 ((TextView) h.itemView).setText((String) item);
+                return;
+            }
+            if (item == PLUS) {
+                View plus = h.itemView;
+                plus.setBackground(tileBackground(0x33FFFFFF));
+                plus.setScaleX(1f);
+                plus.setScaleY(1f);
+                plus.setAlpha(moving != null ? DIM_MOVING : 1f);
+                plus.setOnClickListener(v -> showDockChooser(v));
+                plus.setOnFocusChangeListener((v, has) -> {
+                    focusTile(v, has);
+                    if (has) clearSelectedApp();   // the + names no app, so the banner steps aside
+                });
                 return;
             }
             App a = (App) item;
@@ -1494,7 +1721,7 @@ public final class GtvActivity extends Activity {
     /** Fades every tile but this one, for the duration of a move. */
     private void dimOthers(View focused) {
         float others = moving != null ? DIM_MOVING : 1f;
-        for (ViewGroup group : new ViewGroup[]{homeGrid, appsGrid, inputsRow}) {
+        for (ViewGroup group : new ViewGroup[]{dockRow, homeGrid, appsGrid, inputsRow}) {
             if (group == null) continue;
             for (int i = 0; i < group.getChildCount(); i++) {
                 View child = group.getChildAt(i);

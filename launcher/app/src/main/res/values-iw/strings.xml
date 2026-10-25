@@ -203,4 +203,12 @@
     <string name="banner_fill_state">מילוי זכוכית בבאנר: %1$s</string>
     <string name="hint_banner_fill">לוח זכוכית כהה מאחורי הטקסט, שעוזר מעל תמונה בהירה.</string>
     <string name="banner_size_title">גודל כותרת הבאנר</string>
+    <string name="gtv_add_to_dock">הוספה ל"האפליקציות שלך"</string>
+    <string name="gtv_remove_from_dock">הסרה מ"האפליקציות שלך"</string>
+    <string name="gtv_added_to_dock">%1$s נוספה ל"האפליקציות שלך"</string>
+    <string name="gtv_removed_from_dock">%1$s הוסרה מ"האפליקציות שלך"</string>
+    <string name="gtv_dock_full">"האפליקציות שלך" מלאה</string>
+    <string name="gtv_dock_not_saved">לא ניתן היה לשמור את "האפליקציות שלך"</string>
+    <string name="gtv_dock_last_app">ב"האפליקציות שלך" נשארת לפחות אפליקציה אחת</string>
+    <string name="gtv_dock_has_everything">כל האפליקציות כבר ב"האפליקציות שלך"</string>
 </resources>
