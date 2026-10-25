@@ -15,6 +15,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.media.tv.TvContract;
@@ -33,6 +34,7 @@ import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 import android.widget.TextView;
 
@@ -171,7 +173,8 @@ public final class GtvActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (homePage == null) return;
-        showTab(TAB_HOME);
+        tabs[TAB_HOME].requestFocus();   // focus out of Apps/Inputs before they hide (see openAppsAt)
+        if (currentTab != TAB_HOME) showTab(TAB_HOME);
         styleTabs();
         if (homeGrid != null) homeGrid.post(this::focusHomeFirst);
     }
@@ -459,7 +462,10 @@ public final class GtvActivity extends Activity {
 
     /** Down from Home's lowest row: the Apps tab, on the app in the same column of its top row. */
     private void openAppsAt(int column) {
-        showTab(TAB_APPS);
+        // Focus the Apps pill first (its listener switches the page): hiding Home while it holds the focus would
+        // send focus to the Home pill, whose listener re-showed Home under the Apps grid.
+        tabs[TAB_APPS].requestFocus();
+        if (currentTab != TAB_APPS) showTab(TAB_APPS);
         styleTabs();
         if (all.isEmpty()) return;
         appsGrid.scrollToPosition(0);
@@ -502,6 +508,58 @@ public final class GtvActivity extends Activity {
     protected void onStop() {
         super.onStop();
         if (moving != null) endMove();   // leaving Home while moving keeps the order so far
+    }
+
+    /** OK on the gear: Launcher settings or the TV's own settings, as in the Apple TV layout. */
+    private void showSettingsChoice(View anchor) {
+        View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
+        LinearLayout rows = panel.findViewById(R.id.rows);
+        Fonts.apply(panel);
+        PopupWindow popup = new PopupWindow(panel, (int) (220 * dp), ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
+        popup.setOutsideTouchable(true);
+        popup.setAnimationStyle(0);
+        addMenuRow(rows, popup, R.string.launcher_settings,
+                () -> startActivityForResult(new Intent(this, LauncherSettingsActivity.class), SETTINGS_REQUEST));
+        addMenuRow(rows, popup, R.string.tv_settings, () -> {
+            try {
+                startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (ActivityNotFoundException e) {
+                Toast.makeText(this, R.string.not_available, Toast.LENGTH_SHORT).show();
+            }
+        });
+        Fonts.apply(rows);
+        popup.showAsDropDown(anchor, 0, (int) (10 * dp), Gravity.END);
+        rows.getChildAt(0).requestFocus();
+    }
+
+    private void addMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
+        View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
+        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        row.findViewById(R.id.dot).setVisibility(View.GONE);
+        row.findViewById(R.id.status).setVisibility(View.GONE);
+        ((TextView) row.findViewById(R.id.title)).setText(title);
+        row.setOnClickListener(v -> {
+            popup.dismiss();
+            action.run();
+        });
+        // The OK-up that opened the menu must not activate its first row.
+        final boolean[] pressed = {false};
+        row.setOnKeyListener((v, code, event) -> {
+            if (code != KeyEvent.KEYCODE_DPAD_CENTER && code != KeyEvent.KEYCODE_ENTER) return false;
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (event.getRepeatCount() == 0) pressed[0] = true;
+                return true;
+            }
+            boolean activate = pressed[0];
+            pressed[0] = false;
+            if (activate) {
+                popup.dismiss();
+                action.run();
+            }
+            return true;
+        });
+        rows.addView(row);
     }
 
     // ---- background, top bar, banner ------------------------------------------------------------
@@ -588,7 +646,7 @@ public final class GtvActivity extends Activity {
         settings.setContentDescription(getString(R.string.launcher_settings));
         settings.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
         settings.setPadding((int) (12 * dp), (int) (8 * dp), (int) (12 * dp), (int) (8 * dp));
-        settings.setOnClickListener(v -> startActivityForResult(new Intent(this, LauncherSettingsActivity.class), SETTINGS_REQUEST));
+        settings.setOnClickListener(this::showSettingsChoice);
         settings.setOnFocusChangeListener((v, has) -> stylePill((TextView) v, has, false));
         settings.setOnKeyListener((v, code, e) -> {
             if (e.getAction() != KeyEvent.ACTION_DOWN || code != KeyEvent.KEYCODE_DPAD_DOWN) return false;
