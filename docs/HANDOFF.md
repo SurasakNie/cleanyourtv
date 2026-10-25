@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.21** (`versionCode` 221), the Google TV layout as Home — now the only layout. Stage 1 is confirmed from logcat: HOME → MainActivity → GtvActivity displayed in 1.6 s, `category.HOME` still resolves to this launcher, Launcher settings opens as before, and the recovery screen draws in 328 ms. Its two buttons are still untested. 2.18's indicator fix is not confirmed on screen either |
+| Launcher on the TV | **2.21** (`versionCode` 221), **installed, not yet tested**. Confirmed earlier: 2.19's shim and recovery screen, both buttons included. Still unconfirmed on screen: 2.18's page-indicator fix, and all of 2.21 — the choice pages, the banner size, the outline and fill switches, the five hidden rows, and the idle clock coming back |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -85,6 +85,13 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ---
 
 ## 2. Open work
+
+### Waiting on a test
+2.21 is on the TV but untested. The two risky parts are the **choice pages** (they move the
+remote's focus between two panels) and the **idle clock** (it touches Home's lifecycle): check that Wallpaper and
+Font open as a page and Back returns to the list, and that the clock appears from Home, returns on any key and
+never appears over an open app. 2.18's page-indicator fix (hold left/right across the dock) has never been
+confirmed on screen either.
 
 ### Known bugs
 None open in the launcher. Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s `onUserInteraction` timer; `GtvActivity` arms it now).
