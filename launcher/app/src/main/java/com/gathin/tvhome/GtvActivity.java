@@ -91,18 +91,16 @@ public final class GtvActivity extends Activity {
     }
 
     /**
-     * One launchable app. It holds no artwork: a tile loads its own banner when it comes on screen and lets it go
-     * when the tile is recycled, so Home keeps a few tiles' bitmaps in memory instead of every installed app's
-     * (about 22 MB on this TV). The glow colour is sampled once and kept as an int.
+     * One launchable app, with its artwork loaded once and kept. Loading it per tile instead was tried in 2.08 and
+     * measured worse on this TV: every tile scrolling into view decoded a fresh copy, and the native heap climbed
+     * from 21.8 MB to 38 MB and kept going. If this 22 MB is worth reclaiming, decode the banners at tile size
+     * (about 207x116) rather than trading memory for repeated decoding.
      */
     private static final class App {
         String pkg, label;
         ComponentName component;
-        ResolveInfo resolve;
-        /** The glow colour, sampled from the artwork on first use. 0 until then. */
+        Drawable banner, icon;
         int color;
-        /** False until the artwork has been looked at: it may have no banner, which is not the same as unknown. */
-        boolean artworkSeen, hasBanner;
     }
 
     private float dp;
@@ -319,7 +317,9 @@ public final class GtvActivity extends Activity {
             a.pkg = pkg;
             a.label = String.valueOf(ri.loadLabel(pm));
             a.component = new ComponentName(pkg, ri.activityInfo.name);
-            a.resolve = ri;
+            a.banner = AppAdapter.loadBanner(this, pm, ri);
+            if (a.banner == null) a.icon = ri.loadIcon(pm);
+            a.color = AppAdapter.vividColor(a.banner != null ? a.banner : a.icon);
             all.add(a);
         }
         // The Apps tab stays alphabetical.
@@ -654,7 +654,7 @@ public final class GtvActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF21B2029);
+        bg.setColor(0xFF151A21);   // solid: over a bright wallpaper the tiles read straight through a sheer panel
         bg.setStroke((int) Math.max(1, 1.5f * dp), 0x33FFFFFF);
         bg.setCornerRadius(20 * dp);
         panel.setBackground(bg);
@@ -997,9 +997,6 @@ public final class GtvActivity extends Activity {
 
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
-        // The glow follows the app's colour, which is sampled from its artwork: on the first selection after a
-        // rebuild no tile has drawn yet, so take the sample here rather than glow a flat grey.
-        if (!a.artworkSeen) artworkFor(a);
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
@@ -1297,10 +1294,9 @@ public final class GtvActivity extends Activity {
             FrameLayout card = (FrameLayout) h.itemView;
             ImageView img = (ImageView) card.getChildAt(0);
             TextView name = (TextView) card.getChildAt(1);
-            Drawable art = artworkFor(a);
-            card.setBackground(tileBackground(a.hasBanner ? 0xFF1B2029 : darker(a.color)));
-            if (a.hasBanner) {
-                img.setImageDrawable(art);
+            card.setBackground(tileBackground(a.banner != null ? 0xFF1B2029 : darker(a.color)));
+            if (a.banner != null) {
+                img.setImageDrawable(a.banner);
                 name.setText("");
             } else {
                 img.setImageDrawable(null);
@@ -1320,33 +1316,7 @@ public final class GtvActivity extends Activity {
             });
         }
 
-        /** Off screen: drop the bitmap so it can be collected, or Home would hold every app's artwork again. */
-        @Override
-        public void onViewRecycled(@NonNull RecyclerView.ViewHolder h) {
-            super.onViewRecycled(h);
-            if (h.itemView instanceof FrameLayout) {
-                View first = ((FrameLayout) h.itemView).getChildAt(0);
-                if (first instanceof ImageView) ((ImageView) first).setImageDrawable(null);
-            }
-        }
-
         @Override public int getItemCount() { return items.size(); }
-    }
-
-    /**
-     * This app's banner, loaded now and not kept: the tile holds it while it is on screen. The first call also
-     * samples the glow colour, so the banner's colour still follows the selection without the image being held.
-     */
-    private Drawable artworkFor(App a) {
-        Drawable art = a.resolve == null ? null : AppAdapter.loadBanner(this, getPackageManager(), a.resolve);
-        boolean banner = art != null;
-        if (!banner && a.resolve != null) art = a.resolve.loadIcon(getPackageManager());
-        if (!a.artworkSeen) {
-            a.artworkSeen = true;
-            a.hasBanner = banner;
-            a.color = AppAdapter.vividColor(art);
-        }
-        return art;
     }
 
     private void focusTile(View v, boolean has) {
@@ -1356,11 +1326,24 @@ public final class GtvActivity extends Activity {
 
     private static final int MOVE_COLOR = 0xFF6EC1FF;
 
-    private GradientDrawable ring(int color) {
-        GradientDrawable r = new GradientDrawable();
-        r.setCornerRadius(12 * dp);
-        r.setStroke((int) ((color == MOVE_COLOR ? 4 : 3) * dp), color);
-        return r;
+    /**
+     * The frame around the selected tile. A single rounded stroke left slivers of artwork showing at the corners,
+     * where the tile's own rounded clip and the stroke do not quite meet, so the carried tile gets a second stroke
+     * just inside the first and a wash over the artwork: it then reads as held, not merely outlined.
+     */
+    private Drawable ring(int color) {
+        GradientDrawable outer = new GradientDrawable();
+        outer.setCornerRadius(12 * dp);
+        outer.setStroke((int) ((color == MOVE_COLOR ? 4 : 3) * dp), color);
+        if (color != MOVE_COLOR) return outer;
+        GradientDrawable inner = new GradientDrawable();
+        inner.setCornerRadius(10 * dp);
+        inner.setStroke((int) (3 * dp), color);
+        inner.setColor(0x33000000);
+        android.graphics.drawable.LayerDrawable held =
+                new android.graphics.drawable.LayerDrawable(new Drawable[]{inner, outer});
+        held.setLayerInset(0, (int) (3 * dp), (int) (3 * dp), (int) (3 * dp), (int) (3 * dp));
+        return held;
     }
 
     private GradientDrawable tileBackground(int color) {

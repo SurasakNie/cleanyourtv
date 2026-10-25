@@ -27,7 +27,8 @@ Where the work stands, what is still open, and where everything lives. Read the 
 |---|---|
 | **2.05** | The performance card (Launcher settings → Performance card, off by default) and its `Stats` reader; pressing Home now lands on the Home tab rather than the first app |
 | **2.06** | Memory and storage also shown as used / total. The owner chose to **keep both** the free and used rows |
-| **2.08** | The hold-OK menu opens above a tile when there is no room below (bottom-row apps were cut off); app artwork is loaded per tile and released on recycle instead of all of it being held; a load-average figure stands in where the TV blocks the processor reading |
+| **2.09** | **Reverted 2.08's artwork change** (see below); the carried tile's frame now covers the artwork's edges; the hold-OK menu panel is solid, because tiles read straight through the sheer one over a bright wallpaper |
+| **2.08** | The hold-OK menu opens above a tile when there is no room below (bottom-row apps were cut off); a load-average figure stands in where the TV blocks the processor reading; **and an artwork change that was measured worse and reverted in 2.09** |
 | **2.07** | The card shrinks before it hides: every figure where there is room, then the essential few (processor, memory used, storage used, frames), then nothing. Before this it vanished entirely at 2 or more Favorite rows |
 
 ### Build, test, audit
@@ -125,9 +126,17 @@ touches the app, the Play Store or Play services, so updates keep working — th
 **Our own share, measured honestly:** the launcher is ~39 MB (peaks near 56 MB with the Apps grid open), of which
 about **22 MB is app artwork held in the native heap** — bitmaps for every installed app, loaded up front in
 `GtvActivity.loadApps()`. Its Java heap is 2.3 MB, so there is no leak. It is a minor contributor next to iQIYI,
-**Done in 2.08:** `App` no longer holds a `Drawable`. A tile loads its own artwork in `onBindViewHolder` and
-drops it in `onViewRecycled`, and the glow colour is sampled once and kept as an int. Expect the native-heap line
-of `dumpsys meminfo com.gathin.tvhome` to fall from roughly 22 MB; confirm it rather than assume it.
+**Tried in 2.08 and reverted in 2.09 — measured worse, not better.** Holding no artwork and loading it per tile in
+`onBindViewHolder` meant every tile scrolling into view decoded a fresh copy, and the selection reloaded a banner
+just to sample the glow colour. The native heap went **21.8 MB → 33.9 MB → 38.0 MB and was still climbing**; the
+visible behaviour was fine (no blank tiles), the memory was not. Trading memory for repeated decoding is the wrong
+trade on this TV.
+
+**If this 22 MB is worth reclaiming, the approach to try is downsampling, not on-demand loading:** decode each
+banner at roughly tile size (about 207×116 px at 8 per row) instead of its full resolution, keeping one copy per
+app as now. That reduces the bytes rather than moving the cost around. Measure
+`dumpsys meminfo com.gathin.tvhome` before and after, and do not claim a win without it — 2.08 is the cautionary
+tale.
 
 ### The performance card: four figures this TV will not give
 The card (Launcher settings → Performance card, added in 2.05) shows memory, storage, frames, network and uptime
