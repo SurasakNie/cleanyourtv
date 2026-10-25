@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.19** (`versionCode` 219), the Google TV layout as Home — now the only layout. 2.17 was confirmed apart from the page-indicator bug 2.18 fixes; 2.18 and 2.19 are not tested yet |
+| Launcher on the TV | **2.19** (`versionCode` 219), the Google TV layout as Home — now the only layout. Stage 1 is confirmed from logcat: HOME → MainActivity → GtvActivity displayed in 1.6 s, `category.HOME` still resolves to this launcher, Launcher settings opens as before, and the recovery screen draws in 328 ms. Its two buttons are still untested. 2.18's indicator fix is not confirmed on screen either |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -86,7 +86,12 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Known bugs
-None open. The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now measures the panel and opens it
+None open in the launcher.
+
+Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and recorded so they are not chased again:
+- `com.tencent.qqlivei18n:push` (WeTV) throws `IllegalStateException: WorkManager is not initialized properly` from its recommendation-channel code roughly **every 30 minutes** (18:10, 19:07, 20:07, 20:37, 21:07, 21:37, 22:21 on 25 Oct). Their bug; it wakes a process and burns a little CPU each time. `pm disable-user` on that push component would stop it if it ever matters.
+- `com.google.android.permissioncontroller` NPEs in `SettingsFragment.onActivityCreated` (a null ActionBar) when the TV's default-app settings screen opens. Sony/Google's, not ours.
+ The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now measures the panel and opens it
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### The APK size budget — resolved in 2.17
