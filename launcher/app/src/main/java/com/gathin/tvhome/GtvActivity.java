@@ -1072,26 +1072,37 @@ public final class GtvActivity extends Activity {
     }
 
     /**
-     * Stretches the selected dot into a pill and lets the previous one shrink back. Only Your apps has dots: a
-     * position in that row is what the banner is describing, so the indicator steps aside for any other row.
+     * Stretches the selected dot into a pill and lets every other one shrink back.
+     *
+     * Each run starts from the widths the dots actually have, not from the widths they would have at rest, and it
+     * moves all of them rather than just the two either side of the move. Holding left or right outruns the 140 ms
+     * animation, and the first version — which animated only the new dot and the one before it, from their resting
+     * widths — stranded every dot further back part-way open, leaving a row of dashes.
+     *
+     * Only Your apps has dots: a position in that row is what the banner is describing, so the indicator steps
+     * aside for any other row.
      */
     private void showDot(int index) {
         if (dots == null) return;
         dots.setVisibility(index >= 0 ? View.VISIBLE : View.GONE);
         if (index < 0 || index >= dots.getChildCount() || index == dotShown) return;
-        View next = dots.getChildAt(index);
-        View prev = dotShown >= 0 && dotShown < dots.getChildCount() ? dots.getChildAt(dotShown) : null;
         dotShown = index;
-        next.setBackground(dotDrawable(true));
-        if (prev != null) prev.setBackground(dotDrawable(false));
         if (dotAnimator != null) dotAnimator.cancel();
-        final int from = (int) (DOT_DP * dp), to = (int) (DOT_WIDE_DP * dp);
+        final int narrow = (int) (DOT_DP * dp), wide = (int) (DOT_WIDE_DP * dp);
+        final int[] from = new int[dots.getChildCount()];
+        for (int i = 0; i < from.length; i++) {
+            View dot = dots.getChildAt(i);
+            from[i] = dot.getLayoutParams().width;
+            dot.setBackground(dotDrawable(i == index));
+        }
         dotAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
         dotAnimator.setDuration(140);
         dotAnimator.addUpdateListener(an -> {
             float t = (float) an.getAnimatedValue();
-            setDotWidth(next, from + Math.round((to - from) * t));
-            if (prev != null) setDotWidth(prev, to - Math.round((to - from) * t));
+            for (int i = 0; i < from.length && i < dots.getChildCount(); i++) {
+                int to = i == index ? wide : narrow;
+                setDotWidth(dots.getChildAt(i), from[i] + Math.round((to - from[i]) * t));
+            }
         });
         dotAnimator.start();
     }

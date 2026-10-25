@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.17** (`versionCode` 217), the Google TV layout as Home. 2.15 was confirmed (About, no Layout row); 2.16 and 2.17 are not tested yet |
+| Launcher on the TV | **2.18** (`versionCode` 218), the Google TV layout as Home. 2.17 was confirmed on the TV apart from the page-indicator bug 2.18 fixes; 2.18 is not tested yet |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -20,13 +20,14 @@ Where the work stands, what is still open, and where everything lives. Read the 
 
 ### Version numbers
 `A.BB` in [`launcher/app/build.gradle`](../launcher/app/build.gradle): a fix or minor change raises BB
-(2.17 → 2.18), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+(2.18 → 2.19), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
 
 ### What each build after the merge added
 Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.18** | **Page-indicator bug fix.** Holding left or right left a row of half-open dashes instead of one pill: `showDot()` animated only the new dot and the one before it, each from its resting width, so every dot further back was stranded part-way open when key repeat cut the 140 ms animation short. It now starts from the widths the dots actually have and moves all of them, so any interrupted run heals itself. Stepping one app at a time always worked, which is why 2.16 and 2.17 passed |
 | **2.17** | The banner sits **18 dp lower**, its own 16 dp of padding now the only clearance it keeps from "Your apps" — that is as low as it can go without crossing the rows, so the next lever would be moving the rows down; the page-indicator dots moved **above** the "Last opened" line, which stops them jumping when an app has never been opened; the Home/Apps/Inputs capsules are frosted glass **with no outline**; and both CMU Sans fonts are **subset**, taking the APK from 893 KB to **598 KB** — 302 KB clear of the 900 KB gate |
 | **2.16** | The banner sits just above Your apps instead of floating near the top, and a **page indicator** (an expanding dot) under it shows which dock app is selected. The dots cover **Your apps only** — in the Favorite rows, the Apps tab and Inputs the indicator hides rather than showing a position it does not describe |
 | **2.15** | The banner is plain text over the glow — no fill, no outline (**the glass fill is owed back as an effects switch**); settings gains an **About this UI** section (version, layout, TV, Android, and what this is); the **Layout row is gone**, so Google TV is the only layout you can pick — the first part of removing the Apple TV layout |
@@ -88,7 +89,7 @@ None open. The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now 
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### The APK size budget — resolved in 2.17
-**2.17 is 598 KB against the 900 KB gate — 302 KB clear.** The squeeze is over: the two CMU Sans font files were
+**2.18 is 598 KB against the 900 KB gate — 302 KB clear.** The squeeze is over: the two CMU Sans font files were
 subset in 2.17, from 830 KB down to 227 KB, with no visible change (811 and 809 mapped characters, every glyph the
 launcher draws present, all layout features kept). Thai, Hebrew and Chinese are unaffected — CMU never had those
 glyphs, so they already fall back to the TV's own fonts.
