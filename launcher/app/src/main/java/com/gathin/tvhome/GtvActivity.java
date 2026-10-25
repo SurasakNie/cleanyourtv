@@ -3,6 +3,8 @@ package com.gathin.tvhome;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -58,6 +60,25 @@ public final class GtvActivity extends Activity {
     private static final int SETTINGS_REQUEST = 7;
     private static final int TAB_HOME = 0, TAB_APPS = 1, TAB_INPUTS = 2;
 
+    /** Crash guard: the process id that is building this screen, cleared once it has drawn. */
+    private static final String PREF_STARTING = "gtv_starting_pid";
+
+    /**
+     * True when the last start of this screen never finished drawing in a process that has since died (it
+     * crashed). MainActivity then falls back to the Apple TV layout instead of redirecting into a crash loop.
+     */
+    static boolean lastStartFailed(Context ctx) {
+        int pid = ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getInt(PREF_STARTING, 0);
+        return pid != 0 && pid != android.os.Process.myPid();
+    }
+
+    /** Switches back to the Apple TV layout and says why. */
+    static void fallBack(Context ctx) {
+        ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).edit()
+                .remove(PREF_STARTING).putString(PREF_LAYOUT, "apple").commit();
+        android.widget.Toast.makeText(ctx, R.string.gtv_failed, android.widget.Toast.LENGTH_LONG).show();
+    }
+
     static boolean enabled(Context ctx) {
         return LAYOUT_GTV.equals(ctx.getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
                 .getString(PREF_LAYOUT, LAYOUT_GTV.equals(ctx.getString(R.string.default_layout)) ? LAYOUT_GTV : "apple"));
@@ -100,6 +121,48 @@ public final class GtvActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        SharedPreferences prefs = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        prefs.edit().putInt(PREF_STARTING, android.os.Process.myPid()).commit();
+        try {
+            build();
+        } catch (RuntimeException e) {
+            fallBack(this);
+            openAppleLayout();
+            return;
+        }
+        // Drawn: this start succeeded.
+        root.post(() -> prefs.edit().remove(PREF_STARTING).apply());
+        IntentFilter pf = new IntentFilter();
+        pf.addAction(Intent.ACTION_PACKAGE_ADDED);
+        pf.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        pf.addAction(Intent.ACTION_PACKAGE_CHANGED);
+        pf.addDataScheme("package");
+        registerReceiver(packageReceiver, pf);
+        receiverOn = true;
+    }
+
+    /** An app was installed, removed or changed: rebuild now, or on return when another app is in front. */
+    private final BroadcastReceiver packageReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (resumed) recreate(); else settingsChanged = true;
+        }
+    };
+    private boolean receiverOn;
+
+    /** Home pressed while this screen is in front (or brought back): Home tab, first app. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (homePage == null) return;
+        showTab(TAB_HOME);
+        styleTabs();
+        if (firstHomeRow != null) {
+            firstHomeRow.scrollToPosition(0);
+            firstHomeRow.post(() -> focusFirst(firstHomeRow));
+        }
+    }
+
+    private void build() {
         dp = getResources().getDisplayMetrics().density;
         Config cfg = Config.load(this);
         loadApps(cfg);
@@ -156,6 +219,7 @@ public final class GtvActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (receiverOn) unregisterReceiver(packageReceiver);
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(settingsListener);
     }
 
@@ -239,9 +303,7 @@ public final class GtvActivity extends Activity {
         File wall = cfg.wallpaper;
         if (wall == null && cfg.wallpapers != null && !cfg.wallpapers.isEmpty()) wall = cfg.wallpapers.get(0);
         if (wall != null) {
-            BitmapFactory.Options o = new BitmapFactory.Options();
-            o.inPreferredConfig = Bitmap.Config.ARGB_8888;   // full colour: no banding on dark gradients
-            Bitmap bmp = BitmapFactory.decodeFile(wall.getPath(), o);
+            Bitmap bmp = decodeWallpaper(wall);
             if (bmp != null) {
                 ImageView iv = new ImageView(this);
                 iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -263,6 +325,27 @@ public final class GtvActivity extends Activity {
                 new int[]{0x000B0D12, 0x660B0D12, 0xEE0B0D12});
         shade.setBackground(g);
         root.addView(shade, new FrameLayout.LayoutParams(-1, -1));
+    }
+
+    /**
+     * Full colour (no banding on dark gradients), but never larger than the screen: a 4000×3000 photo would
+     * otherwise take about 48 MB. Null when the file can't be read or memory runs out.
+     */
+    private Bitmap decodeWallpaper(File file) {
+        try {
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(file.getPath(), o);
+            int sw = getResources().getDisplayMetrics().widthPixels, sh = getResources().getDisplayMetrics().heightPixels;
+            int sample = 1;
+            while (o.outWidth / (sample * 2) >= sw && o.outHeight / (sample * 2) >= sh) sample *= 2;
+            o = new BitmapFactory.Options();
+            o.inSampleSize = sample;
+            o.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            return BitmapFactory.decodeFile(file.getPath(), o);
+        } catch (OutOfMemoryError | RuntimeException e) {
+            return null;
+        }
     }
 
     private void buildTopBar() {

@@ -150,4 +150,5 @@
     <string name="gtv_your_apps">האפליקציות שלך</string>
     <string name="gtv_other_apps">אפליקציות נוספות</string>
     <string name="gtv_open">פתיחה</string>
+    <string name="gtv_failed">פריסת Google TV לא הצליחה להיפתח, ולכן מסך הבית חזר ל-Apple TV.</string>
 </resources>

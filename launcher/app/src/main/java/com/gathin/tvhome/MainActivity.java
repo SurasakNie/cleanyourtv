@@ -328,10 +328,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onCreate(savedInstanceState);
         // Layout: Google TV. This stays the HOME component (so the TV's default home never changes) and hands
         // over to GtvActivity straight away, before drawing anything.
+        // If its last start crashed, fall back to this layout instead of looping.
+        if (GtvActivity.enabled(this) && GtvActivity.lastStartFailed(this)) GtvActivity.fallBack(this);
         if (GtvActivity.enabled(this)) {
             redirected = true;
             startActivity(new Intent(this, GtvActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+            // The quick settings panel's "Launcher settings" comes through here: pass it on.
+            if (savedInstanceState == null && ACTION_LAUNCHER_SETTINGS.equals(getIntent().getAction())) {
+                startActivity(new Intent(this, LauncherSettingsActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            }
             finish();
             overridePendingTransition(0, 0);
             return;
