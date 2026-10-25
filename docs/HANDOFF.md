@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.15** (`versionCode` 215), the Google TV layout as Home. 2.14's panel was confirmed; 2.15 is not tested yet |
+| Launcher on the TV | **2.16** (`versionCode` 216), the Google TV layout as Home. 2.15 was confirmed (About, no Layout row); 2.16 is not tested yet |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -20,13 +20,14 @@ Where the work stands, what is still open, and where everything lives. Read the 
 
 ### Version numbers
 `A.BB` in [`launcher/app/build.gradle`](../launcher/app/build.gradle): a fix or minor change raises BB
-(2.15 → 2.16), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+(2.16 → 2.17), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
 
 ### What each build after the merge added
 Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.16** | The banner sits just above Your apps instead of floating near the top, and a **page indicator** (an expanding dot) under it shows which dock app is selected. The dots cover **Your apps only** — in the Favorite rows, the Apps tab and Inputs the indicator hides rather than showing a position it does not describe |
 | **2.15** | The banner is plain text over the glow — no fill, no outline (**the glass fill is owed back as an effects switch**); settings gains an **About this UI** section (version, layout, TV, Android, and what this is); the **Layout row is gone**, so Google TV is the only layout you can pick — the first part of removing the Apple TV layout |
 | **2.14** | The settings panel is wider (420dp) with slightly smaller text, so more rows fit; the banner lost its outline, keeping the glass fill |
 | **2.13** | Launcher settings is now a **panel down the right-hand side over Home**, in the TV's own style: Home stays visible and dimmed, the rows are grouped under section headings, and the clock and gear step aside while it is open. Every setting from the one-list version is kept. Choice pages come next |
@@ -86,7 +87,7 @@ None open. The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now 
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### Open: the APK size budget
-**The margin is nearly gone: 2.15 is 892 KB against the 900 KB gate — 8 KB.** 2.16 and 2.17 remove the Apple TV
+**The margin is nearly gone: 2.16 is 893 KB against the 900 KB gate — 7 KB.** 2.16 and 2.17 remove the Apple TV
 layout and should win a great deal of it back, so the squeeze is expected to be temporary. If a build crosses the
 gate before then, trim the fonts (the recipe is below) rather than raising the gate a second time.
 

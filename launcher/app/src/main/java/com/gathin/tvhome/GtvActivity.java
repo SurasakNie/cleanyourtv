@@ -108,6 +108,10 @@ public final class GtvActivity extends Activity {
     private View glow;
     private GradientDrawable glowDrawable;
     private TextView title, subtitle, clock;
+    /** One dot per app in Your apps; the selected one stretches into a pill. */
+    private LinearLayout dots;
+    private int dotShown = -1;
+    private android.animation.ValueAnimator dotAnimator;
     private LinearLayout banner;
     private final TextView[] tabs = new TextView[3];
     private FrameLayout content;
@@ -420,6 +424,7 @@ public final class GtvActivity extends Activity {
             return;
         }
         splitOrdered();
+        buildDots();
         homeGrid.getAdapter().notifyDataSetChanged();
         Toast.makeText(this, getString(favourite ? R.string.gtv_added_favorite : R.string.gtv_removed_favorite,
                 a.label), Toast.LENGTH_SHORT).show();
@@ -1025,16 +1030,79 @@ public final class GtvActivity extends Activity {
         subtitle.setTextColor(0xFFC3CAD4);
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         banner.addView(subtitle);
+        dots = new LinearLayout(this);
+        dots.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-2, -2);
+        dlp.topMargin = (int) (14 * dp);
+        banner.addView(dots, dlp);
+        buildDots();
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams((int) (420 * dp), -2, Gravity.TOP | Gravity.START);
         lp.leftMargin = sidePad;
         lp.topMargin = (int) (110 * dp);
         root.addView(banner, lp);
     }
 
+    /** A dot for each app in Your apps, the selected one wider. Rebuilt whenever the dock itself changes. */
+    private void buildDots() {
+        if (dots == null) return;
+        if (dotAnimator != null) dotAnimator.cancel();
+        dots.removeAllViews();
+        dotShown = -1;
+        for (int i = 0; i < dock.size(); i++) {
+            View dot = new View(this);
+            dot.setBackground(dotDrawable(false));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams((int) (DOT_DP * dp), (int) (DOT_DP * dp));
+            lp.rightMargin = (int) (7 * dp);
+            dots.addView(dot, lp);
+        }
+    }
+
+    private static final int DOT_DP = 6, DOT_WIDE_DP = 22;
+
+    private GradientDrawable dotDrawable(boolean selected) {
+        GradientDrawable d = new GradientDrawable();
+        d.setCornerRadius(DOT_DP * dp / 2f);
+        d.setColor(selected ? Color.WHITE : 0x59FFFFFF);
+        return d;
+    }
+
+    /**
+     * Stretches the selected dot into a pill and lets the previous one shrink back. Only Your apps has dots: a
+     * position in that row is what the banner is describing, so the indicator steps aside for any other row.
+     */
+    private void showDot(int index) {
+        if (dots == null) return;
+        dots.setVisibility(index >= 0 ? View.VISIBLE : View.GONE);
+        if (index < 0 || index >= dots.getChildCount() || index == dotShown) return;
+        View next = dots.getChildAt(index);
+        View prev = dotShown >= 0 && dotShown < dots.getChildCount() ? dots.getChildAt(dotShown) : null;
+        dotShown = index;
+        next.setBackground(dotDrawable(true));
+        if (prev != null) prev.setBackground(dotDrawable(false));
+        if (dotAnimator != null) dotAnimator.cancel();
+        final int from = (int) (DOT_DP * dp), to = (int) (DOT_WIDE_DP * dp);
+        dotAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        dotAnimator.setDuration(140);
+        dotAnimator.addUpdateListener(an -> {
+            float t = (float) an.getAnimatedValue();
+            setDotWidth(next, from + Math.round((to - from) * t));
+            if (prev != null) setDotWidth(prev, to - Math.round((to - from) * t));
+        });
+        dotAnimator.start();
+    }
+
+    private static void setDotWidth(View dot, int width) {
+        ViewGroup.LayoutParams lp = dot.getLayoutParams();
+        if (lp.width == width) return;
+        lp.width = width;
+        dot.setLayoutParams(lp);
+    }
+
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
         appSelected = true;
         updateBanner();
+        showDot(dock.indexOf(a));
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
@@ -1085,7 +1153,8 @@ public final class GtvActivity extends Activity {
         setBannerCompact(false);
         int h = bannerHeight();
         int top;
-        if (roomBottom - (int) (110 * dp) >= h) top = (int) (110 * dp);
+        // The banner belongs with the rows it names: sit its foot a gap above "Your apps" and grow upward.
+        if (roomBottom - h >= roomTop) top = roomBottom - h;
         else if (roomBottom - roomTop >= h) top = roomTop;
         else {
             setBannerCompact(true);
