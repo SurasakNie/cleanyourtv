@@ -12,8 +12,8 @@ android {
         minSdk 26
         targetSdk 34
         // Version A.BB: a fix or minor change raises BB, a major change raises A. versionCode = A*100 + BB.
-        versionCode 212
-        versionName '2.12'
+        versionCode 214
+        versionName '2.14'
     }
 
     buildTypes {

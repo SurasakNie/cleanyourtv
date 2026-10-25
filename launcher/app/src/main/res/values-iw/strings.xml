@@ -155,6 +155,12 @@
     <string name="gtv_removed_favorite">%1$s הוסרה מהמועדפים</string>
     <string name="gtv_favorites_full">רשימת המועדפים מלאה</string>
     <string name="gtv_favorite_not_saved">לא ניתן לשמור את המועדפים</string>
+    <string name="settings_apply_hint">השינויים חלים כשחוזרים למסך הבית</string>
+    <string name="section_layout">פריסה</string>
+    <string name="section_look">מראה</string>
+    <string name="section_effects">אפקטים</string>
+    <string name="section_extras">נוספים</string>
+    <string name="section_tv">הגדרות הטלוויזיה</string>
     <string name="perf_state">כרטיס ביצועים: %1$s</string>
     <string name="hint_perf">כרטיס קטן מתחת לשעון שמראה מה הטלוויזיה עושה: מעבד, זיכרון, אחסון, טמפרטורה, קצב פריימים, רשת וזמן פעילות. נתונים שהטלוויזיה אינה חושפת פשוט לא יוצגו.</string>
     <string name="perf_title">ביצועים</string>
