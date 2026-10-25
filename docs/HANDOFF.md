@@ -27,7 +27,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
-| **2.19** | **Apple TV layout removal, stage 1.** `MainActivity` is now a 141-line shim: it keeps the HOME and LEANBACK intent filters (the TV's default-home setting names it, so that must not move) and opens `GtvActivity`. The Apple layout was also the fallback when Home failed to build, so it is replaced by a **recovery screen** in the shim — "Home could not start", with **Try again** and **TV settings** — drawn from nothing but that class, since the configuration, theme or fonts may be what failed. The `layout` preference, `GtvActivity.enabled()` and `fallBack()` are gone; a failure is recorded in `gtv_failed` and cleared when Home next draws. R8 drops the now unreferenced Apple code: the APK falls **598 KB → 440 KB**. Stage 2 (deleting the Apple-only classes, resources, strings, config keys and documents) waits on the owner's test of this one |
+| **2.19** | **The Apple TV layout is out of the APK.** `MainActivity` is now a 141-line shim: it keeps the HOME and LEANBACK intent filters (the TV's default-home setting names it, so that must not move) and opens `GtvActivity`. The Apple layout was also the fallback when Home failed to build, so it is replaced by a **recovery screen** in the shim — "Home could not start", with **Try again** and **TV settings** — drawn from nothing but that class, since the configuration, theme or fonts may be what failed. The `layout` preference, `GtvActivity.enabled()` and `fallBack()` are gone; a failure is recorded in `gtv_failed` and cleared when Home next draws. R8 drops the now unreferenced Apple code: the APK falls **598 KB → 440 KB**. The sources stay in the tree: 2.20 deleted them and was reverted on the owner's word — the removal was only ever meant to be from the APK |
 | **2.18** | **Page-indicator bug fix.** Holding left or right left a row of half-open dashes instead of one pill: `showDot()` animated only the new dot and the one before it, each from its resting width, so every dot further back was stranded part-way open when key repeat cut the 140 ms animation short. It now starts from the widths the dots actually have and moves all of them, so any interrupted run heals itself. Stepping one app at a time always worked, which is why 2.16 and 2.17 passed |
 | **2.17** | The banner sits **18 dp lower**, its own 16 dp of padding now the only clearance it keeps from "Your apps" — that is as low as it can go without crossing the rows, so the next lever would be moving the rows down; the page-indicator dots moved **above** the "Last opened" line, which stops them jumping when an app has never been opened; the Home/Apps/Inputs capsules are frosted glass **with no outline**; and both CMU Sans fonts are **subset**, taking the APK from 893 KB to **598 KB** — 302 KB clear of the 900 KB gate |
 | **2.16** | The banner sits just above Your apps instead of floating near the top, and a **page indicator** (an expanding dot) under it shows which dock app is selected. The dots cover **Your apps only** — in the Favorite rows, the Apps tab and Inputs the indicator hides rather than showing a position it does not describe |
@@ -179,10 +179,11 @@ on the KD-49X8500H. Four of its figures stay blank here, each for a known reason
 
 Nothing is built for these: the owner has not asked for them, and two of the three have no fix.
 
-### In flight: removing the Apple TV layout
-The owner decided to remove the Apple TV layout **including its code**, not just the setting.
+### Done: the Apple TV layout is out of the APK
+The owner decided to remove the Apple TV layout from the launcher. **From the APK, not from the repository:** the
+code stays in the tree, and nothing on screen can reach it.
 
-**Stage 1 is done in 2.19** and waits on the owner's test:
+**Done in 2.19, and confirmed on the TV** (both recovery buttons included):
 - `MainActivity` is a shim that keeps the HOME intent filter — the TV's default-home setting names
   `com.gathin.tvhome/.MainActivity`, and moving HOME to `GtvActivity` would make Android treat this as a different
   launcher, leaving Home to be chosen again with the stock launcher likely to win in between.
@@ -193,22 +194,38 @@ The owner decided to remove the Apple TV layout **including its code**, not just
   `gtv_failed` in the launcher's preferences (or is inferred from a dead `gtv_starting_pid`), and a successful
   draw clears both.
 
-**What to test before stage 2:** Home still comes up on HOME; the TV's default-home setting still points here
+**Confirmed from the owner's logcat and photos:** Home comes up on HOME; the TV's default-home setting still points here
 after installing; "Launcher settings" from the remote's Settings button still opens; and the recovery screen can
 be reached on purpose —
 `adb shell am force-stop com.gathin.tvhome; adb shell "am start -n com.gathin.tvhome/.MainActivity -a com.gathin.tvhome.action.RECOVERY"`
 — with Try again returning to Home and TV settings opening the TV's own settings.
 
-**Stage 2, after that test:** delete the Apple-only classes (`AppAdapter` beyond `loadBanner`/`vividColor`,
-`AppLibraryDialog`, `Cards`, `CardFeature`, `GlassView`, `HeroArt`, `DockDecoration`, `DockSlots`,
-`GridNavigation`, `VpnBadge`, the festive set, `Sky`/`SkyView`/`Sun`, `Shamsi`, `RaceWeekend`), their layouts and
-drawables, the dead strings in both languages (`layout_apple`, `hint_rows`, the Apple-only labels), the dead
-`config.xml` keys, and the parts of the README, the specs and the themes that describe the layout. R8 already
-drops the code from the APK, so stage 2 is about the source tree, not the size.
+**There is no stage 2. The removal is from the APK, not from the repository** — the owner said so plainly after
+a build (2.20) had deleted the sources, and that build was reverted (`5bdbb40`, reverted by `261f00d`). The Apple
+TV layout's code, layouts, drawables, strings and documents **stay in the tree**. Do not delete them again.
 
-**Off limits in stage 2, on the owner's instruction:** the remote's Settings button path stays exactly as it is.
+Stage 1 is all it took, because R8 and resource shrinking drop what nothing references. Measured on the three
+APKs:
+
+| Build | Classes in the dex | classes.dex | APK |
+|---|---|---|---|
+| 2.18, the layout still reachable | 314 | 435 KB | 598 KB |
+| **2.19, the shim, sources intact** | **230** | **302 KB** | **440 KB** |
+| 2.20, sources deleted (reverted) | 222 | 293 KB | 427 KB |
+
+So stage 1 took 84 classes and 158 KB out of the APK on its own, and deleting the sources would have bought a
+further 8 classes and 13 KB. `aapt2 dump resources` on 2.19 lists four layouts — the settings panel, the quick
+settings panel, the screensaver and the input row — so `activity_main.xml` and the rest of the Apple layout's
+resources are already out of the package.
+
+What is still shipped, and why, if it ever matters: `GlassView` and `SkyView` (AGP generates keep rules from
+layout XML, and `activity_main.xml` is still in the source tree when R8 runs), and `Cards`, which is genuinely
+reachable — `Config` parses the festive skin, `Festival.parse` calls `Cards.cleanLabel`. Getting those last three
+out would mean changing code rather than deleting files, for 13 KB.
+
+**Off limits, on the owner's instruction:** the remote's Settings button path stays exactly as it is.
 `QuickSettingsActivity`, the `ACTION_LAUNCHER_SETTINGS` string and the shim's handling of it were not changed by
-stage 1 (that code is 2.18's redirect branch line for line) and are not to be changed by stage 2 either.
+stage 1 (that code is 2.18's redirect branch line for line) and are not to be changed later either.
 
 **This is a fork of `Gathin23/cleanyourtv`,** where that layout is the project's main feature, so the removal
 diverges permanently and makes merging from upstream painful — the owner chose this knowingly.
@@ -332,7 +349,7 @@ tests/                     Python tests; CI runs them (.github/workflows/ci.yml)
 ### Finding things quickly
 - A string on screen → `grep -rn "the text" launcher/app/src/main/res/values/strings.xml`, then grep its name in `java/`.
 - A setting → `config.xml` first (every key is commented), then `Config.java`, then where the field is read.
-- Why Home looks the way it does → `GtvActivity.build()`. (`res/layout/activity_main.xml` is the removed Apple layout, still in the tree until stage 2.)
+- Why Home looks the way it does → `GtvActivity.build()`. (`res/layout/activity_main.xml` is the Apple layout: kept in the tree, not in the APK, and nothing can reach it.)
 - What the owner already decided → `docs/proposals/google-tv-ui/README.md` §6.7 and §8.
 
 ---
