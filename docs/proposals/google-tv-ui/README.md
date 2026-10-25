@@ -287,6 +287,78 @@ For comparison: the one-list style (not chosen)
 
 Only listings were read, not code; most of these repos are small and new.
 
+The images below are **our own mockups of each idea applied to this launcher**, not screenshots of those
+projects. Each sheet shows 4 variants; the single images are in [`ideas/`](ideas/) (e.g. `glass-1.jpg`).
+
+### 6.1 Frosted glass
+
+| # | Variant |
+|---|---|
+| 1 | Glass banner panel over the wallpaper |
+| 2 | Glass tiles, app colour as a thin bar |
+| 3 | Glass tab bar and status pill |
+| 4 | Strong blur, minimal: clock and one glass dock |
+
+![Frosted glass](ideas/sheet-glass.jpg)
+
+### 6.2 Glowing home
+
+| # | Variant |
+|---|---|
+| 1 | Neon edge glow round the dock, in the app's colour |
+| 2 | Coloured light under each tile, like a reflection |
+| 3 | Light pulsing behind the banner title |
+| 4 | Whole-screen colour wash that blends to the next app |
+
+![Glowing home](ideas/sheet-glow.jpg)
+
+### 6.3 Quiet home
+
+| # | Variant |
+|---|---|
+| 1 | Photo, time and one row of apps |
+| 2 | Photo with inputs only (a TV-first home) |
+| 3 | Time and four big tiles, nothing else |
+| 4 | Dark, text-only list |
+
+![Quiet home](ideas/sheet-quiet.jpg)
+
+### 6.4 Neon / sci-fi HUD
+
+| # | Variant |
+|---|---|
+| 1 | Cyan HUD frame and grid |
+| 2 | Purple synthwave sun and grid |
+| 3 | Terminal / monospace style |
+| 4 | Circular HUD clock |
+
+![Neon / sci-fi HUD](ideas/sheet-hud.jpg)
+
+### 6.5 Home guard
+
+| # | Variant |
+|---|---|
+| 1 | Setting: Home guard switch in Extras |
+| 2 | Toast after Home was restored |
+| 3 | Prompt when another app (or a TV update) takes Home |
+| 4 | Status page: when Home was last restored |
+
+![Home guard](ideas/sheet-guard.jpg)
+
+### 6.6 IP-camera tile (needs network)
+
+| # | Variant |
+|---|---|
+| 1 | One live camera tile in the apps row |
+| 2 | 2×2 camera tile next to the apps |
+| 3 | Camera view as the Home banner |
+| 4 | Settings: camera stream addresses |
+
+Note: your NVR is already on HDMI 2, so the **Input preview** window (v7+) shows the same cameras without any
+network access.
+
+![IP-camera tile](ideas/sheet-camera.jpg)
+
 ---
 
 ## 7. Plan and phases
