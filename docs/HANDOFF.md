@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.21** (`versionCode` 221), **installed, not yet tested**. Confirmed earlier: 2.19's shim and recovery screen, both buttons included. Still unconfirmed on screen: 2.18's page-indicator fix, and all of 2.21 — the choice pages, the banner size, the outline and fill switches, the five hidden rows, and the idle clock coming back |
+| Launcher on the TV | **2.21** (`versionCode` 221). **Confirmed on the TV:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. **Under test:** the idle clock. Still unconfirmed: 2.18's page-indicator fix |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. **PR #5 (83bd67f): 2.15–2.21** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -87,11 +87,11 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Waiting on a test
-2.21 is on the TV but untested. The two risky parts are the **choice pages** (they move the
-remote's focus between two panels) and the **idle clock** (it touches Home's lifecycle): check that Wallpaper and
-Font open as a page and Back returns to the list, and that the clock appears from Home, returns on any key and
-never appears over an open app. 2.18's page-indicator fix (hold left/right across the dock) has never been
-confirmed on screen either.
+The **idle clock** is the last part of 2.21 under test (it touches Home's lifecycle): the clock should appear from Home after the chosen minutes, return on any key, and never appear over an open app.
+
+One thing that can mask it: **the TV's own screensaver**. If the set's screensaver timeout is shorter than the launcher's, the TV wins and the launcher's clock never shows. Check Settings → Device Preferences → Screen saver, or `settings get secure screensaver_timeout`, before calling the clock broken.
+
+2.18's page-indicator fix (hold left or right across the dock) has never been confirmed on screen either.
 
 ### Known bugs
 None open in the launcher. Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s `onUserInteraction` timer; `GtvActivity` arms it now).
