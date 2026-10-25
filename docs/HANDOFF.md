@@ -33,6 +33,20 @@ Check the APK exists before copying it anywhere: a failed build leaves the previ
 has been sent to the TV that way before. There is no emulator in the cloud container (no KVM), so **layout
 changes are proved by the owner's photos**, not by running the app here.
 
+### Checking the TV for crashes
+After installing and testing a build, from `C:\Users\<user>\platform-tools`:
+```powershell
+.\adb.exe logcat -c                                              # clear, then use the TV with the remote
+.\adb.exe logcat -d | findstr /i "FATAL.*gathin AndroidRuntime"  # empty = no crash
+```
+`findstr` treats the two space-separated terms as a plain OR (`.*` is only a wildcard with `/R`), so an empty
+result means not even an `AndroidRuntime` line was printed: the app did not crash at all. **2.04 came back empty
+after a full test round**, as did 2.03.
+
+Two things in the output are normal, not faults: lines from `uid 2000` with `com.android.commands.input`
+(your own `adb shell input` commands) and `BufferQueueProducer` / `SurfaceFlinger` lines when a screen closes.
+Clear the log *before* testing, not after — checking straight after `logcat -c` always looks clean.
+
 ### House rules this project follows
 - Risk levels: RSK-0 irreversible → ask first; RSK-1 costly to undo → do it and explain; RSK-2 → just do it.
 - No guessing: state assumptions; never invent infrastructure or settings.
