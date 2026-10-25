@@ -862,8 +862,12 @@ public final class GtvActivity extends Activity {
         root.addView(perfCard, lp);
     }
 
+    /** The figures on the card now, so it can be re-laid out without waiting for the next reading. */
+    private java.util.List<Stats.Item> perfItems = java.util.Collections.emptyList();
+
     /** One row of the card: the figure's name on the left, its value on the right. */
     private void setPerfRows(java.util.List<Stats.Item> items) {
+        perfItems = items;
         if (perfCard == null) return;
         int rows = perfCard.getChildCount() - 1;            // the heading stays
         for (int i = rows; i < items.size(); i++) {
@@ -1018,20 +1022,35 @@ public final class GtvActivity extends Activity {
             setBannerCompact(true);
             top = roomBottom - roomTop >= bannerHeight() ? roomTop : -1;
         }
-        // The card hangs under the clock on the right; hide it when the rows reach it.
-        if (perfCard != null) {
-            perfCard.measure(View.MeasureSpec.makeMeasureSpec(perfCard.getLayoutParams().width, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.UNSPECIFIED);
-            int cardTop = ((FrameLayout.LayoutParams) perfCard.getLayoutParams()).topMargin;
-            perfFits = cardTop + perfCard.getMeasuredHeight() <= roomBottom;
-            perfCard.setVisibility(currentTab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
-        }
+        layoutPerfCard(roomBottom);
         bannerFits = top >= 0;
         if (bannerFits && lp.topMargin != top) {
             lp.topMargin = top;
             banner.setLayoutParams(lp);
         }
         banner.setVisibility(currentTab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    /**
+     * The card hangs under the clock on the right, where the Home rows can reach up to it. It shows every figure
+     * where there is room; where there is not, it drops to the few that matter (processor, memory, storage,
+     * frames); and where even those do not fit, it steps aside altogether.
+     */
+    private void layoutPerfCard(int roomBottom) {
+        if (perfCard == null) return;
+        int cardTop = ((FrameLayout.LayoutParams) perfCard.getLayoutParams()).topMargin;
+        perfFits = false;
+        for (int pass = 0; pass < 2 && !perfFits; pass++) {
+            boolean essentialOnly = pass == 1;
+            for (int i = 0; i < perfItems.size() && i + 1 < perfCard.getChildCount(); i++) {
+                perfCard.getChildAt(i + 1).setVisibility(
+                        !essentialOnly || perfItems.get(i).essential ? View.VISIBLE : View.GONE);
+            }
+            perfCard.measure(View.MeasureSpec.makeMeasureSpec(perfCard.getLayoutParams().width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.UNSPECIFIED);
+            perfFits = cardTop + perfCard.getMeasuredHeight() <= roomBottom;
+        }
+        perfCard.setVisibility(currentTab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
     }
 
     private void setBannerCompact(boolean compact) {

@@ -1,4 +1,4 @@
-# Handoff — CleanYourTV, October 2025
+# Handoff — CleanYourTV, 25 October 2025
 
 Where the work stands, what is still open, and where everything lives. Read the three sections in order:
 **state** (what is on the TV now), **open work** (what to pick up), **keeping the TV healthy**, **map**
@@ -11,15 +11,23 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.04** (`versionCode` 204), the Google TV layout as Home |
-| Branch | `claude/zen-euler-0mir9r` (commit 47b7086), ahead of `main` |
-| Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work |
+| Launcher on the TV | **2.07** (`versionCode` 207), the Google TV layout as Home |
+| Branch | `claude/zen-euler-0mir9r`, ahead of `main` by the 2.05–2.07 work |
+| Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
+| Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
 | Screensaver | the TV's own (Google Backdrop). The launcher never changed it; its Clock screensaver stays off. |
 
 ### Version numbers
 `A.BB` in [`launcher/app/build.gradle`](../launcher/app/build.gradle): a fix or minor change raises BB
-(2.04 → 2.05), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+(2.07 → 2.08), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+
+### What each build after the merge added
+| | |
+|---|---|
+| **2.05** | The performance card (Launcher settings → Performance card, off by default) and its `Stats` reader; pressing Home now lands on the Home tab rather than the first app |
+| **2.06** | Memory and storage also shown as used / total. The owner chose to **keep both** the free and used rows |
+| **2.07** | The card shrinks before it hides: every figure where there is room, then the essential few (processor, memory used, storage used, frames), then nothing. Before this it vanished entirely at 2 or more Favorite rows |
 
 ### Build, test, audit
 ```bash
@@ -121,7 +129,7 @@ on the KD-49X8500H. Four of its figures stay blank here, each for a known reason
 |---|---|---|
 | **Processor** | Android 9 blocks apps from `/proc/stat`, and this set also refuses the `cpuidle` fallback, so both sources in `Stats.cpuPercent()` are dead. The Apple layout's stats line has the same gap | `/proc/loadavg` as a third source — a load figure, not a percentage |
 | **Temperature** | The thermal sensors are not readable by apps on this set (`Stats.temperatureC()` probes zones 0–11, then gives up). No public API on Android 9 replaces it | None |
-| **Wi‑Fi signal**, **Link speed** | Most likely because the TV is on **wired Ethernet**, in which case leaving them out is correct. Confirm with `dumpsys connectivity` before building anything | A **Network type** row (Wi‑Fi / Ethernet / offline), reusing the detection `MainActivity` already has (`NetworkCapabilities.TRANSPORT_ETHERNET`, which drives the top-bar pill and its `ic_ethernet` icon) |
+| **Wi‑Fi signal**, **Link speed** | **Confirmed: the TV is wired.** `ip -o addr` shows an address on `eth0` and nothing on `wlan0`, so there is no Wi-Fi to report and leaving the rows out is correct, not a fault | A **Network type** row (Wi‑Fi / Ethernet / offline) was offered and declined as clutter: it would never change on a wired set. The detection already exists in `MainActivity` (`NetworkCapabilities.TRANSPORT_ETHERNET`, which drives the top-bar pill and its `ic_ethernet` icon) |
 
 Nothing is built for these: the owner has not asked for them, and two of the three have no fix.
 
@@ -146,6 +154,9 @@ Nothing is built for these: the owner has not asked for them, and two of the thr
 - Rows below dock sets the number of Favorite rows; Home sits on the bottom edge; ⌄⌄ marks the lowest row and
   Down from it opens the Apps tab.
 - Both Google TV popups use the tab style; the Apple layout keeps its own.
+- The performance card keeps **both** the free and the used rows for memory and storage, and shrinks to the
+  essential figures before hiding itself (2.07). No Network type row.
+- Pressing Home leaves the selection on the **Home tab**, not on the first app.
 - Continuous effects stay off by default; the screensaver stays the TV's own.
 
 ---

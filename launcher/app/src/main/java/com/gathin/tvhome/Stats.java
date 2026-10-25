@@ -30,9 +30,15 @@ final class Stats {
     static final class Item {
         final int labelRes;
         final String value;
+        /** Kept when the card has to shrink to stay clear of the Home rows; the rest are dropped first. */
+        final boolean essential;
         Item(int labelRes, String value) {
+            this(labelRes, value, false);
+        }
+        Item(int labelRes, String value, boolean essential) {
             this.labelRes = labelRes;
             this.value = value;
+            this.essential = essential;
         }
     }
 
@@ -46,23 +52,23 @@ final class Stats {
     List<Item> read() {
         List<Item> items = new ArrayList<>();
         int cpu = cpuPercent();
-        if (cpu >= 0) items.add(new Item(R.string.perf_cpu, cpu + "%"));
+        if (cpu >= 0) items.add(new Item(R.string.perf_cpu, cpu + "%", true));
         long[] mem = memoryMb();
         if (mem[0] >= 0) items.add(new Item(R.string.perf_memory, mem[0] + " MB"));
         if (mem[0] >= 0 && mem[1] > 0) {
-            items.add(new Item(R.string.perf_memory_used, usedOfTotalMb(mem[1] - mem[0], mem[1])));
+            items.add(new Item(R.string.perf_memory_used, usedOfTotalMb(mem[1] - mem[0], mem[1]), true));
         }
         long freeBytes = Environment.getDataDirectory().getFreeSpace();
         long totalBytes = Environment.getDataDirectory().getTotalSpace();
         String storage = formatGb(freeBytes);
         if (!storage.isEmpty()) items.add(new Item(R.string.perf_storage, storage));
         if (totalBytes > 0 && freeBytes >= 0 && freeBytes <= totalBytes) {
-            items.add(new Item(R.string.perf_storage_used, usedOfTotalBytes(totalBytes - freeBytes, totalBytes)));
+            items.add(new Item(R.string.perf_storage_used, usedOfTotalBytes(totalBytes - freeBytes, totalBytes), true));
         }
         int temp = temperatureC();
         if (temp > 0) items.add(new Item(R.string.perf_temperature, temp + "°C"));
         int fps = frameRate;
-        if (fps > 0) items.add(new Item(R.string.perf_frames, fps + " fps"));
+        if (fps > 0) items.add(new Item(R.string.perf_frames, fps + " fps", true));
         String net = networkRate();
         if (net != null) items.add(new Item(R.string.perf_network, net));
         int signal = wifiSignalPercent();
