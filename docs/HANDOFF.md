@@ -27,6 +27,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 |---|---|
 | **2.05** | The performance card (Launcher settings → Performance card, off by default) and its `Stats` reader; pressing Home now lands on the Home tab rather than the first app |
 | **2.06** | Memory and storage also shown as used / total. The owner chose to **keep both** the free and used rows |
+| **2.11** | Selection is the white ring again (2.10's "dim everything else" was tried and turned down for ordinary selection); the carried tile keeps 2.10's lifted, ghosted look with the others faded; the banner shows **only while an app is selected**, so arriving at Home names nothing until Down picks one |
 | **2.10** | The selected tile is now told apart by **dimming the others** (a white ring was invisible on white artwork such as Netflix or the Play Store); a tile being moved is lifted and ghosted instead of framed; and Home from another tab no longer leaves the banner naming whatever was selected over there |
 | **2.09** | **Reverted 2.08's artwork change** (see below); the carried tile's frame now covers the artwork's edges; the hold-OK menu panel is solid, because tiles read straight through the sheer one over a bright wallpaper |
 | **2.08** | The hold-OK menu opens above a tile when there is no room below (bottom-row apps were cut off); a load-average figure stands in where the TV blocks the processor reading; **and an artwork change that was measured worse and reverted in 2.09** |
@@ -185,7 +186,10 @@ Nothing is built for these: the owner has not asked for them, and two of the thr
 - Both Google TV popups use the tab style; the Apple layout keeps its own.
 - The performance card keeps **both** the free and the used rows for memory and storage, and shrinks to the
   essential figures before hiding itself (2.07). No Network type row.
-- Pressing Home leaves the selection on the **Home tab**, not on the first app.
+- Pressing Home leaves the selection on the **Home tab**, not on the first app, and the banner stays hidden until
+  an app is selected.
+- **Selection is a white ring; dimming the other tiles is reserved for a move.** Dimming for ordinary selection was
+  built in 2.10 and turned down — please do not "improve" it back.
 - Continuous effects stay off by default; the screensaver stays the TV's own.
 
 ---

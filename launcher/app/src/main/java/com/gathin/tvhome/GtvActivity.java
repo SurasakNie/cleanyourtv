@@ -125,6 +125,8 @@ public final class GtvActivity extends Activity {
     private boolean bannerFits = true, bannerCompact;
     /** False when the Home rows reach up to where the performance card would sit. */
     private boolean perfFits = true;
+    /** True while a tile is selected: with the selection on a tab there is no app for the banner to name. */
+    private boolean appSelected;
     /** Every app in Home order (saved order, dock_apps, name): the first row is Your apps, then Favorites. */
     private final List<App> ordered = new ArrayList<>();
     /** The owner's Favorite apps (packages, in their order) shown under Your apps. */
@@ -199,9 +201,7 @@ public final class GtvActivity extends Activity {
         if (currentTab != TAB_HOME) showTab(TAB_HOME);
         styleTabs();
         if (homeGrid != null) homeGrid.scrollToPosition(0);
-        // The selection sits on the Home tab, so no tile announces itself: name the first app rather than leave
-        // the banner showing whatever was last selected in the Apps tab.
-        if (!dock.isEmpty()) showApp(dock.get(0));
+        clearSelectedApp();   // the selection sits on the Home tab: no app to name until Down picks one
     }
 
     private void build() {
@@ -248,8 +248,10 @@ public final class GtvActivity extends Activity {
         showTab(TAB_HOME);
         Fonts.apply(root);
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).registerOnSharedPreferenceChangeListener(settingsListener);
+        // Colour the glow from the first app, but leave the banner hidden: nothing is selected yet.
         if (!dock.isEmpty()) showApp(dock.get(0));
         else if (!all.isEmpty()) showApp(all.get(0));
+        clearSelectedApp();
         root.post(this::focusHomeFirst);
     }
 
@@ -497,14 +499,14 @@ public final class GtvActivity extends Activity {
         refocusMoving();
     }
 
-    /** Puts the carried tile's lift and ghost on, or takes them off again. */
+    /** Puts the carried tile's lift and ghost on, or takes them off and gives the ring back. */
     private void styleCarried(View v, boolean carried) {
         v.animate().cancel();
         v.animate().scaleX(carried ? 1.15f : 1.1f).scaleY(carried ? 1.15f : 1.1f)
                 .translationZ((carried ? 16 : 8) * dp)
                 .alpha(carried ? GHOST : 1f)
                 .setDuration(140).start();
-        v.setForeground(null);
+        v.setForeground(carried ? null : ring());
     }
 
     /**
@@ -842,7 +844,13 @@ public final class GtvActivity extends Activity {
                 t.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_home, 0, 0, 0);
                 t.setCompoundDrawablePadding((int) (8 * dp));
             }
-            t.setOnFocusChangeListener((v, has) -> { if (has) showTab(tab); styleTabs(); });
+            t.setOnFocusChangeListener((v, has) -> {
+                if (has) {
+                    clearSelectedApp();
+                    showTab(tab);
+                }
+                styleTabs();
+            });
             t.setOnKeyListener((v, code, e) -> {
                 if (e.getAction() != KeyEvent.ACTION_DOWN || code != KeyEvent.KEYCODE_DPAD_DOWN) return false;
                 focusContent();
@@ -864,7 +872,10 @@ public final class GtvActivity extends Activity {
         settings.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
         settings.setPadding((int) (12 * dp), (int) (8 * dp), (int) (12 * dp), (int) (8 * dp));
         settings.setOnClickListener(this::showSettingsChoice);
-        settings.setOnFocusChangeListener((v, has) -> stylePill((TextView) v, has, false));
+        settings.setOnFocusChangeListener((v, has) -> {
+            if (has) clearSelectedApp();
+            stylePill((TextView) v, has, false);
+        });
         settings.setOnKeyListener((v, code, e) -> {
             if (e.getAction() != KeyEvent.ACTION_DOWN || code != KeyEvent.KEYCODE_DPAD_DOWN) return false;
             focusContent();
@@ -1014,6 +1025,8 @@ public final class GtvActivity extends Activity {
 
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
+        appSelected = true;
+        updateBanner();
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
@@ -1076,7 +1089,18 @@ public final class GtvActivity extends Activity {
             lp.topMargin = top;
             banner.setLayoutParams(lp);
         }
-        banner.setVisibility(currentTab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+        updateBanner();
+    }
+
+    /** The banner names the selected app, so it shows only on Home, only when it fits, and only with a selection. */
+    private void updateBanner() {
+        banner.setVisibility(currentTab == TAB_HOME && bannerFits && appSelected ? View.VISIBLE : View.INVISIBLE);
+    }
+
+    /** The selection left the tiles (a tab or the gear): there is no app to name. */
+    private void clearSelectedApp() {
+        appSelected = false;
+        updateBanner();
     }
 
     /**
@@ -1216,7 +1240,7 @@ public final class GtvActivity extends Activity {
         inputsPage.setVisibility(tab == TAB_INPUTS ? View.VISIBLE : View.GONE);
         // The banner and the performance card belong to Home (when they fit above the rows); Apps and Inputs
         // use the full height, and a card left on screen there would sit over the grid's right-hand tiles.
-        banner.setVisibility(tab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+        updateBanner();
         if (perfCard != null) perfCard.setVisibility(tab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
     }
 
@@ -1322,12 +1346,13 @@ public final class GtvActivity extends Activity {
             // A recycled card may still carry the zoom or dimness of the tile it showed before.
             boolean focused = card.isFocused(), carried = a == moving;
             card.animate().cancel();
-            float scale = focused ? (moving != null ? 1.15f : 1.1f) : 1f;
+            boolean carrying = moving != null;
+            float scale = focused ? (carrying ? 1.15f : 1.1f) : 1f;
             card.setScaleX(scale);
             card.setScaleY(scale);
-            card.setTranslationZ(focused ? (moving != null ? 16 : 8) * dp : 0);
-            card.setAlpha(focused ? (carried ? GHOST : 1f) : (moving != null ? DIM_MOVING : DIM));
-            card.setForeground(null);
+            card.setTranslationZ(focused ? (carrying ? 16 : 8) * dp : 0);
+            card.setAlpha(focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f));
+            card.setForeground(focused && !carrying ? ring() : null);
             card.setOnClickListener(v -> open(a));
             card.setOnLongClickListener(v -> { menu(a, v); return true; });
             card.setOnFocusChangeListener((v, has) -> {
@@ -1339,27 +1364,35 @@ public final class GtvActivity extends Activity {
         @Override public int getItemCount() { return items.size(); }
     }
 
-    /** Tile dimness: the selected one keeps its colour, the rest step back. 1f when nothing is selected. */
-    private static final float DIM = 0.55f, DIM_MOVING = 0.4f, GHOST = 0.75f;
+    /** While a tile is carried: how far the others step back, and how see-through the carried one goes. */
+    private static final float DIM_MOVING = 0.4f, GHOST = 0.75f;
 
     /**
-     * The selected tile is told apart by lifting it and fading the others, not by an outline: a white ring is
-     * invisible on the white artwork of Netflix, MonoMax or the Play Store, while dimming reads on any colour.
+     * An ordinary selection: the tile zooms, lifts and takes a white ring. Carrying one (hold OK, Move) instead
+     * lifts it further, makes it see-through and fades every other tile, so it reads as held rather than outlined.
      */
     private void focusTile(View v, boolean has) {
-        boolean moving = this.moving != null;
-        float scale = has ? (moving ? 1.15f : 1.1f) : 1f;
+        boolean carrying = moving != null;
+        float scale = has ? (carrying ? 1.15f : 1.1f) : 1f;
         v.animate().scaleX(scale).scaleY(scale)
-                .translationZ(has ? (moving ? 16 : 8) * dp : 0)
-                .alpha(has ? (moving ? GHOST : 1f) : (moving ? DIM_MOVING : DIM))
+                .translationZ(has ? (carrying ? 16 : 8) * dp : 0)
+                .alpha(has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f))
                 .setDuration(140).start();
-        v.setForeground(null);
-        if (has) dimOthers(v);
+        v.setForeground(has && !carrying ? ring() : null);
+        if (has && carrying) dimOthers(v);
     }
 
-    /** Fades every tile but this one. Called on each selection, so a recycled tile cannot keep a stale dimness. */
+    /** The white frame on the selected tile. */
+    private Drawable ring() {
+        GradientDrawable r = new GradientDrawable();
+        r.setCornerRadius(12 * dp);
+        r.setStroke((int) (3 * dp), Color.WHITE);
+        return r;
+    }
+
+    /** Fades every tile but this one, for the duration of a move. */
     private void dimOthers(View focused) {
-        float others = moving != null ? DIM_MOVING : DIM;
+        float others = moving != null ? DIM_MOVING : 1f;
         for (ViewGroup group : new ViewGroup[]{homeGrid, appsGrid, inputsRow}) {
             if (group == null) continue;
             for (int i = 0; i < group.getChildCount(); i++) {
