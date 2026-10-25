@@ -39,7 +39,7 @@ background services, built for sets with 1 GB of RAM. `minSdk` 26.
 | [`launcher/app/build.gradle`](../launcher/app/build.gradle) | `versionCode` / `versionName` (`A.BB`), `minSdk`, signing |
 | `launcher/app/src/main/res/values/config.xml` | **Start here for behaviour**: dock order, hidden apps, Live TV package, columns, rows under the dock, and every feature switch, each one commented |
 | `launcher/app/src/main/res/values/strings.xml` | English strings. Every one needs a Hebrew twin in `values-iw/` — `tests/test_hebrew_resources.py` enforces it |
-| `launcher/app/src/main/res/layout/` | The settings panel, the quick settings panel, the screensaver and the input row. Home itself is built in code, not XML |
+| `launcher/app/src/main/res/layout/` | The Apple TV layout in XML (`activity_main.xml`) and the settings screen. The Google TV screen is built in code, not XML |
 | `launcher/build-and-install.sh` / `.ps1` | Build and push to a TV in one command |
 
 ### The two layouts
@@ -54,10 +54,12 @@ background services, built for sets with 1 GB of RAM. `minSdk` 26.
 | Job | Classes |
 |---|---|
 | Settings and themes | `Config` (config.xml + theme JSON + on-TV choices), `LauncherSettingsActivity`, `ThemeFiles`, `ThemeProvider`, `QuickSettingsActivity`, `HomeSettingsActivity` |
-| App lists and order | `Order` (the dock, `order.txt`), `Favorites` (Favorite apps, `gtv_favorites.txt`), `LibraryApps`, `LastOpened`, `AppArt` (an app's banner and its glow colour) |
+| App lists and order | `AppAdapter`, `Order` (the shared dock, `order.txt`), `Favorites` (Google TV favorites, `gtv_favorites.txt`), `LibraryApps`, `AppLibraryDialog`, `DockSlots`, `DockDecoration`, `GridNavigation`, `LastOpened` |
 | Inputs and remote keys | `InputPreview`, `RemoteKeys`, `InputKeyService`, `HomeKeyService` |
-| Look | `Fonts`, `GlowStyle`, `WallpaperRotation` |
+| Look | `Fonts`, `GlowStyle`, `GlassView`, `HeroArt`, `WallpaperPlayer`, `WallpaperRotation`, `WallpaperSize`, `Sky`, `SkyView`, `Sun` |
 | Screensaver | `ClockDream`, `ClockActivity`, `ClockScene` |
+| Module cards | `Cards`, `CardFeature` (contract: [`docs/specs/card.md`](specs/card.md), guide: [`docs/modules.md`](modules.md)) |
+| Festive skin | `Festival`, `DiyaDrawable`, `MarigoldDrawable`, `BellDrawable`, `PetalShowerView`, `Shamsi`, `RaceWeekend` |
 
 ---
 
@@ -115,6 +117,9 @@ articles and bookmarks. The cost is real and the gain is cosmetic, so please do 
 | `MOC.md` | This map |
 | [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) | When something goes wrong on a TV |
 | [`REMOTE.md`](REMOTE.md) | Remote keys and the accessibility services |
+| [`app-library.md`](app-library.md) | The optional app library |
+| [`modules.md`](modules.md) + [`specs/card.md`](specs/card.md) | Module cards: the guide and the contract |
+| [`sky.md`](sky.md) | The drawn sky backdrop |
 | [`PRESS.md`](PRESS.md) + `press/` | Coverage and its logos |
 | [`devices/`](devices/) | Per-TV write-ups that are too long for an examples row |
 | [`proposals/google-tv-ui/`](proposals/google-tv-ui/README.md) | The full UI proposal: layout, settings redesign, effects, wallpapers, ideas from other launchers, and the owner's answers. **Read §6.7 and §8 before proposing UI work** |

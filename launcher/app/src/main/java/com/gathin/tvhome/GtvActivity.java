@@ -327,14 +327,14 @@ public final class GtvActivity extends Activity {
             a.pkg = pkg;
             a.label = String.valueOf(ri.loadLabel(pm));
             a.component = new ComponentName(pkg, ri.activityInfo.name);
-            a.banner = AppArt.loadBanner(this, pm, ri);
+            a.banner = AppAdapter.loadBanner(this, pm, ri);
             if (a.banner == null) a.icon = ri.loadIcon(pm);
-            a.color = AppArt.vividColor(a.banner != null ? a.banner : a.icon);
+            a.color = AppAdapter.vividColor(a.banner != null ? a.banner : a.icon);
             all.add(a);
         }
         // The Apps tab stays alphabetical.
         Collections.sort(all, (x, y) -> x.label.compareToIgnoreCase(y.label));
-        // Your apps and the rest follow the owner's saved order (Order, order.txt), kept from the removed layout
+        // Your apps and Other apps follow the Apple TV layout's order (AppAdapter): the owner's saved order
         // (order.txt), then dock_apps, then name. Your apps = the first row, so both layouts share one dock.
         Map<String, Integer> ranks = Order.ranks(Order.load(Order.file(this)), cfg.dockApps);
         ordered.clear();
