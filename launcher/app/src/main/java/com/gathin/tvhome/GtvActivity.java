@@ -90,12 +90,19 @@ public final class GtvActivity extends Activity {
                 .getString(PREF_LAYOUT, LAYOUT_GTV.equals(ctx.getString(R.string.default_layout)) ? LAYOUT_GTV : "apple"));
     }
 
-    /** One launchable app. */
+    /**
+     * One launchable app. It holds no artwork: a tile loads its own banner when it comes on screen and lets it go
+     * when the tile is recycled, so Home keeps a few tiles' bitmaps in memory instead of every installed app's
+     * (about 22 MB on this TV). The glow colour is sampled once and kept as an int.
+     */
     private static final class App {
         String pkg, label;
         ComponentName component;
-        Drawable banner, icon;
+        ResolveInfo resolve;
+        /** The glow colour, sampled from the artwork on first use. 0 until then. */
         int color;
+        /** False until the artwork has been looked at: it may have no banner, which is not the same as unknown. */
+        boolean artworkSeen, hasBanner;
     }
 
     private float dp;
@@ -312,9 +319,7 @@ public final class GtvActivity extends Activity {
             a.pkg = pkg;
             a.label = String.valueOf(ri.loadLabel(pm));
             a.component = new ComponentName(pkg, ri.activityInfo.name);
-            a.banner = AppAdapter.loadBanner(this, pm, ri);
-            if (a.banner == null) a.icon = ri.loadIcon(pm);
-            a.color = AppAdapter.vividColor(a.banner != null ? a.banner : a.icon);
+            a.resolve = ri;
             all.add(a);
         }
         // The Apps tab stays alphabetical.
@@ -676,8 +681,34 @@ public final class GtvActivity extends Activity {
             panel.addView(menuRow(popup, getString(titles.get(i)), actions.get(i)));
         }
         Fonts.apply(panel);
-        popup.showAsDropDown(anchor, 0, (int) (10 * dp), Gravity.END);
+        showPanel(popup, panel, anchor);
         panel.getChildAt(heading == null ? 0 : 1).requestFocus();
+    }
+
+    /**
+     * Hangs the menu under the thing it belongs to, or above it when there is no room below — a tile in the
+     * bottom row has none, and the menu used to run off the screen.
+     */
+    private void showPanel(PopupWindow popup, View panel, View anchor) {
+        panel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int height = panel.getMeasuredHeight(), width = Math.max(popup.getWidth(), panel.getMeasuredWidth());
+        int gap = (int) (10 * dp), edge = (int) (8 * dp);
+        int[] at = new int[2];
+        anchor.getLocationInWindow(at);
+        int[] rootAt = new int[2];
+        root.getLocationInWindow(rootAt);
+        int anchorTop = at[1] - rootAt[1], anchorBottom = anchorTop + anchor.getHeight();
+        if (anchorBottom + gap + height <= root.getHeight() - edge) {
+            popup.showAsDropDown(anchor, 0, gap, Gravity.END);
+            return;
+        }
+        // Above the tile, left-aligned with it; against the right edge of the screen, right-aligned instead.
+        int x = at[0] - rootAt[0];
+        if (x + width > root.getWidth() - edge) {
+            x = x + Math.round(anchor.getWidth() * anchor.getScaleX()) - width;
+        }
+        popup.showAtLocation(anchor, Gravity.NO_GRAVITY,
+                Math.max(edge, x), Math.max(edge, anchorTop - height - gap));
     }
 
     private TextView menuRow(PopupWindow popup, String title, Runnable action) {
@@ -966,6 +997,9 @@ public final class GtvActivity extends Activity {
 
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
+        // The glow follows the app's colour, which is sampled from its artwork: on the first selection after a
+        // rebuild no tile has drawn yet, so take the sample here rather than glow a flat grey.
+        if (!a.artworkSeen) artworkFor(a);
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
@@ -1263,9 +1297,10 @@ public final class GtvActivity extends Activity {
             FrameLayout card = (FrameLayout) h.itemView;
             ImageView img = (ImageView) card.getChildAt(0);
             TextView name = (TextView) card.getChildAt(1);
-            card.setBackground(tileBackground(a.banner != null ? 0xFF1B2029 : darker(a.color)));
-            if (a.banner != null) {
-                img.setImageDrawable(a.banner);
+            Drawable art = artworkFor(a);
+            card.setBackground(tileBackground(a.hasBanner ? 0xFF1B2029 : darker(a.color)));
+            if (a.hasBanner) {
+                img.setImageDrawable(art);
                 name.setText("");
             } else {
                 img.setImageDrawable(null);
@@ -1285,7 +1320,33 @@ public final class GtvActivity extends Activity {
             });
         }
 
+        /** Off screen: drop the bitmap so it can be collected, or Home would hold every app's artwork again. */
+        @Override
+        public void onViewRecycled(@NonNull RecyclerView.ViewHolder h) {
+            super.onViewRecycled(h);
+            if (h.itemView instanceof FrameLayout) {
+                View first = ((FrameLayout) h.itemView).getChildAt(0);
+                if (first instanceof ImageView) ((ImageView) first).setImageDrawable(null);
+            }
+        }
+
         @Override public int getItemCount() { return items.size(); }
+    }
+
+    /**
+     * This app's banner, loaded now and not kept: the tile holds it while it is on screen. The first call also
+     * samples the glow colour, so the banner's colour still follows the selection without the image being held.
+     */
+    private Drawable artworkFor(App a) {
+        Drawable art = a.resolve == null ? null : AppAdapter.loadBanner(this, getPackageManager(), a.resolve);
+        boolean banner = art != null;
+        if (!banner && a.resolve != null) art = a.resolve.loadIcon(getPackageManager());
+        if (!a.artworkSeen) {
+            a.artworkSeen = true;
+            a.hasBanner = banner;
+            a.color = AppAdapter.vividColor(art);
+        }
+        return art;
     }
 
     private void focusTile(View v, boolean has) {

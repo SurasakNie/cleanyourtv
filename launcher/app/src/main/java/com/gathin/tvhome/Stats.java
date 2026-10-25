@@ -53,6 +53,11 @@ final class Stats {
         List<Item> items = new ArrayList<>();
         int cpu = cpuPercent();
         if (cpu >= 0) items.add(new Item(R.string.perf_cpu, cpu + "%", true));
+        else {
+            // Android 9 hides the processor figures from apps on many TVs; the load average usually survives.
+            String load = loadAverage();
+            if (load != null) items.add(new Item(R.string.perf_load, load, true));
+        }
         long[] mem = memoryMb();
         if (mem[0] >= 0) items.add(new Item(R.string.perf_memory, mem[0] + " MB"));
         if (mem[0] >= 0 && mem[1] > 0) {
@@ -165,6 +170,20 @@ final class Stats {
 
     private static int clampPercent(int v) {
         return Math.max(0, Math.min(100, v));
+    }
+
+    /** The one-minute load average, like "1.2", or null when /proc/loadavg is closed to apps too. */
+    String loadAverage() {
+        String s = readFirstLine("/proc/loadavg");
+        if (s == null) return null;
+        String[] t = s.trim().split("\\s+");
+        if (t.length < 1) return null;
+        try {
+            double one = Double.parseDouble(t[0]);
+            return one < 0 || one > 1000 ? null : String.format(Locale.US, "%.2f", one);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // ---- memory and storage ----------------------------------------------------------------------

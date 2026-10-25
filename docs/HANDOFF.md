@@ -27,6 +27,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 |---|---|
 | **2.05** | The performance card (Launcher settings → Performance card, off by default) and its `Stats` reader; pressing Home now lands on the Home tab rather than the first app |
 | **2.06** | Memory and storage also shown as used / total. The owner chose to **keep both** the free and used rows |
+| **2.08** | The hold-OK menu opens above a tile when there is no room below (bottom-row apps were cut off); app artwork is loaded per tile and released on recycle instead of all of it being held; a load-average figure stands in where the TV blocks the processor reading |
 | **2.07** | The card shrinks before it hides: every figure where there is room, then the essential few (processor, memory used, storage used, frames), then nothing. Before this it vanished entirely at 2 or more Favorite rows |
 
 ### Build, test, audit
@@ -72,9 +73,8 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Known bugs
-| Bug | Where | Note |
-|---|---|---|
-| The hold-OK menu for apps in the **bottom row** opens past the bottom edge of the screen | `GtvActivity.showMenu()` | Owner saw it in 2.04 and chose to fix it later. The Apple layout already solves this in `MainActivity.onTileLongPressed()`: it measures the panel and opens it **above** the tile when it would not fit below. Copy that approach. |
+None open. The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now measures the panel and opens it
+above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### Open: the APK size budget
 The release APK is **about 880 KB**, and **some 830 KB of that is the two CMU Sans font files**
@@ -92,8 +92,15 @@ python3 -m fontTools.subset launcher/app/src/main/res/font/cmu_sans.ttf \
   --unicodes=U+0020-007E,U+00A0-024F,U+0370-03FF,U+0400-04FF,U+2000-206F,U+20A0-20BF,U+2122,U+2190-21FF,U+2500-257F \
   --layout-features='*' --no-hinting --desubroutinize --output-file=cmu_sans.ttf
 ```
-Also stale because of this: the README card image (`docs/images/card.jpg`) still reads "429 KB launcher". The
-README text is corrected; the image needs regenerating with `tools/readme_card.py`, and its alt text matched to it.
+Also stale because of this: the README card image (`docs/images/card.jpg`) still reads **"429 KB launcher"**. The
+README text, its alt text and `tools/readme_stats.py` now all say 880 KB, so a re-render will be correct — but the
+picture itself could not be rebuilt here: `tools/readme_stats.py` and `readme_card.py` need `Fredoka.ttf`, which is
+not in the repo, and this container's network policy refuses `fonts.google.com` and `cdn.jsdelivr.net`. To finish
+it: get Fredoka (the variable TTF from Google Fonts), then
+`tools/venv/bin/python -I tools/readme_stats.py Fredoka.ttf docs/images/stats.png`, the same for
+`readme_featured.py`, then `readme_card.py Fredoka.ttf docs/images/card.png` — and note the README points at
+`card.jpg`, so the PNG still has to be converted. Leave the TV-model count alone: `tests/test_examples.py` checks
+it against the folders.
 
 ### Diagnosed: a streaming app lags (not a launcher bug)
 **Symptom:** iQIYI / WeTV / Youku showed a black screen on a fresh start, then slow browsing and stuttering.
@@ -118,8 +125,9 @@ touches the app, the Play Store or Play services, so updates keep working — th
 **Our own share, measured honestly:** the launcher is ~39 MB (peaks near 56 MB with the Apps grid open), of which
 about **22 MB is app artwork held in the native heap** — bitmaps for every installed app, loaded up front in
 `GtvActivity.loadApps()`. Its Java heap is 2.3 MB, so there is no leak. It is a minor contributor next to iQIYI,
-but worth trimming: load each tile's artwork when it comes on screen and release it afterwards, the normal
-RecyclerView pattern. Queued as a small 2.05 change, not urgent.
+**Done in 2.08:** `App` no longer holds a `Drawable`. A tile loads its own artwork in `onBindViewHolder` and
+drops it in `onViewRecycled`, and the glow colour is sampled once and kept as an int. Expect the native-heap line
+of `dumpsys meminfo com.gathin.tvhome` to fall from roughly 22 MB; confirm it rather than assume it.
 
 ### The performance card: four figures this TV will not give
 The card (Launcher settings → Performance card, added in 2.05) shows memory, storage, frames, network and uptime
@@ -127,7 +135,7 @@ on the KD-49X8500H. Four of its figures stay blank here, each for a known reason
 
 | Figure | Why | Possible follow-up |
 |---|---|---|
-| **Processor** | Android 9 blocks apps from `/proc/stat`, and this set also refuses the `cpuidle` fallback, so both sources in `Stats.cpuPercent()` are dead. The Apple layout's stats line has the same gap | `/proc/loadavg` as a third source — a load figure, not a percentage |
+| **Processor** | Android 9 blocks apps from `/proc/stat`, and this set also refuses the `cpuidle` fallback, so both sources in `Stats.cpuPercent()` are dead. The Apple layout's stats line has the same gap | **Done in 2.08:** `Stats.loadAverage()` reads `/proc/loadavg` instead and the card shows **Load (1 min)**. A load figure, not a percentage: 1.00 means about one core's worth of work. If that file is closed too, the row stays out |
 | **Temperature** | The thermal sensors are not readable by apps on this set (`Stats.temperatureC()` probes zones 0–11, then gives up). No public API on Android 9 replaces it | None |
 | **Wi‑Fi signal**, **Link speed** | **Confirmed: the TV is wired.** `ip -o addr` shows an address on `eth0` and nothing on `wlan0`, so there is no Wi-Fi to report and leaving the rows out is correct, not a fault | A **Network type** row (Wi‑Fi / Ethernet / offline) was offered and declined as clutter: it would never change on a wired set. The detection already exists in `MainActivity` (`NetworkCapabilities.TRANSPORT_ETHERNET`, which drives the top-bar pill and its `ic_ethernet` icon) |
 

@@ -159,6 +159,7 @@
     <string name="hint_perf">A small card under the clock showing what the TV is doing: processor, memory, storage, temperature, frame rate, network and uptime. Figures this TV keeps private are left out.</string>
     <string name="perf_title">Performance</string>
     <string name="perf_cpu">Processor</string>
+    <string name="perf_load">Load (1 min)</string>
     <string name="perf_memory">Memory free</string>
     <string name="perf_storage">Storage free</string>
     <string name="perf_memory_used">Memory used</string>
