@@ -28,6 +28,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView clockChoice;
     private TextView previewChoice;
     private TextView glowChoice;
+    private TextView layoutChoice;
     private TextView fontChoice;
     private TextView ambientChoice;
     private boolean ambientGlow;
@@ -133,6 +134,13 @@ public final class LauncherSettingsActivity extends Activity {
             }
             idleClockMinutes = next;
             choices.edit().putInt("home_idle_clock_minutes", next).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+        layoutChoice = findViewById(R.id.layoutChoice);
+        layoutChoice.setOnClickListener(v -> {
+            choices.edit().putString(GtvActivity.PREF_LAYOUT,
+                    GtvActivity.enabled(this) ? "apple" : GtvActivity.LAYOUT_GTV).apply();
             setResult(RESULT_OK);
             refresh();
         });
@@ -303,6 +311,8 @@ public final class LauncherSettingsActivity extends Activity {
         glowChoice.setAlpha(ambientGlow ? 1f : 0.5f);
         ambientChoice.setText(getString(R.string.ambient_state,
                 getString(ambientGlow ? R.string.on : R.string.off)));
+        layoutChoice.setText(getString(R.string.layout_state, getString(
+                GtvActivity.enabled(this) ? R.string.layout_gtv : R.string.layout_apple)));
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));

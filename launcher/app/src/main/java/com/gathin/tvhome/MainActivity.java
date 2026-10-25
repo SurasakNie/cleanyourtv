@@ -243,6 +243,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     /** rows_below_dock 0 with a dock: the rows below are hidden while the dock has focus (no half-cut row). */
     private boolean hideBelowDock;
     private boolean homeResumed;
+    /** onCreate handed Home over to GtvActivity (Layout: Google TV). */
+    private boolean redirected;
     /** A Launcher settings choice changed while Home was in the background: rebuild on return. */
     private boolean settingsChanged;
     private final android.content.SharedPreferences.OnSharedPreferenceChangeListener settingsListener =
@@ -324,6 +326,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Layout: Google TV. This stays the HOME component (so the TV's default home never changes) and hands
+        // over to GtvActivity straight away, before drawing anything.
+        if (GtvActivity.enabled(this)) {
+            redirected = true;
+            startActivity(new Intent(this, GtvActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
+            finish();
+            overridePendingTransition(0, 0);
+            return;
+        }
         setContentView(R.layout.activity_main);
         Fonts.apply(findViewById(android.R.id.content));
         density = getResources().getDisplayMetrics().density;
@@ -928,6 +940,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (redirected) return;   // handed over to GtvActivity in onCreate: nothing was set up
         getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(settingsListener);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);

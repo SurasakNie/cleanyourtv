@@ -140,4 +140,14 @@
     <string name="hint_clock">הצגת שעון אחרי שמסך הבית לא נגעו בו זמן זה. כבוי משאיר את שומר המסך של הטלוויזיה.</string>
     <string name="hint_preview">חלון חי קטן של כניסת HDMI במסך הבית. OK פותח במסך מלא; לחיצה ארוכה ל־OK לאפשרויות נוספות.</string>
     <string name="hint_font">הגופן של השעון, השמות והתפריטים. CMU Sans Serif הוא גרסת הסנס של Computer Modern, הגופן הקלאסי של LaTeX.</string>
+    <string name="layout_state">פריסה: %1$s</string>
+    <string name="layout_gtv">Google TV</string>
+    <string name="layout_apple">Apple TV</string>
+    <string name="hint_layout">Google TV: לשוניות, באנר ושורות של אפליקציות. Apple TV: רציף אחד ורשת.</string>
+    <string name="gtv_home">בית</string>
+    <string name="gtv_apps">אפליקציות</string>
+    <string name="gtv_inputs">כניסות</string>
+    <string name="gtv_your_apps">האפליקציות שלך</string>
+    <string name="gtv_other_apps">אפליקציות נוספות</string>
+    <string name="gtv_open">פתיחה</string>
 </resources>

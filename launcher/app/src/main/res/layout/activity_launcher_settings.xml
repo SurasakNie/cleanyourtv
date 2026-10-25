@@ -22,6 +22,13 @@
             android:textSize="34sp" />
 
         <TextView
+            android:id="@+id/layoutChoice"
+            style="@style/SettingsRow"
+            android:layout_marginTop="18dp" />
+
+        <TextView style="@style/SettingsHint" android:text="@string/hint_layout" />
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="28dp"

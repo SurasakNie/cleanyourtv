@@ -144,4 +144,14 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+    <string name="layout_state">Layout: %1$s</string>
+    <string name="layout_gtv">Google TV</string>
+    <string name="layout_apple">Apple TV</string>
+    <string name="hint_layout">Google TV: tabs, a banner and rows of apps. Apple TV: one dock and a grid.</string>
+    <string name="gtv_home">Home</string>
+    <string name="gtv_apps">Apps</string>
+    <string name="gtv_inputs">Inputs</string>
+    <string name="gtv_your_apps">Your apps</string>
+    <string name="gtv_other_apps">Other apps</string>
+    <string name="gtv_open">Open</string>
 </resources>
