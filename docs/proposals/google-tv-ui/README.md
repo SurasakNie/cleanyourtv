@@ -359,6 +359,20 @@ network access.
 
 ![IP-camera tile](ideas/sheet-camera.jpg)
 
+### 6.7 Selected by the owner
+
+| Pick | What it becomes | Setting | Phase |
+|---|---|---|---|
+| 6.1 #1 Glass banner panel | Banner style "Glass panel" over the wallpaper | Layout › Banner: Name + glow · Wallpaper · **Glass panel** · Off | 2 |
+| 6.1 #2 Glass tiles | Tile style with a thin app-colour bar | Look › **Tile style: Solid · Glass** | 5 |
+| 6.1 #3 Glass tab bar and status pill | Tabs and the status pill on a glass strip | Look › **Glass bars: On / Off** | 2 |
+| 6.2 #2 Reflection under tiles | Soft coloured light under each tile | Effects › **Tile light: Off · Reflection** | 5 |
+| 6.2 #3 Light behind the title | Glow pulsing behind the banner title | Effects › Glow: adds **Title** | 5 |
+| 6.2 #4 Full-screen colour wash | Whole-screen wash blending to the next app | Effects › Glow: adds **Colour wash** | 5 |
+| 6.6 #3 Cameras as the Home banner | Banner shows a live input. **Built offline**: the banner uses the existing Input preview (HDMI 2 = your NVR) instead of network camera streams, so no internet permission is needed | Layout › Banner: adds **Live input (HDMI …)** | 2 |
+
+Not picked (kept in the document for reference): 6.1 #4, 6.2 #1, 6.3, 6.4, 6.5, 6.6 #1/#2/#4.
+
 ---
 
 ## 7. Plan and phases
