@@ -25,6 +25,13 @@ powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost 192.168.1.50 th
 Every key is optional; a missing key keeps the value from `config.xml`, an unknown or wrongly typed key
 is ignored, and a file that doesn't parse is ignored as a whole, so a theme can never break Home.
 
+> **Since 2.20 most of these keys do nothing.** They configured the Apple TV layout, which was removed; the
+> Google TV layout reads only `dock_apps`, `hidden_apps`, `columns`, `rows_below_dock`, the wallpaper keys,
+> `ambient_glow`, `animations`, `app_keys`, `input_key_keycodes`, `settings_key_*` and
+> `home_idle_clock_minutes`. The rest are still parsed and still ignored. They are kept, with their meanings,
+> because the features they describe — the festive skins, the app library, module cards, the network pill —
+> are candidates for the Google TV layout rather than decisions already reversed.
+
 | Key | Type | Meaning |
 |---|---|---|
 | `dock_apps` | list of package names | The dock row, in order; missing apps are skipped |
@@ -47,7 +54,7 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 | `library_button` | bool | The app library as a round button in the top bar, beside Settings; needs `app_library`. Closing the library returns to it |
 | `always_show_names` | bool | Names under every tile, dimmed until focused, the dock included (its band grows to hold them); `false` by default shows only the focused tile's name |
 | `wallpaper_true_color` | bool | Decode wallpapers in 32-bit colour (8 MB at 1080p) instead of RGB_565 (4 MB), which bands dark gradients such as a night sky; for TVs with 2 GB or more (`false` by default) |
-| `app_library` | bool | An App library pill after the last Home row: every installed app, add one to Home or take it off (`false` by default). The choices stay on the TV when a theme is pushed or reset; see [docs/app-library.md](../docs/app-library.md) |
+| `app_library` | bool | An App library pill after the last Home row: every installed app, add one to Home or take it off (`false` by default). The choices stay on the TV when a theme is pushed or reset |
 | `shamsi_date` | bool | Show the Solar Hijri date above the Gregorian one |
 | `greeting_name` | string | A name after the greeting, e.g. `"Mr. Trịnh"` for GOOD MORNING, MR. TRỊNH; empty for the greeting alone |
 | `module_cards` | bool | Look for module cards and ask about them (`true`); `false` turns the feature off |

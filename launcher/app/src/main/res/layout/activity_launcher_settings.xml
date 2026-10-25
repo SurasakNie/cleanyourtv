@@ -89,7 +89,7 @@
                 <TextView android:id="@+id/rows3" style="@style/SettingsColumnChoice" android:text="3" />
             </LinearLayout>
 
-            <TextView android:id="@+id/hintRows" style="@style/SettingsHint" android:text="@string/hint_rows" />
+            <TextView android:id="@+id/hintRows" style="@style/SettingsHint" android:text="@string/hint_rows_gtv" />
 
             <TextView style="@style/SettingsSection" android:text="@string/section_look" />
 

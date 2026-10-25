@@ -1,4 +1,4 @@
-"""Guard the Hebrew resource copy against new strings and required Home views."""
+"""Guard the Hebrew resource copy against new strings and diverging layouts."""
 from pathlib import Path
 import re
 import unittest
@@ -15,9 +15,9 @@ def strings(folder):
             if s.tag == "string" and s.get("translatable") != "false"}
 
 
-def views(folder):
+def views(path):
     return {v.attrib[ANDROID_ID]: v.tag
-            for v in ET.parse(RES / folder / "activity_main.xml").iter()
+            for v in ET.parse(path).iter()
             if ANDROID_ID in v.attrib}
 
 
@@ -30,11 +30,20 @@ class HebrewResourcesTest(unittest.TestCase):
                 self.assertEqual(re.findall(r"%\d+\$[a-zA-Z]", value),
                                  re.findall(r"%\d+\$[a-zA-Z]", hebrew[name]))
 
-    def test_hebrew_home_keeps_all_default_view_ids_and_types(self):
-        default, hebrew = views("layout"), views("layout-iw")
-        for view_id, tag in default.items():
-            with self.subTest(view=view_id):
-                self.assertEqual(tag, hebrew.get(view_id))
+    def test_hebrew_layouts_keep_their_default_view_ids_and_types(self):
+        """Every layout with a Hebrew copy must keep the same views: the code finds them by id.
+
+        This used to compare activity_main.xml, the Apple TV layout's Home screen. That layout was removed in
+        2.20 and the Google TV Home is built in code, so what is left to compare is the smaller layouts.
+        """
+        hebrew_copies = sorted(p.name for p in (RES / "layout-iw").glob("*.xml"))
+        self.assertTrue(hebrew_copies, "No Hebrew layouts left to check")
+        for name in hebrew_copies:
+            with self.subTest(layout=name):
+                default = views(RES / "layout" / name)
+                hebrew = views(RES / "layout-iw" / name)
+                for view_id, tag in default.items():
+                    self.assertEqual(tag, hebrew.get(view_id), view_id)
 
 
 if __name__ == "__main__":
