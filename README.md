@@ -294,7 +294,7 @@ tools/theme.sh themes/aurora                                 # push a theme; --r
 | [`tools/check.py`](tools/check.py) | Compares the TV with the list that was applied, for what a firmware update undid; `--fix` puts it back. |
 | [`tools/theme.sh`](tools/theme.sh) | Push a folder from [`themes/`](themes/) to the launcher and restart Home. |
 | [`tools/race_calendar.py`](tools/race_calendar.py) | Writes this season's F1 calendar into a theme for race-weekend mode, from the free Jolpica API. |
-| [`launcher/build-and-install.sh`](launcher/build-and-install.sh) | Builds a shrunk release (about 429 KB), installs it, switches Home, and rolls back if Home does not land on it. |
+| [`launcher/build-and-install.sh`](launcher/build-and-install.sh) | Builds a shrunk release (about 880 KB, most of it the optional CMU Sans fonts), installs it, switches Home, and rolls back if Home does not land on it. |
 
 Debloat list paths passed to `disable.sh` and `restore.sh` are relative to the directory you run
 from, so your own lists can live outside the repository. Absolute paths also work.
@@ -320,7 +320,8 @@ the new launcher Home and the entry is applied; `FORCE_HOME=1` (`$env:FORCE_HOME
 
 ## The launcher
 
-A small native Android TV app (`com.gathin.tvhome`, about 429 KB installed) in plain Java with
+A small native Android TV app (`com.gathin.tvhome`, about 880 KB installed, some 830 KB of which is the two
+optional CMU Sans font files) in plain Java with
 AndroidX RecyclerView and nothing heavier. Built for sets with 1 GB of RAM: no blur, no video, no
 network, no background services. It needs JDK 17 and Android SDK platform 34 to build; on macOS,
 `brew install openjdk@17 android-commandlinetools` and `sdkmanager "platforms;android-34" "build-tools;34.0.0"`. On Linux

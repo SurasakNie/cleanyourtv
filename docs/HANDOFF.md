@@ -67,6 +67,25 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 |---|---|---|
 | The hold-OK menu for apps in the **bottom row** opens past the bottom edge of the screen | `GtvActivity.showMenu()` | Owner saw it in 2.04 and chose to fix it later. The Apple layout already solves this in `MainActivity.onTileLongPressed()`: it measures the panel and opens it **above** the tile when it would not fit below. Copy that approach. |
 
+### Open: the APK size budget
+The release APK is **about 880 KB**, and **some 830 KB of that is the two CMU Sans font files**
+(`res/font/cmu_sans.ttf` and `cmu_sans_bold.ttf`, added in PR #1). CI's size gate was 440 KB, which this APK
+cannot meet; on the owner's instruction the gate in `.github/workflows/ci.yml` was **raised to 900 KB** rather than
+the fonts being trimmed. `main` had never run CI, so nothing flagged the growth when the fonts landed.
+
+If the budget ever needs to come back down, trimming is measured and ready: the files carry 1,911 mapped
+characters each (Greek, Cyrillic, maths and TeX tables), and keeping only what the launcher shows takes them from
+830 KB to 227 KB, bringing the APK to roughly 280 KB. Thai, Hebrew and Chinese are unaffected — CMU never had
+those glyphs, so they already fall back to the TV's own fonts.
+```bash
+pip install fonttools
+python3 -m fontTools.subset launcher/app/src/main/res/font/cmu_sans.ttf \
+  --unicodes=U+0020-007E,U+00A0-024F,U+0370-03FF,U+0400-04FF,U+2000-206F,U+20A0-20BF,U+2122,U+2190-21FF,U+2500-257F \
+  --layout-features='*' --no-hinting --desubroutinize --output-file=cmu_sans.ttf
+```
+Also stale because of this: the README card image (`docs/images/card.jpg`) still reads "429 KB launcher". The
+README text is corrected; the image needs regenerating with `tools/readme_card.py`, and its alt text matched to it.
+
 ### Open question: a streaming app lags (not a launcher bug)
 The owner reports that one of the Asian streaming apps (iQIYI / WeTV / Youku) is slow: **a black screen on a
 fresh start**, then slow browsing and stuttering playback. Nothing is diagnosed or changed yet — this is parked
