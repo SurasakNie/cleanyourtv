@@ -22,6 +22,8 @@ import android.media.tv.TvContract;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.SystemClock;
 import android.os.Looper;
 import android.provider.Settings;
 import android.text.format.DateFormat;
@@ -116,12 +118,21 @@ public final class GtvActivity extends Activity {
     private App moving;
     /** False when the banner can't fit between the top bar and the rows (then only the glow shows). */
     private boolean bannerFits = true, bannerCompact;
+    /** False when the Home rows reach up to where the performance card would sit. */
+    private boolean perfFits = true;
     /** Every app in Home order (saved order, dock_apps, name): the first row is Your apps, then Favorites. */
     private final List<App> ordered = new ArrayList<>();
     /** The owner's Favorite apps (packages, in their order) shown under Your apps. */
     private List<String> favPackages = new ArrayList<>();
     /** The gear or hold-OK menu while it is on screen, so Home and pausing can close it. */
     private PopupWindow openPopup;
+    /** The performance card (Launcher settings), its reader and the thread it reads on. */
+    private LinearLayout perfCard;
+    private Stats stats;
+    private HandlerThread perfThread;
+    private volatile Handler perfBg;
+    private int framesDrawn;
+    private long framesSince;
     private LinearLayout inputsRow;
     private int currentTab = TAB_HOME;
     private int tileW, tileH;
@@ -178,10 +189,11 @@ public final class GtvActivity extends Activity {
         super.onNewIntent(intent);
         if (homePage == null) return;
         closeMenu();
-        tabs[TAB_HOME].requestFocus();   // focus out of Apps/Inputs before they hide (see openAppsAt)
+        // Home leaves the selection on the Home tab: Down from there enters Your apps.
+        tabs[TAB_HOME].requestFocus();
         if (currentTab != TAB_HOME) showTab(TAB_HOME);
         styleTabs();
-        if (homeGrid != null) homeGrid.post(this::focusHomeFirst);
+        if (homeGrid != null) homeGrid.scrollToPosition(0);
     }
 
     private void build() {
@@ -212,6 +224,7 @@ public final class GtvActivity extends Activity {
         setContentView(root);
         buildBackground(cfg);
         buildTopBar();
+        buildPerfCard(cfg);
         buildBanner();
         content = new FrameLayout(this);
         content.setClipChildren(false);
@@ -244,12 +257,14 @@ public final class GtvActivity extends Activity {
         resumed = true;
         handler.removeCallbacks(tick);
         handler.post(tick);
+        startPerf();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         closeMenu();
+        stopPerf();
         resumed = false;
         handler.removeCallbacks(tick);
     }
@@ -820,6 +835,107 @@ public final class GtvActivity extends Activity {
         styleTabs();
     }
 
+    /**
+     * A small glass card under the clock with what the TV is doing. Off unless Launcher settings turns it on:
+     * while it is off nothing is read and no thread runs.
+     */
+    private void buildPerfCard(Config cfg) {
+        if (!getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getBoolean(Config.PERF_CARD_KEY, false)) return;
+        stats = new Stats(this);
+        perfCard = new LinearLayout(this);
+        perfCard.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(0xCC0B0D12);
+        g.setStroke((int) Math.max(1, dp), 0x33FFFFFF);
+        g.setCornerRadius(18 * dp);
+        perfCard.setBackground(g);
+        perfCard.setPadding((int) (16 * dp), (int) (12 * dp), (int) (18 * dp), (int) (12 * dp));
+        TextView head = new TextView(this);
+        head.setText(R.string.perf_title);
+        head.setTextColor(0xFF8F9AAB);
+        head.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        head.setPadding(0, 0, 0, (int) (6 * dp));
+        perfCard.addView(head);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams((int) (230 * dp), -2, Gravity.TOP | Gravity.END);
+        lp.rightMargin = sidePad;
+        lp.topMargin = (int) (84 * dp);
+        root.addView(perfCard, lp);
+    }
+
+    /** One row of the card: the figure's name on the left, its value on the right. */
+    private void setPerfRows(java.util.List<Stats.Item> items) {
+        if (perfCard == null) return;
+        int rows = perfCard.getChildCount() - 1;            // the heading stays
+        for (int i = rows; i < items.size(); i++) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            TextView name = new TextView(this);
+            name.setTextColor(0xFFC3CAD4);
+            name.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            row.addView(name, new LinearLayout.LayoutParams(0, -2, 1f));
+            TextView value = new TextView(this);
+            value.setTextColor(Color.WHITE);
+            value.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            row.addView(value);
+            Fonts.apply(row);
+            perfCard.addView(row);
+        }
+        for (int i = items.size(); i < rows; i++) perfCard.getChildAt(i + 1).setVisibility(View.GONE);
+        for (int i = 0; i < items.size(); i++) {
+            LinearLayout row = (LinearLayout) perfCard.getChildAt(i + 1);
+            row.setVisibility(View.VISIBLE);
+            ((TextView) row.getChildAt(0)).setText(items.get(i).labelRes);
+            ((TextView) row.getChildAt(1)).setText(items.get(i).value);
+        }
+    }
+
+    /** Reads the figures off the main thread every two seconds while Home is in front. */
+    private void startPerf() {
+        if (perfCard == null || perfThread != null) return;
+        perfThread = new HandlerThread("perf");
+        perfThread.start();
+        Handler bg = new Handler(perfThread.getLooper());
+        perfBg = bg;
+        framesDrawn = 0;
+        framesSince = SystemClock.elapsedRealtime();
+        countFrame();
+        bg.post(new Runnable() {
+            @Override public void run() {
+                if (perfBg != bg) return;
+                java.util.List<Stats.Item> items = stats.read();
+                    runOnUiThread(() -> {
+                    if (perfBg != bg) return;
+                    setPerfRows(items);
+                    fitBanner();   // the card grows as figures arrive; keep it clear of the rows
+                });
+                if (perfBg == bg) bg.postDelayed(this, 2000);
+            }
+        });
+    }
+
+    private void stopPerf() {
+        if (perfThread == null) return;
+        perfBg.removeCallbacksAndMessages(null);
+        perfBg = null;
+        perfThread.quit();
+        perfThread = null;
+    }
+
+    /** Counts drawn frames for the card's frame rate; stops with the card. */
+    private void countFrame() {
+        if (perfCard == null || perfThread == null) return;
+        android.view.Choreographer.getInstance().postFrameCallback(t -> {
+            framesDrawn++;
+            long now = SystemClock.elapsedRealtime();
+            if (now - framesSince >= 1000) {
+                stats.frameRate = (int) Math.round(framesDrawn * 1000.0 / (now - framesSince));
+                framesDrawn = 0;
+                framesSince = now;
+            }
+            countFrame();
+        });
+    }
+
     private void buildBanner() {
         banner = new LinearLayout(this);
         banner.setOrientation(LinearLayout.VERTICAL);
@@ -901,6 +1017,14 @@ public final class GtvActivity extends Activity {
         else {
             setBannerCompact(true);
             top = roomBottom - roomTop >= bannerHeight() ? roomTop : -1;
+        }
+        // The card hangs under the clock on the right; hide it when the rows reach it.
+        if (perfCard != null) {
+            perfCard.measure(View.MeasureSpec.makeMeasureSpec(perfCard.getLayoutParams().width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.UNSPECIFIED);
+            int cardTop = ((FrameLayout.LayoutParams) perfCard.getLayoutParams()).topMargin;
+            perfFits = cardTop + perfCard.getMeasuredHeight() <= roomBottom;
+            perfCard.setVisibility(currentTab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
         }
         bannerFits = top >= 0;
         if (bannerFits && lp.topMargin != top) {
@@ -1023,8 +1147,10 @@ public final class GtvActivity extends Activity {
         homePage.setVisibility(tab == TAB_HOME ? View.VISIBLE : View.GONE);
         appsPage.setVisibility(tab == TAB_APPS ? View.VISIBLE : View.GONE);
         inputsPage.setVisibility(tab == TAB_INPUTS ? View.VISIBLE : View.GONE);
-        // The banner belongs to Home (when it fits above the rows); Apps and Inputs use the full height.
+        // The banner and the performance card belong to Home (when they fit above the rows); Apps and Inputs
+        // use the full height, and a card left on screen there would sit over the grid's right-hand tiles.
         banner.setVisibility(tab == TAB_HOME && bannerFits ? View.VISIBLE : View.INVISIBLE);
+        if (perfCard != null) perfCard.setVisibility(tab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
     }
 
     /** Home's first app (Your apps, first place). */

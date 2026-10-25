@@ -30,7 +30,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView glowChoice;
     private TextView layoutChoice;
     private TextView fontChoice;
-    private TextView ambientChoice;
+    private TextView ambientChoice, perfChoice;
     private boolean ambientGlow;
     private boolean cinematic;
     private boolean alwaysShowNames;
@@ -155,6 +155,13 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK);
             refresh();
         });
+        perfChoice = findViewById(R.id.perfChoice);
+        perfChoice.setOnClickListener(v -> {
+            boolean on = !choices.getBoolean(Config.PERF_CARD_KEY, false);
+            choices.edit().putBoolean(Config.PERF_CARD_KEY, on).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
         fontChoice = findViewById(R.id.fontChoice);
         fontChoice.setOnClickListener(v -> showFontPicker());
         previewChoice = findViewById(R.id.previewChoice);
@@ -168,7 +175,7 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").commit();
+                    .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").remove(Config.PERF_CARD_KEY).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -315,6 +322,8 @@ public final class LauncherSettingsActivity extends Activity {
                 GtvActivity.enabled(this) ? R.string.layout_gtv : R.string.layout_apple)));
         ((TextView) findViewById(R.id.hintRows)).setText(
                 GtvActivity.enabled(this) ? R.string.hint_rows_gtv : R.string.hint_rows);
+        perfChoice.setText(getString(R.string.perf_state,
+                getString(choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
@@ -325,7 +334,8 @@ public final class LauncherSettingsActivity extends Activity {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("cinematic_home")
-                || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes") || choices.contains("ambient_glow");
+                || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes") || choices.contains("ambient_glow")
+                || choices.contains(Config.PERF_CARD_KEY);
     }
 
     private void open(Intent intent) {
