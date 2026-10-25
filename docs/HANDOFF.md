@@ -1,7 +1,8 @@
 # Handoff — CleanYourTV, October 2025
 
 Where the work stands, what is still open, and where everything lives. Read the three sections in order:
-**state** (what is on the TV now), **open work** (what to pick up), **map** (where things are in the repo).
+**state** (what is on the TV now), **open work** (what to pick up), **keeping the TV healthy**, **map**
+(where things are in the repo).
 
 ---
 
@@ -137,7 +138,40 @@ RecyclerView pattern. Queued as a small 2.05 change, not urgent.
 
 ---
 
-## 3. Map of the repository
+## 3. Keeping the TV healthy
+
+The TV is a 2.36 GB set running heavy streaming apps, so memory and storage fill up again over weeks of use. When
+it starts feeling slow, run these from `platform-tools`. Both are safe to repeat, and **neither affects an app's
+ability to update** — that was the owner's condition.
+
+```powershell
+.\adb.exe shell am force-stop com.iqiyi.i18n.tv        # the biggest single consumer: 308-425 MB
+.\adb.exe shell pm trim-caches 2G                       # freed about 700 MB the first time
+```
+
+Check whether it helped — look for `status normal` and a non-zero cached figure:
+```powershell
+.\adb.exe shell "dumpsys meminfo | grep -E 'Total RAM|Free RAM|Used RAM'"
+.\adb.exe shell dumpsys diskstats | head -5
+```
+
+Healthy numbers as of October 2025, after the clean-up: **status normal, 741 MB free, 309 MB cached, 27% of
+`/data` free.** Before it: critical, 301 MB free, **0 KB cached**, 16% free.
+
+Notes for whoever picks this up:
+- **Zero cached is the red flag**, not low free memory. With nothing cached, every app launch is a cold start,
+  which is what made Youku show a black screen on first open (and only the first — the second was warm and fine).
+- Apps still hold about **1 GB of cache** that `trim-caches` will not take. The TV's own **Settings → Apps** lists
+  apps by size and clears each one's cache; that is more reliable than anything queryable over ADB, because
+  `adb shell` cannot read inside `/data/data`.
+- `com.google.android.tvrecommendations` is **disabled** (it only fed rows on Sony's stock home). Reverse with
+  `pm enable com.google.android.tvrecommendations`.
+- Sony's `com.sony.dtv.tvx` holds ~64 MB and was left alone: on some Sony sets it is tied to Live TV or the
+  inputs, so check what depends on it before touching it.
+- **Never** disable a streaming app, the Play Store or Play services to save memory. That breaks updates.
+- Clearing an app's **cache** is safe; clearing its **data** logs you out.
+
+## 4. Map of the repository
 
 A short version. The full one, with every launcher class grouped by job and every test explained, is
 [`MOC.md`](MOC.md).
@@ -195,7 +229,7 @@ tests/                     Python tests; CI runs them (.github/workflows/ci.yml)
 
 ---
 
-## 4. Working with the owner
+## 5. Working with the owner
 
 They are a lead mechanical engineer and the project manager: technical, short on time, and they test every build on
 the real TV. What works best:
