@@ -127,6 +127,8 @@ public final class GtvActivity extends Activity {
     private LinearLayout topRight;
     /** Apps per row (Launcher settings) and rows of Favorite apps under Your apps (Rows below dock). */
     private int cols, rowsBelow;
+    /** The banner title's size in sp (Launcher settings); the compact title is 16 less. */
+    private int bannerSp = BANNER_SP_DEFAULT;
     private List<String> dockApps;
     /** The Home tile being moved (hold OK, Move), or null. */
     private App moving;
@@ -157,6 +159,15 @@ public final class GtvActivity extends Activity {
     private static final int CONTENT_TOP_DP = 90, HEADER_DP = 40, ARROW_DP = 30, GRID_PAD_DP = 10, GAP_DP = 18;
     private final List<App> dock = new ArrayList<>(), others = new ArrayList<>(), all = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /**
+     * Idle time on Home before the launcher's own clock screen, 0 for off (Launcher settings, or
+     * home_idle_clock_minutes). It only ever starts from Home: some TVs' own screens do not keep the display
+     * awake, so the system screensaver can cut into a programme, which is why this screen exists at all.
+     * MainActivity did this until 2.19 turned it into a shim, and nothing did it between then and 2.21.
+     */
+    private long idleClockMs;
+    private final Runnable showIdleClock = () -> startActivity(new Intent(this, ClockActivity.class));
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             clock.setText(DateFormat.getTimeFormat(GtvActivity.this).format(new Date()));
@@ -221,6 +232,7 @@ public final class GtvActivity extends Activity {
         int screenW = getResources().getDisplayMetrics().widthPixels;
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
+        idleClockMs = cfg.homeIdleClockMinutes * 60_000L;
         dockApps = cfg.dockApps;
         int screenH = getResources().getDisplayMetrics().heightPixels;
         tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * GAP_DP * dp) / cols);
@@ -279,6 +291,7 @@ public final class GtvActivity extends Activity {
         handler.removeCallbacks(tick);
         handler.post(tick);
         startPerf();
+        armIdleClock();
     }
 
     @Override
@@ -288,6 +301,20 @@ public final class GtvActivity extends Activity {
         stopPerf();
         resumed = false;
         handler.removeCallbacks(tick);
+        // Leaving Home cancels it: a delayed start that outlived this would put the clock over an open app.
+        handler.removeCallbacks(showIdleClock);
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        armIdleClock();
+    }
+
+    /** Starts the idle countdown again from now; off when the setting is 0 or Home is not in front. */
+    private void armIdleClock() {
+        handler.removeCallbacks(showIdleClock);
+        if (idleClockMs > 0 && resumed) handler.postDelayed(showIdleClock, idleClockMs);
     }
 
     @Override
@@ -1014,15 +1041,20 @@ public final class GtvActivity extends Activity {
     private void buildBanner() {
         banner = new LinearLayout(this);
         banner.setOrientation(LinearLayout.VERTICAL);
-        // Plain text over the glow: neither fill nor outline. The glass fill is owed back as an effects switch.
+        // Plain text over the glow by default; the fill and the outline are each a switch in Launcher settings,
+        // which is how the owner wanted them back after 2.15 took them off the screen.
+        SharedPreferences look = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        bannerSp = look.getInt(PREF_BANNER_SP, BANNER_SP_DEFAULT);
         GradientDrawable g = new GradientDrawable();
         g.setCornerRadius(24 * dp);
+        if (look.getBoolean(PREF_BANNER_FILL, false)) g.setColor(0xCC0B0D12);
+        if (look.getBoolean(PREF_BANNER_BORDER, false)) g.setStroke((int) (1 * dp), 0x33FFFFFF);
         banner.setBackground(g);
         // The bottom padding is all the clearance the banner keeps from the rows, so it sits close to them.
         banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (16 * dp));
         title = new TextView(this);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 46);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, bannerSp);
         title.setSingleLine(true);
         banner.addView(title);
         subtitle = new TextView(this);
@@ -1061,6 +1093,12 @@ public final class GtvActivity extends Activity {
     }
 
     private static final int DOT_DP = 6, DOT_WIDE_DP = 22;
+
+    /** Banner look, all from Launcher settings: the title's size in sp, and whether it has an outline or a fill. */
+    static final String PREF_BANNER_SP = "gtv_banner_title_sp";
+    static final String PREF_BANNER_BORDER = "gtv_banner_border";
+    static final String PREF_BANNER_FILL = "gtv_banner_fill";
+    static final int BANNER_SP_DEFAULT = 46;
 
     private GradientDrawable dotDrawable(boolean selected) {
         GradientDrawable d = new GradientDrawable();
@@ -1222,7 +1260,8 @@ public final class GtvActivity extends Activity {
 
     private void setBannerCompact(boolean compact) {
         bannerCompact = compact;
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? 30 : 46);
+        // The compact title keeps its old distance from the full one (46 sp down to 30), whatever size is chosen.
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, compact ? Math.max(24, bannerSp - 16) : bannerSp);
         if (compact) subtitle.setVisibility(View.GONE);
     }
 

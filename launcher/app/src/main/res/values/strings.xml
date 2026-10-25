@@ -196,4 +196,15 @@
     <string name="recovery_title">Home could not start</string>
     <string name="recovery_body">The launcher could not build its Home screen. Try again, or open the TV\'s settings to pick another home screen.</string>
     <string name="recovery_retry">Try again</string>
+    <string name="page_back_hint">OK picks · Back returns to the list</string>
+    <string name="banner_size_state">Banner title size: %1$s</string>
+    <string name="banner_size_small">Small</string>
+    <string name="banner_size_medium">Medium</string>
+    <string name="banner_size_large">Large</string>
+    <string name="hint_banner_size">How large the selected app\'s name is over the wallpaper.</string>
+    <string name="banner_border_state">Banner outline: %1$s</string>
+    <string name="hint_banner_border">A hairline edge around the banner.</string>
+    <string name="banner_fill_state">Banner glass fill: %1$s</string>
+    <string name="hint_banner_fill">A dark glass panel behind the banner\'s text, which helps over a bright picture.</string>
+    <string name="banner_size_title">Banner title size</string>
 </resources>

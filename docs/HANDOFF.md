@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.19** (`versionCode` 219), the Google TV layout as Home — now the only layout. Stage 1 is confirmed from logcat: HOME → MainActivity → GtvActivity displayed in 1.6 s, `category.HOME` still resolves to this launcher, Launcher settings opens as before, and the recovery screen draws in 328 ms. Its two buttons are still untested. 2.18's indicator fix is not confirmed on screen either |
+| Launcher on the TV | **2.21** (`versionCode` 221), the Google TV layout as Home — now the only layout. Stage 1 is confirmed from logcat: HOME → MainActivity → GtvActivity displayed in 1.6 s, `category.HOME` still resolves to this launcher, Launcher settings opens as before, and the recovery screen draws in 328 ms. Its two buttons are still untested. 2.18's indicator fix is not confirmed on screen either |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -27,6 +27,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.21** | **The settings panel is finished, and the idle clock is back.** Choices now open as **a page inside the panel** (Wallpaper, Font, and Glow when it returns): the list steps aside, the page takes its place at the same width with the current choice marked, and Back returns to the list with the row still focused — no more pop-ups. New: **Banner title size** (Small 34 / Medium 46 / Large 58) and, in Effects, **Banner outline** and **Banner glass fill**, both off by default, which is 2.15's fill and border given back as switches. Five rows the Google TV layout does not read — Glow, Animations, Advanced effects, Cinematic, App names — are **hidden** behind `EFFECTS_READY` in `LauncherSettingsActivity`, values untouched. **Bug fix:** the idle clock (`ClockActivity`) had not started since 2.19 — `MainActivity.onUserInteraction` used to arm it and the shim dropped that; `GtvActivity` arms it now, cancelling on pause so it can never appear over an open app |
 | **2.19** | **The Apple TV layout is out of the APK.** `MainActivity` is now a 141-line shim: it keeps the HOME and LEANBACK intent filters (the TV's default-home setting names it, so that must not move) and opens `GtvActivity`. The Apple layout was also the fallback when Home failed to build, so it is replaced by a **recovery screen** in the shim — "Home could not start", with **Try again** and **TV settings** — drawn from nothing but that class, since the configuration, theme or fonts may be what failed. The `layout` preference, `GtvActivity.enabled()` and `fallBack()` are gone; a failure is recorded in `gtv_failed` and cleared when Home next draws. R8 drops the now unreferenced Apple code: the APK falls **598 KB → 440 KB**. The sources stay in the tree: 2.20 deleted them and was reverted on the owner's word — the removal was only ever meant to be from the APK |
 | **2.18** | **Page-indicator bug fix.** Holding left or right left a row of half-open dashes instead of one pill: `showDot()` animated only the new dot and the one before it, each from its resting width, so every dot further back was stranded part-way open when key repeat cut the 140 ms animation short. It now starts from the widths the dots actually have and moves all of them, so any interrupted run heals itself. Stepping one app at a time always worked, which is why 2.16 and 2.17 passed |
 | **2.17** | The banner sits **18 dp lower**, its own 16 dp of padding now the only clearance it keeps from "Your apps" — that is as low as it can go without crossing the rows, so the next lever would be moving the rows down; the page-indicator dots moved **above** the "Last opened" line, which stops them jumping when an app has never been opened; the Home/Apps/Inputs capsules are frosted glass **with no outline**; and both CMU Sans fonts are **subset**, taking the APK from 893 KB to **598 KB** — 302 KB clear of the 900 KB gate |
@@ -86,7 +87,7 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Known bugs
-None open in the launcher.
+None open in the launcher. Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s `onUserInteraction` timer; `GtvActivity` arms it now).
 
 Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and recorded so they are not chased again:
 - `com.tencent.qqlivei18n:push` (WeTV) throws `IllegalStateException: WorkManager is not initialized properly` from its recommendation-channel code roughly **every 30 minutes** (18:10, 19:07, 20:07, 20:37, 21:07, 21:37, 22:21 on 25 Oct). Their bug; it wakes a process and burns a little CPU each time. `pm disable-user` on that push component would stop it if it ever matters.
@@ -95,7 +96,7 @@ Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### The APK size budget — resolved in 2.17
-**2.19 is 440 KB against the 900 KB gate — 460 KB clear.** The squeeze is over: the two CMU Sans font files were
+**2.21 is 445 KB against the 900 KB gate — 455 KB clear.** The squeeze is over: the two CMU Sans font files were
 subset in 2.17, from 830 KB down to 227 KB, with no visible change (811 and 809 mapped characters, every glyph the
 launcher draws present, all layout features kept). Thai, Hebrew and Chinese are unaffected — CMU never had those
 glyphs, so they already fall back to the TV's own fonts.
@@ -233,10 +234,10 @@ stage 1 (that code is 2.18's redirect branch line for line) and are not to be ch
 diverges permanently and makes merging from upstream painful — the owner chose this knowingly.
 
 ### Next phases (from the proposal, [`docs/proposals/google-tv-ui/README.md`](proposals/google-tv-ui/README.md))
-1. **Settings redesign** (§3, the largest item). The owner picked a **right-side panel in the TV's own style**:
-   dark panel sliding in from the right over Home, title on top, one list, Back closes it, choices open as the
-   next page in the panel. Two owner notes belong here: a **banner title size** setting and a **banner border
-   on/off** toggle. The owner wants to revisit the look when this starts.
+1. ~~**Settings redesign**~~ — **done** (2.13–2.14 for the panel, 2.21 for the choice pages, the banner title
+   size and the banner outline/fill switches). What the **Effects phase** inherits from it: set `EFFECTS_READY`
+   to true in `LauncherSettingsActivity` once `GtvActivity` reads `GlowStyle`, `animations` and
+   `advanced_effects`, and decide what Cinematic and App names mean in this layout (hidden rows, values kept).
 2. **Phase 2 layout**: Inputs row on Home, Live-input banner, side-rail navigation option, glass bars.
 3. **Effects** (§4): the focus and background effects chosen in §6.7.
 4. **Wallpapers** (§5): new sets, the 4K quality fix, online wallpapers (opt-in). **Check the licences first**

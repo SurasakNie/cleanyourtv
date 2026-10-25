@@ -192,4 +192,15 @@
     <string name="recovery_title">מסך הבית לא נפתח</string>
     <string name="recovery_body">המפעיל לא הצליח לבנות את מסך הבית. נסו שוב, או פתחו את הגדרות הטלוויזיה כדי לבחור מסך בית אחר.</string>
     <string name="recovery_retry">נסו שוב</string>
+    <string name="page_back_hint">אישור בוחר · חזרה משיבה לרשימה</string>
+    <string name="banner_size_state">גודל כותרת הבאנר: %1$s</string>
+    <string name="banner_size_small">קטן</string>
+    <string name="banner_size_medium">בינוני</string>
+    <string name="banner_size_large">גדול</string>
+    <string name="hint_banner_size">הגודל של שם האפליקציה הנבחרת מעל הטפט.</string>
+    <string name="banner_border_state">מתאר הבאנר: %1$s</string>
+    <string name="hint_banner_border">קו דק סביב הבאנר.</string>
+    <string name="banner_fill_state">מילוי זכוכית בבאנר: %1$s</string>
+    <string name="hint_banner_fill">לוח זכוכית כהה מאחורי הטקסט, שעוזר מעל תמונה בהירה.</string>
+    <string name="banner_size_title">גודל כותרת הבאנר</string>
 </resources>
