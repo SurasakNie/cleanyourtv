@@ -1020,7 +1020,8 @@ public final class GtvActivity extends Activity {
         GradientDrawable g = new GradientDrawable();
         g.setCornerRadius(24 * dp);
         banner.setBackground(g);
-        banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (22 * dp));
+        // The bottom padding is all the clearance the banner keeps from the rows, so it sits close to them.
+        banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (16 * dp));
         title = new TextView(this);
         title.setTextColor(Color.WHITE);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 46);
@@ -1029,12 +1030,16 @@ public final class GtvActivity extends Activity {
         subtitle = new TextView(this);
         subtitle.setTextColor(0xFFC3CAD4);
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        banner.addView(subtitle);
+        // The dots come first and the "Last opened" line after them: with the order the other way round, the dots
+        // jumped up whenever an app had never been opened and that line was empty.
         dots = new LinearLayout(this);
         dots.setOrientation(LinearLayout.HORIZONTAL);
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-2, -2);
         dlp.topMargin = (int) (14 * dp);
         banner.addView(dots, dlp);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-2, -2);
+        slp.topMargin = (int) (12 * dp);
+        banner.addView(subtitle, slp);
         buildDots();
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams((int) (420 * dp), -2, Gravity.TOP | Gravity.START);
         lp.leftMargin = sidePad;
@@ -1147,18 +1152,22 @@ public final class GtvActivity extends Activity {
     private void fitBanner() {
         if (topBar == null || homeGrid.getHeight() == 0) return;
         int gap = (int) (12 * dp);
+        int rowsTop = content.getTop() + homePage.getTop() + homeGrid.getTop();
         int roomTop = topBar.getBottom() + gap;
-        int roomBottom = content.getTop() + homePage.getTop() + homeGrid.getTop() - gap;
+        int roomBottom = rowsTop - gap;            // the performance card keeps the gap it has always had
+        // The banner carries its own 16 dp of bottom padding, which is the clearance it keeps from the rows: a
+        // further gap on top of that left the text floating well above the row it names.
+        int bannerBottom = rowsTop;
         FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) banner.getLayoutParams();
         setBannerCompact(false);
         int h = bannerHeight();
         int top;
-        // The banner belongs with the rows it names: sit its foot a gap above "Your apps" and grow upward.
-        if (roomBottom - h >= roomTop) top = roomBottom - h;
-        else if (roomBottom - roomTop >= h) top = roomTop;
+        // The banner belongs with the rows it names: sit its foot just above "Your apps" and grow upward.
+        if (bannerBottom - h >= roomTop) top = bannerBottom - h;
+        else if (bannerBottom - roomTop >= h) top = roomTop;
         else {
             setBannerCompact(true);
-            top = roomBottom - roomTop >= bannerHeight() ? roomTop : -1;
+            top = bannerBottom - roomTop >= bannerHeight() ? roomTop : -1;
         }
         layoutPerfCard(roomBottom);
         bannerFits = top >= 0;
@@ -1495,8 +1504,7 @@ public final class GtvActivity extends Activity {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.HORIZONTAL);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0x26FFFFFF);
-        g.setStroke((int) Math.max(1, dp), 0x33FFFFFF);
+        g.setColor(0x33FFFFFF);          // frosted, no outline: the owner found the hairline edge busy
         g.setCornerRadius(28 * dp);
         l.setBackground(g);
         return l;
@@ -1519,12 +1527,10 @@ public final class GtvActivity extends Activity {
     private void stylePill(TextView t, boolean focused, boolean selected) {
         GradientDrawable g = new GradientDrawable();
         g.setCornerRadius(22 * dp);
-        // Selected (not focused) is a dark glass pill with a white edge, so it stays readable over a bright glow.
+        // Selected (not focused) is a darker frosted pill, with no outline, which still reads over a bright glow.
         if (focused) g.setColor(Color.WHITE);
-        else if (selected) {
-            g.setColor(0x991B2029);
-            g.setStroke((int) Math.max(1, 1.5f * dp), 0xCCFFFFFF);
-        } else g.setColor(Color.TRANSPARENT);
+        else if (selected) g.setColor(0xA61B2029);
+        else g.setColor(Color.TRANSPARENT);
         t.setBackground(g);
         int text = focused ? 0xFF111111 : selected ? Color.WHITE : 0xFFE3E8EF;
         t.setTextColor(text);

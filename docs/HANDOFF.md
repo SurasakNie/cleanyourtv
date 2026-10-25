@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.16** (`versionCode` 216), the Google TV layout as Home. 2.15 was confirmed (About, no Layout row); 2.16 is not tested yet |
+| Launcher on the TV | **2.17** (`versionCode` 217), the Google TV layout as Home. 2.15 was confirmed (About, no Layout row); 2.16 and 2.17 are not tested yet |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -20,13 +20,14 @@ Where the work stands, what is still open, and where everything lives. Read the 
 
 ### Version numbers
 `A.BB` in [`launcher/app/build.gradle`](../launcher/app/build.gradle): a fix or minor change raises BB
-(2.16 → 2.17), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
+(2.17 → 2.18), a major change raises A (→ 3.00). `versionCode` = A×100 + BB and must always rise.
 
 ### What each build after the merge added
 Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.17** | The banner sits **18 dp lower**, its own 16 dp of padding now the only clearance it keeps from "Your apps" — that is as low as it can go without crossing the rows, so the next lever would be moving the rows down; the page-indicator dots moved **above** the "Last opened" line, which stops them jumping when an app has never been opened; the Home/Apps/Inputs capsules are frosted glass **with no outline**; and both CMU Sans fonts are **subset**, taking the APK from 893 KB to **598 KB** — 302 KB clear of the 900 KB gate |
 | **2.16** | The banner sits just above Your apps instead of floating near the top, and a **page indicator** (an expanding dot) under it shows which dock app is selected. The dots cover **Your apps only** — in the Favorite rows, the Apps tab and Inputs the indicator hides rather than showing a position it does not describe |
 | **2.15** | The banner is plain text over the glow — no fill, no outline (**the glass fill is owed back as an effects switch**); settings gains an **About this UI** section (version, layout, TV, Android, and what this is); the **Layout row is gone**, so Google TV is the only layout you can pick — the first part of removing the Apple TV layout |
 | **2.14** | The settings panel is wider (420dp) with slightly smaller text, so more rows fit; the banner lost its outline, keeping the glass fill |
@@ -86,20 +87,17 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 None open. The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now measures the panel and opens it
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
-### Open: the APK size budget
-**The margin is nearly gone: 2.16 is 893 KB against the 900 KB gate — 7 KB.** 2.16 and 2.17 remove the Apple TV
-layout and should win a great deal of it back, so the squeeze is expected to be temporary. If a build crosses the
-gate before then, trim the fonts (the recipe is below) rather than raising the gate a second time.
+### The APK size budget — resolved in 2.17
+**2.17 is 598 KB against the 900 KB gate — 302 KB clear.** The squeeze is over: the two CMU Sans font files were
+subset in 2.17, from 830 KB down to 227 KB, with no visible change (811 and 809 mapped characters, every glyph the
+launcher draws present, all layout features kept). Thai, Hebrew and Chinese are unaffected — CMU never had those
+glyphs, so they already fall back to the TV's own fonts.
 
-The release APK is **about 880 KB**, and **some 830 KB of that is the two CMU Sans font files**
-(`res/font/cmu_sans.ttf` and `cmu_sans_bold.ttf`, added in PR #1). CI's size gate was 440 KB, which this APK
-cannot meet; on the owner's instruction the gate in `.github/workflows/ci.yml` was **raised to 900 KB** rather than
-the fonts being trimmed. `main` had never run CI, so nothing flagged the growth when the fonts landed.
-
-If the budget ever needs to come back down, trimming is measured and ready: the files carry 1,911 mapped
-characters each (Greek, Cyrillic, maths and TeX tables), and keeping only what the launcher shows takes them from
-830 KB to 227 KB, bringing the APK to roughly 280 KB. Thai, Hebrew and Chinese are unaffected — CMU never had
-those glyphs, so they already fall back to the TV's own fonts.
+History, because it explains the gate: the fonts arrived in PR #1 and took the APK to about 893 KB. CI's size gate
+was 440 KB, which that APK could not meet; on the owner's instruction the gate in `.github/workflows/ci.yml` was
+**raised to 900 KB**. `main` had never run CI, so nothing flagged the growth when the fonts landed. By 2.16 the
+margin was 7 KB, and 2.17 trimmed the fonts rather than raising the gate a second time. The recipe, if the fonts
+are ever regenerated:
 ```bash
 pip install fonttools
 python3 -m fontTools.subset launcher/app/src/main/res/font/cmu_sans.ttf \
