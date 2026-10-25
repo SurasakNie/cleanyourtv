@@ -27,6 +27,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.13** | Launcher settings is now a **panel down the right-hand side over Home**, in the TV's own style: Home stays visible and dimmed, the rows are grouped under section headings, and the clock and gear step aside while it is open. Every setting from the one-list version is kept. Choice pages come next |
 | **2.12** | The selection frame is gone: a selected tile is simply zoomed and lifted. The owner tried the ring (2.09, 2.11) and dimming the others (2.10) and settled on the zoom alone |
 | **2.11** | Selection is the white ring again (2.10's "dim everything else" was tried and turned down for ordinary selection); the carried tile keeps 2.10's lifted, ghosted look with the others faded; the banner shows **only while an app is selected**, so arriving at Home names nothing until Down picks one |
 | **2.10** | The selected tile is now told apart by **dimming the others** (a white ring was invisible on white artwork such as Netflix or the Play Store); a tile being moved is lifted and ghosted instead of framed; and Home from another tab no longer leaves the banner naming whatever was selected over there |

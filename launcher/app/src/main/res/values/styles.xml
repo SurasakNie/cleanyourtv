@@ -6,6 +6,13 @@
         <item name="android:windowAnimationStyle">@null</item>
     </style>
 
+    <!-- Launcher settings: a panel over Home, so the window itself must let Home through. -->
+    <style name="Theme.TvHome.Panel" parent="Theme.TvHome">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+
     <!-- Frosted pill, tvOS style. -->
     <style name="TopButtonBase">
         <item name="android:layout_width">wrap_content</item>
@@ -55,6 +62,19 @@
         <item name="android:paddingStart">4dp</item>
         <item name="android:textColor">#FFACB8C1</item>
         <item name="android:textSize">14sp</item>
+    </style>
+
+    <!-- A group heading inside the settings panel. -->
+    <style name="SettingsSection">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">26dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:textColor">#FF6E9FD8</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0.18</item>
+        <item name="android:textAllCaps">true</item>
     </style>
 
     <style name="SettingsColumnChoice" parent="SettingsRow">

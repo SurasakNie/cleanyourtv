@@ -155,6 +155,12 @@
     <string name="gtv_other_apps">Favorite apps</string>
     <string name="gtv_open">Open</string>
     <string name="gtv_move">Move</string>
+    <string name="settings_apply_hint">Changes apply when you go back to Home</string>
+    <string name="section_layout">Layout</string>
+    <string name="section_look">Look</string>
+    <string name="section_effects">Effects</string>
+    <string name="section_extras">Extras</string>
+    <string name="section_tv">TV settings</string>
     <string name="perf_state">Performance card: %1$s</string>
     <string name="hint_perf">A small card under the clock showing what the TV is doing: processor, memory, storage, temperature, frame rate, network and uptime. Figures this TV keeps private are left out.</string>
     <string name="perf_title">Performance</string>

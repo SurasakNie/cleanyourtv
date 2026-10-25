@@ -116,6 +116,8 @@ public final class GtvActivity extends Activity {
     private RecyclerView homeGrid, appsGrid;
     private final List<Object> homeItems = new ArrayList<>();
     private LinearLayout topBar;
+    /** The clock and gear strip: hidden while the settings panel is open, which sits over that corner. */
+    private LinearLayout topRight;
     /** Apps per row (Launcher settings) and rows of Favorite apps under Your apps (Rows below dock). */
     private int cols, rowsBelow;
     private List<String> dockApps;
@@ -264,6 +266,7 @@ public final class GtvActivity extends Activity {
             recreate();
             return;
         }
+        if (topRight != null) topRight.setVisibility(View.VISIBLE);
         resumed = true;
         handler.removeCallbacks(tick);
         handler.post(tick);
@@ -652,7 +655,7 @@ public final class GtvActivity extends Activity {
         List<Integer> titles = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
         titles.add(R.string.launcher_settings);
-        actions.add(() -> startActivityForResult(new Intent(this, LauncherSettingsActivity.class), SETTINGS_REQUEST));
+        actions.add(this::openSettings);
         titles.add(R.string.tv_settings);
         actions.add(() -> {
             try {
@@ -662,6 +665,12 @@ public final class GtvActivity extends Activity {
             }
         });
         showMenu(anchor, null, titles, actions);
+    }
+
+    /** The settings panel covers the top-right corner, so the clock and gear step aside while it is open. */
+    private void openSettings() {
+        if (topRight != null) topRight.setVisibility(View.INVISIBLE);
+        startActivityForResult(new Intent(this, LauncherSettingsActivity.class), SETTINGS_REQUEST);
     }
 
     /**
@@ -880,6 +889,7 @@ public final class GtvActivity extends Activity {
             focusContent();
             return true;
         });
+        topRight = right;
         right.addView(settings);
         clock = new TextView(this);
         clock.setTextColor(Color.WHITE);
