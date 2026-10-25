@@ -154,5 +154,8 @@
     <string name="gtv_your_apps">Your apps</string>
     <string name="gtv_other_apps">Other apps</string>
     <string name="gtv_open">Open</string>
+    <string name="gtv_move">Move</string>
+    <string name="gtv_move_hint">Left and Right move the app. OK or Back puts it down.</string>
+    <string name="hint_rows_gtv">How many rows of Other apps show under Your apps. 0 shows only Your apps.</string>
     <string name="gtv_failed">The Google TV layout failed to start, so Home switched back to Apple TV.</string>
 </resources>

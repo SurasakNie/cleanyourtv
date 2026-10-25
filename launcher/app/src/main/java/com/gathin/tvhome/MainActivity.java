@@ -577,6 +577,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (cfg.wifiLabelWidth > 0) btnWifi.setMaxWidth(Math.round(cfg.wifiLabelWidth * density));
             else makeIconOnly(btnWifi);
             makeIconOnly((TextView) btnSettings);
+            makeIconOnly((TextView) btnInputs);
         }
         btnSettings.setOnLongClickListener(v -> {
             showSettingsMenu();

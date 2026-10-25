@@ -313,6 +313,8 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(ambientGlow ? R.string.on : R.string.off)));
         layoutChoice.setText(getString(R.string.layout_state, getString(
                 GtvActivity.enabled(this) ? R.string.layout_gtv : R.string.layout_apple)));
+        ((TextView) findViewById(R.id.hintRows)).setText(
+                GtvActivity.enabled(this) ? R.string.hint_rows_gtv : R.string.hint_rows);
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
