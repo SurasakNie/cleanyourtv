@@ -11,7 +11,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.26** (`versionCode` 226). **Confirmed on the TV:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. **Under test:** the idle clock. Still unconfirmed: 2.18's page-indicator fix |
+| Launcher on the TV | **2.27** (`versionCode` 227). **Confirmed on the TV:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. **Under test:** the idle clock. Still unconfirmed: 2.18's page-indicator fix |
 | Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. **PR #5 (83bd67f): 2.15–2.21** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -27,6 +27,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.27** | **The removed layout's config keys leave the APK.** 17 keys only the Apple TV layout ever read — `app_banners`, `fill_dock`, `banner_*`, `shelf_*`, `tile_names` and the rest — are no longer parsed by `Config`, and in `res/values/config.xml` they and their descriptions are now **one XML comment**, which aapt does not compile, so nothing of them reaches the package. `res/raw/keep.xml` is deleted, which lets resource shrinking drop `banner_tv` as well (the drawable file stays). The fields stay on `Config` as constants with their old defaults, so the Apple sources in the tree still compile — the removal is from the APK, as the owner's rule requires. `themes/README.md` records which keys a theme may still name and that they are ignored. Nothing visible changes. **Verified:** `aapt2 dump resources` finds **0** of the 17 keys and no `banner_tv`; APK **460,147 bytes** |
 | **2.26** | **Effects, part 1.** `GtvActivity` reads **`GlowStyle`** at last — Corner, Random, Fixed per app, Slow drift (a ticker that runs only while Home is in front), Follow (above the focused tile), Random shape, Two glows and Random ×2/×3 (extra glow views in a hue-shifted colour) — plus the new **Ribbon**, a diagonal band instead of a spot. **Animations** and **Advanced effects** are honoured too: off means the focus zoom and the indicator reach their places at once, and advanced fades the glow's colour between apps instead of cutting. New **Focus style**: Zoom (today's), Lift, Glass halo (the tile's shadow in the app's colour, Android 9 and up) and Underline (a bar in the app's colour, no zoom). The **white ring is not offered** — the owner turned it down twice. Glow, Animations and Advanced effects are **visible in the panel again**; Cinematic and App names stay hidden, since neither means anything in this layout |
 | **2.25** | **The banner can show a live input** (§6.7's last phase-2 pick). **Banner → Live input** puts a 260 dp 16:9 window of one HDMI port at the top of the banner, driven by the existing `InputPreview` — muted, offline, **no new permission**. **Live input source** picks the port. The window runs only while Home is in front with the banner on screen: `updateBanner()` is the single gate, and `onPause`, `open()` and `openInput()` each hand the input back before anything else asks the TV for it. **This is the first time anything in the Google TV layout has drawn `InputPreview`'s window** — the instance belonged to the Apple layout, so the old **Input preview** row had been storing a value nothing read; the banner style owns that switch now and the row is hidden |
 | **2.24** | **Phase 2's Home items.** An **Inputs row on Home** under the Favorite rows (Layout › Inputs on Home, **off by default**), built from the same tiles as the Inputs tab through a shared `fillInputs(...)`; Down walks Your apps → Favorites → Inputs → the Apps tab. **Banner** becomes one choice page — *Name + glow · Glass panel · Off* — replacing 2.21's two switches, which migrate (either one set meant Glass panel). **Glass bars: On / Off** turns the frosted strip behind the tabs and the clock off. Home's height arithmetic counts sections now, and **the Inputs row stands down rather than squeeze tiles below 56 dp** — at density 2.0 with 2–3 Favorite rows, which this TV (density 1.0) never hits |
@@ -94,7 +95,7 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ### Waiting on a test
 The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work through it oldest-first, since each build leans on the one before.
 
-**2.23 to 2.26 are all untested** — the owner asked for the builds to be made and checked later. Test 2.23's dock first, since the others build on it.
+**2.23 to 2.27 are all untested** — the owner asked for the builds to be made and checked later. Test 2.23's dock first, since the others build on it. 2.27 is cleanup with nothing to see: its test is that Home, the panel and the themes behave exactly as 2.26 did.
 
 **2.25 carries the one item that may simply not work on this TV:** a non-system app tuning a passthrough input is allowed on some sets and refused on others, and nothing in this launcher had ever tried it. If the Sony refuses, the window says "Preview unavailable" and Home is otherwise untouched — that is an answer about the TV, not a bug to chase. What *would* be a bug: the TV's own Inputs or Live TV coming up dead after the banner has held an input, so test opening HDMI from the Inputs tab while the live banner is running.
 
@@ -118,7 +119,7 @@ Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### The APK size budget — resolved in 2.17
-**2.21 is 445 KB against the 900 KB gate — 455 KB clear.** The squeeze is over: the two CMU Sans font files were
+**2.27 is 449 KB against the 900 KB gate — 451 KB clear.** The squeeze is over: the two CMU Sans font files were
 subset in 2.17, from 830 KB down to 227 KB, with no visible change (811 and 809 mapped characters, every glyph the
 launcher draws present, all layout features kept). Thai, Hebrew and Chinese are unaffected — CMU never had those
 glyphs, so they already fall back to the TV's own fonts.

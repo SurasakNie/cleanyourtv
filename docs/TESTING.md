@@ -11,7 +11,7 @@ afterwards.
 ```
 .\adb.exe connect 192.168.1.3:5555
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.26.apk
+.\adb.exe install -r tvhome-2.27.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -163,6 +163,32 @@ band instead of a spot.
 - [ ] **Advanced effects** on: moving between apps **fades** the glow's colour
 - [ ] Each **Focus style**: Zoom, Lift, Glass halo, Underline
 - [ ] Glow, Animations and Advanced effects are back in the panel; **Cinematic** and **App names** are still gone
+
+---
+
+## 2.27 — the removed layout's config keys leave the APK
+
+**What changed. Nothing you can see; this is cleanup.** 17 keys that only the Apple TV layout ever read —
+`app_banners`, `fill_dock`, the `banner_*` and `shelf_*` group, `tile_names` and the rest — were still being
+parsed by `Config` and still shipped as string resources, months after the layout itself left the APK in 2.19.
+
+- `Config` no longer reads any of them. The **fields stay as constants** with their old defaults, so the Apple
+  sources still in the tree go on compiling — the removal is from the APK, never from the repository.
+- In `res/values/config.xml` the 17 entries and their descriptions became **one XML comment**. Comments are not
+  compiled, so the names, the defaults and the notes stay readable in the repo and none of it reaches the package.
+- `res/raw/keep.xml` is **deleted**. It existed to protect drawables named at run time; with the Apple layout gone
+  its only live effect was keeping `banner_tv` in the APK, so resource shrinking now drops that too. The
+  `banner_tv` drawable file itself stays in the tree.
+- `themes/README.md` lists the keys a theme may still name and says plainly that they are now ignored.
+
+**Verified before the build left here:** `aapt2 dump resources` finds **0** of the 17 keys and no `banner_tv`;
+219 tests pass; signer `a215696a…436e`; 3 permissions; **460,147 bytes** against the 921,600-byte gate.
+
+- [ ] Home looks and behaves exactly as 2.26 did — this build should be indistinguishable
+- [ ] Launcher settings opens and every row still works
+- [ ] **Follow theme** / a theme push still applies: a theme naming one of the 17 old keys must be **accepted and
+      the key ignored**, not rejected
+- [ ] Nothing from `com.gathin.tvhome` in logcat
 
 ---
 
