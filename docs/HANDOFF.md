@@ -11,9 +11,10 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.27** (`versionCode` 227). **Confirmed on the TV:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. **Under test:** the idle clock. Still unconfirmed: 2.18's page-indicator fix |
-| Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
-| Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. **PR #5 (83bd67f): 2.15–2.21** |
+| Latest build | **2.27** (`versionCode` 227), built and verified here; the APK is with the owner |
+| Last build installed on the TV | **2.21.** 2.22 to 2.27 were built and sent but have not been installed or tested — see [`docs/TESTING.md`](TESTING.md). **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
+| Branch | `claude/zen-euler-0mir9r`. Everything through 2.27 is merged; the branch is reused for the next round of builds |
+| Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. **PR #6: 2.22–2.27** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
 | Screensaver | the TV's own (Google Backdrop). The launcher never changed it; its Clock screensaver stays off. |
@@ -271,7 +272,9 @@ diverges permanently and makes merging from upstream painful — the owner chose
    for the sources listed in §8 Q7 (Wikimedia, Earth View, NASA, NatGeo, Apple) before any of them ship.
 5. **Hebrew and polish**: right-to-left for the new screens, a Hebrew strings pass, final tidy-up.
 6. **Merging**: done per set of builds — PR #1 (the Apple layout and the debloat), PR #2 (2.04), PR #3 (2.05–2.12),
-   PR #4 (2.13–2.14). The owner is the only person with access, so nobody else reviews; merge once CI is green.
+   PR #4 (2.13–2.14), PR #5 (2.15–2.21), PR #6 (2.22–2.27). The owner is the only person with access, so nobody
+   else reviews; merge once CI is green. **A merge does not mean tested** — PR #6 went in with 2.22–2.27 still
+   unseen on the TV, at the owner's instruction, so the test backlog outlives the branch.
 
 ### Decisions already made (do not re-ask)
 - Google TV layout is the default (`default_layout` in `config.xml`).
