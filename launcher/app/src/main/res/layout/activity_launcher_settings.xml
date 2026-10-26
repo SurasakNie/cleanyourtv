@@ -128,6 +128,13 @@
             <TextView style="@style/SettingsHint" android:text="@string/hint_banner_style" />
 
             <TextView
+                android:id="@+id/liveSourceChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView android:id="@+id/hintLiveSource" style="@style/SettingsHint" android:text="@string/hint_live_source" />
+
+            <TextView
                 android:id="@+id/glassBarsChoice"
                 style="@style/SettingsRow"
                 android:layout_marginTop="10dp" />
@@ -193,7 +200,7 @@
                 style="@style/SettingsRow"
                 android:layout_marginTop="10dp" />
 
-            <TextView style="@style/SettingsHint" android:text="@string/hint_preview" />
+            <TextView android:id="@+id/hintPreview" style="@style/SettingsHint" android:text="@string/hint_preview" />
 
             <TextView
                 android:id="@+id/perfChoice"

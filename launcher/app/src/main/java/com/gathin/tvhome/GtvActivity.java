@@ -143,8 +143,11 @@ public final class GtvActivity extends Activity {
     private int cols, rowsBelow;
     /** The banner title's size in sp (Launcher settings); the compact title is 16 less. */
     private int bannerSp = BANNER_SP_DEFAULT;
-    /** Banner style (Launcher settings): name over the glow, the same on glass, or no banner. */
+    /** Banner style (Launcher settings): name over the glow, the same on glass, no banner, or a live input. */
     private int bannerStyle = BANNER_NAME;
+    /** The live input window in the banner (Banner: Live input), and whether it is tuned right now. */
+    private InputPreview livePreview;
+    private boolean liveRunning;
     private List<String> dockApps;
     /** The Home tile being moved (hold OK, Move), or null. */
     private App moving;
@@ -316,6 +319,7 @@ public final class GtvActivity extends Activity {
         handler.removeCallbacks(tick);
         handler.post(tick);
         startPerf();
+        updateBanner();   // the live input window, if there is one, may run again now Home is in front
     }
 
     @Override
@@ -324,6 +328,7 @@ public final class GtvActivity extends Activity {
         closeMenu();
         stopPerf();
         resumed = false;
+        updateLivePreview(false);   // Home is leaving: the input goes back to the TV
         handler.removeCallbacks(tick);
     }
 
@@ -588,6 +593,7 @@ public final class GtvActivity extends Activity {
     }
 
     private void open(App a) {
+        updateLivePreview(false);   // hand the input back before the app asks the TV for it
         Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                 .setComponent(a.component)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
@@ -1204,6 +1210,7 @@ public final class GtvActivity extends Activity {
         banner.setBackground(g);
         // The bottom padding is all the clearance the banner keeps from the rows, so it sits close to them.
         banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (16 * dp));
+        if (bannerStyle == BANNER_LIVE) buildLiveWindow();
         title = new TextView(this);
         title.setTextColor(Color.WHITE);
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, bannerSp);
@@ -1227,6 +1234,45 @@ public final class GtvActivity extends Activity {
         lp.leftMargin = sidePad;
         lp.topMargin = (int) (110 * dp);
         root.addView(banner, lp);
+    }
+
+    /**
+     * The live input window: a 16:9 picture of one HDMI port at the top of the banner, driven by InputPreview,
+     * which mutes it, says "connecting", "no signal" or "unavailable", and hands the input back on stop().
+     *
+     * Kept small (260 dp) so the banner stays near the height it has without it; where even that will not fit
+     * above the rows, fitBanner() hides the banner, which is what it does for every other banner too.
+     */
+    private void buildLiveWindow() {
+        int w = (int) (260 * dp), h = w * 9 / 16;
+        FrameLayout frame = new FrameLayout(this);
+        frame.setBackground(tileBackground(0xFF10131A));
+        frame.setClipToOutline(true);
+        android.media.tv.TvView tv = new android.media.tv.TvView(this);
+        frame.addView(tv, new FrameLayout.LayoutParams(-1, -1));
+        TextView status = new TextView(this);
+        status.setTextColor(0xFFC3CAD4);
+        status.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding((int) (8 * dp), 0, (int) (8 * dp), 0);
+        frame.addView(status, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+        lp.bottomMargin = (int) (12 * dp);
+        banner.addView(frame, lp);
+        livePreview = new InputPreview(this, frame, tv, status);
+    }
+
+    /**
+     * Starts the live window only while Home is in front with the banner on screen, and stops it the moment any
+     * of that stops being true: the TV's own Inputs and Live TV must get the input back, and nothing may stay
+     * tuned behind an app.
+     */
+    private void updateLivePreview(boolean mayRun) {
+        if (livePreview == null) return;
+        if (mayRun == liveRunning) return;
+        liveRunning = mayRun;
+        if (mayRun) livePreview.start();
+        else livePreview.stop();
     }
 
     /** A dot for each app in Your apps, the selected one wider. Rebuilt whenever the dock itself changes. */
@@ -1261,9 +1307,12 @@ public final class GtvActivity extends Activity {
     static final String PREF_BANNER_BORDER = "gtv_banner_border";
     static final String PREF_BANNER_FILL = "gtv_banner_fill";
     static final int BANNER_SP_DEFAULT = 46;
-    /** Banner style: 0 the app's name over the glow, 1 that on a glass panel, 2 no banner at all. */
+    /**
+     * Banner style: 0 the app's name over the glow, 1 that on a glass panel, 2 no banner at all, 3 a live input
+     * (HDMI) in a small window above the name — the NVR on HDMI 2, in the owner's case.
+     */
     static final String PREF_BANNER_STYLE = "gtv_banner_style";
-    static final int BANNER_NAME = 0, BANNER_GLASS = 1, BANNER_OFF = 2;
+    static final int BANNER_NAME = 0, BANNER_GLASS = 1, BANNER_OFF = 2, BANNER_LIVE = 3;
     /** The Inputs row under the Favorite rows, and the frosted strip behind the tabs and the clock. */
     static final String PREF_INPUTS_ON_HOME = "gtv_inputs_on_home";
     static final String PREF_GLASS_BARS = "gtv_glass_bars";
@@ -1336,7 +1385,8 @@ public final class GtvActivity extends Activity {
         title.setText(a.label);
         long when = LastOpened.get(this, a.pkg);
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
-        subtitle.setVisibility(when > 0 && !bannerCompact ? View.VISIBLE : View.GONE);
+        subtitle.setVisibility(when > 0 && !bannerCompact && bannerStyle != BANNER_LIVE
+                ? View.VISIBLE : View.GONE);
         glowDrawable.setColors(new int[]{(a.color & 0x00FFFFFF) | 0xA6000000, (a.color & 0x00FFFFFF) | 0x33000000, 0x00000000});
     }
 
@@ -1473,6 +1523,7 @@ public final class GtvActivity extends Activity {
     private void updateBanner() {
         boolean show = bannerStyle != BANNER_OFF && currentTab == TAB_HOME && bannerFits && appSelected;
         banner.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
+        updateLivePreview(show && resumed);
     }
 
     /** The selection left the tiles (a tab or the gear): there is no app to name. */
@@ -1515,7 +1566,7 @@ public final class GtvActivity extends Activity {
         CharSequence text = subtitle.getText();
         int vis = subtitle.getVisibility();
         subtitle.setText("Xg");
-        subtitle.setVisibility(bannerCompact ? View.GONE : View.VISIBLE);
+        subtitle.setVisibility(bannerCompact || bannerStyle == BANNER_LIVE ? View.GONE : View.VISIBLE);
         banner.measure(View.MeasureSpec.makeMeasureSpec(banner.getLayoutParams().width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.UNSPECIFIED);
         subtitle.setText(text);
@@ -1615,6 +1666,7 @@ public final class GtvActivity extends Activity {
     }
 
     private void openInput(String id) {
+        updateLivePreview(false);   // the full-screen input needs the hardware this window is holding
         try {
             startActivity(new Intent(Intent.ACTION_VIEW)
                     .setDataAndType(TvContract.buildChannelUriForPassthroughInput(id), "vnd.android.cursor.item/channel")

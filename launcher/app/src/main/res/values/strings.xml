@@ -225,4 +225,9 @@
     <string name="hint_banner_style">How the selected app\'s name is drawn over the wallpaper.</string>
     <string name="glass_bars_state">Glass bars: %1$s</string>
     <string name="hint_glass_bars">The frosted strip behind the tabs and the clock.</string>
+    <string name="banner_style_live">Live input</string>
+    <string name="live_source_state">Live input source: %1$s</string>
+    <string name="live_source_title">Live input source</string>
+    <string name="hint_live_source">Which HDMI port the banner shows.</string>
+    <string name="gtv_no_inputs_found">This TV reports no HDMI inputs</string>
 </resources>

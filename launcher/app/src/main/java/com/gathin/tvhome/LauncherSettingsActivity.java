@@ -30,7 +30,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView glowChoice;
     private TextView fontChoice;
     private TextView ambientChoice, perfChoice;
-    private TextView bannerSizeChoice, bannerStyleChoice, glassBarsChoice, inputsHomeChoice;
+    private TextView bannerSizeChoice, bannerStyleChoice, glassBarsChoice, inputsHomeChoice, liveSourceChoice;
     /** The list and the choice page that takes its place; the row to focus again when the page closes. */
     private android.view.View list, page;
     private android.widget.LinearLayout pageList;
@@ -178,6 +178,8 @@ public final class LauncherSettingsActivity extends Activity {
         bannerSizeChoice.setOnClickListener(v -> showBannerSizePage());
         bannerStyleChoice = findViewById(R.id.bannerStyleChoice);
         bannerStyleChoice.setOnClickListener(v -> showBannerStylePage());
+        liveSourceChoice = findViewById(R.id.liveSourceChoice);
+        liveSourceChoice.setOnClickListener(v -> showLiveSourcePage());
         glassBarsChoice = findViewById(R.id.glassBarsChoice);
         glassBarsChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_GLASS_BARS, true));
         inputsHomeChoice = findViewById(R.id.inputsHomeChoice);
@@ -196,7 +198,8 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").remove(Config.PERF_CARD_KEY)
                     .remove(GtvActivity.PREF_BANNER_SP).remove(GtvActivity.PREF_BANNER_BORDER)
                     .remove(GtvActivity.PREF_BANNER_FILL).remove(GtvActivity.PREF_BANNER_STYLE)
-                    .remove(GtvActivity.PREF_GLASS_BARS).remove(GtvActivity.PREF_INPUTS_ON_HOME).commit();
+                    .remove(GtvActivity.PREF_GLASS_BARS).remove(GtvActivity.PREF_INPUTS_ON_HOME)
+                    .remove(InputPreview.PREF_ON).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -319,10 +322,34 @@ public final class LauncherSettingsActivity extends Activity {
      */
     private void showBannerStylePage() {
         String[] labels = {getString(R.string.banner_style_name), getString(R.string.banner_style_glass),
-                getString(R.string.banner_style_off)};
+                getString(R.string.banner_style_off), getString(R.string.banner_style_live)};
         showPage(R.string.banner_style_title, labels, GtvActivity.bannerStyle(choices), which -> {
+            // InputPreview's own enabled() gate follows the style, so the launcher has one switch, not two.
             choices.edit().putInt(GtvActivity.PREF_BANNER_STYLE, which)
+                    .putBoolean(InputPreview.PREF_ON, which == GtvActivity.BANNER_LIVE)
                     .remove(GtvActivity.PREF_BANNER_BORDER).remove(GtvActivity.PREF_BANNER_FILL).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+    }
+
+    /** Which HDMI port the live banner shows; the first one when nothing is chosen or the choice is gone. */
+    private void showLiveSourcePage() {
+        java.util.List<InputPreview.Port> ports = InputPreview.ports(this);
+        if (ports.isEmpty()) {
+            Toast.makeText(this, R.string.gtv_no_inputs_found, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] labels = new String[ports.size()];
+        int checked = 0;
+        String current = choices.getString(InputPreview.PREF_SOURCE, null);
+        for (int i = 0; i < ports.size(); i++) {
+            labels[i] = ports.get(i).label;
+            if (ports.get(i).id.equals(current)) checked = i;
+        }
+        final int[] pick = {checked};
+        showPage(R.string.live_source_title, labels, pick[0], which -> {
+            choices.edit().putString(InputPreview.PREF_SOURCE, ports.get(which).id).apply();
             setResult(RESULT_OK);
             refresh();
         });
@@ -443,9 +470,18 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(ambientGlow ? R.string.on : R.string.off)));
         ((TextView) findViewById(R.id.hintRows)).setText(R.string.hint_rows_gtv);
         bannerSizeChoice.setText(getString(R.string.banner_size_state, getString(bannerSizeLabel())));
-        int[] styleLabels = {R.string.banner_style_name, R.string.banner_style_glass, R.string.banner_style_off};
-        bannerStyleChoice.setText(getString(R.string.banner_style_state,
-                getString(styleLabels[Math.max(0, Math.min(2, GtvActivity.bannerStyle(choices)))])));
+        int[] styleLabels = {R.string.banner_style_name, R.string.banner_style_glass, R.string.banner_style_off,
+                R.string.banner_style_live};
+        int style = Math.max(0, Math.min(3, GtvActivity.bannerStyle(choices)));
+        bannerStyleChoice.setText(getString(R.string.banner_style_state, getString(styleLabels[style])));
+        // The source only means something while the banner is the live window.
+        boolean live = style == GtvActivity.BANNER_LIVE;
+        liveSourceChoice.setVisibility(live ? android.view.View.VISIBLE : android.view.View.GONE);
+        findViewById(R.id.hintLiveSource).setVisibility(live ? android.view.View.VISIBLE : android.view.View.GONE);
+        if (live) liveSourceChoice.setText(getString(R.string.live_source_state, liveSourceLabel()));
+        // Input preview was this same window under another name, and nothing drew it: the style owns it now.
+        findViewById(R.id.previewChoice).setVisibility(android.view.View.GONE);
+        findViewById(R.id.hintPreview).setVisibility(android.view.View.GONE);
         glassBarsChoice.setText(getString(R.string.glass_bars_state,
                 getString(choices.getBoolean(GtvActivity.PREF_GLASS_BARS, true) ? R.string.on : R.string.off)));
         inputsHomeChoice.setText(getString(R.string.inputs_home_state,
@@ -477,6 +513,15 @@ public final class LauncherSettingsActivity extends Activity {
         if (sp == BANNER_SIZES[0]) return R.string.banner_size_small;
         if (sp == BANNER_SIZES[2]) return R.string.banner_size_large;
         return R.string.banner_size_medium;
+    }
+
+    /** The chosen port's name, or the first port's, or a dash when the TV reports none. */
+    private String liveSourceLabel() {
+        java.util.List<InputPreview.Port> ports = InputPreview.ports(this);
+        if (ports.isEmpty()) return getString(R.string.unknown);
+        String current = choices.getString(InputPreview.PREF_SOURCE, null);
+        for (InputPreview.Port p : ports) if (p.id.equals(current)) return p.label;
+        return ports.get(0).label;
     }
 
     private boolean hasOnTvChoices() {

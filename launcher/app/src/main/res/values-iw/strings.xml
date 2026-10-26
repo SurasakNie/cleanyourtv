@@ -221,4 +221,9 @@
     <string name="hint_banner_style">איך שם האפליקציה הנבחרת מצויר מעל הטפט.</string>
     <string name="glass_bars_state">פסי זכוכית: %1$s</string>
     <string name="hint_glass_bars">הפס המט שמאחורי הלשוניות והשעון.</string>
+    <string name="banner_style_live">כניסה חיה</string>
+    <string name="live_source_state">מקור הכניסה החיה: %1$s</string>
+    <string name="live_source_title">מקור הכניסה החיה</string>
+    <string name="hint_live_source">איזו כניסת HDMI מוצגת בבאנר.</string>
+    <string name="gtv_no_inputs_found">הטלוויזיה לא מדווחת על כניסות HDMI</string>
 </resources>
