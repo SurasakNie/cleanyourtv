@@ -30,7 +30,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView glowChoice;
     private TextView fontChoice;
     private TextView ambientChoice, perfChoice;
-    private TextView bannerSizeChoice, bannerBorderChoice, bannerFillChoice;
+    private TextView bannerSizeChoice, bannerStyleChoice, glassBarsChoice, inputsHomeChoice;
     /** The list and the choice page that takes its place; the row to focus again when the page closes. */
     private android.view.View list, page;
     private android.widget.LinearLayout pageList;
@@ -176,10 +176,12 @@ public final class LauncherSettingsActivity extends Activity {
         fontChoice.setOnClickListener(v -> showFontPicker());
         bannerSizeChoice = findViewById(R.id.bannerSizeChoice);
         bannerSizeChoice.setOnClickListener(v -> showBannerSizePage());
-        bannerBorderChoice = findViewById(R.id.bannerBorderChoice);
-        bannerBorderChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_BANNER_BORDER));
-        bannerFillChoice = findViewById(R.id.bannerFillChoice);
-        bannerFillChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_BANNER_FILL));
+        bannerStyleChoice = findViewById(R.id.bannerStyleChoice);
+        bannerStyleChoice.setOnClickListener(v -> showBannerStylePage());
+        glassBarsChoice = findViewById(R.id.glassBarsChoice);
+        glassBarsChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_GLASS_BARS, true));
+        inputsHomeChoice = findViewById(R.id.inputsHomeChoice);
+        inputsHomeChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_INPUTS_ON_HOME, false));
         previewChoice = findViewById(R.id.previewChoice);
         previewChoice.setOnClickListener(v -> {
             choices.edit().putBoolean(InputPreview.PREF_ON, !InputPreview.enabled(this)).apply();
@@ -193,7 +195,8 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").remove(Config.PERF_CARD_KEY)
                     .remove(GtvActivity.PREF_BANNER_SP).remove(GtvActivity.PREF_BANNER_BORDER)
-                    .remove(GtvActivity.PREF_BANNER_FILL).commit();
+                    .remove(GtvActivity.PREF_BANNER_FILL).remove(GtvActivity.PREF_BANNER_STYLE)
+                    .remove(GtvActivity.PREF_GLASS_BARS).remove(GtvActivity.PREF_INPUTS_ON_HOME).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -303,11 +306,26 @@ public final class LauncherSettingsActivity extends Activity {
     /** The banner sizes in sp, in the order the page lists them; the middle one is the banner's own default. */
     private static final int[] BANNER_SIZES = {34, GtvActivity.BANNER_SP_DEFAULT, 58};
 
-    /** One on/off setting, stored and reflected straight away. */
-    private void toggle(String key) {
-        choices.edit().putBoolean(key, !choices.getBoolean(key, false)).apply();
+    /** One on/off setting, stored and reflected straight away; fallback is what the launcher does unset. */
+    private void toggle(String key, boolean fallback) {
+        choices.edit().putBoolean(key, !choices.getBoolean(key, fallback)).apply();
         setResult(RESULT_OK);
         refresh();
+    }
+
+    /**
+     * Banner: the app's name over the glow, the same on a glass panel, or no banner at all. Picking any of them
+     * settles 2.21's two switches, which this page replaces.
+     */
+    private void showBannerStylePage() {
+        String[] labels = {getString(R.string.banner_style_name), getString(R.string.banner_style_glass),
+                getString(R.string.banner_style_off)};
+        showPage(R.string.banner_style_title, labels, GtvActivity.bannerStyle(choices), which -> {
+            choices.edit().putInt(GtvActivity.PREF_BANNER_STYLE, which)
+                    .remove(GtvActivity.PREF_BANNER_BORDER).remove(GtvActivity.PREF_BANNER_FILL).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
     }
 
     /**
@@ -425,10 +443,16 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(ambientGlow ? R.string.on : R.string.off)));
         ((TextView) findViewById(R.id.hintRows)).setText(R.string.hint_rows_gtv);
         bannerSizeChoice.setText(getString(R.string.banner_size_state, getString(bannerSizeLabel())));
-        bannerBorderChoice.setText(getString(R.string.banner_border_state,
-                getString(choices.getBoolean(GtvActivity.PREF_BANNER_BORDER, false) ? R.string.on : R.string.off)));
-        bannerFillChoice.setText(getString(R.string.banner_fill_state,
-                getString(choices.getBoolean(GtvActivity.PREF_BANNER_FILL, false) ? R.string.on : R.string.off)));
+        int[] styleLabels = {R.string.banner_style_name, R.string.banner_style_glass, R.string.banner_style_off};
+        bannerStyleChoice.setText(getString(R.string.banner_style_state,
+                getString(styleLabels[Math.max(0, Math.min(2, GtvActivity.bannerStyle(choices)))])));
+        glassBarsChoice.setText(getString(R.string.glass_bars_state,
+                getString(choices.getBoolean(GtvActivity.PREF_GLASS_BARS, true) ? R.string.on : R.string.off)));
+        inputsHomeChoice.setText(getString(R.string.inputs_home_state,
+                getString(choices.getBoolean(GtvActivity.PREF_INPUTS_ON_HOME, false) ? R.string.on : R.string.off)));
+        // The banner's size says nothing when there is no banner.
+        bannerSizeChoice.setEnabled(GtvActivity.bannerStyle(choices) != GtvActivity.BANNER_OFF);
+        bannerSizeChoice.setAlpha(bannerSizeChoice.isEnabled() ? 1f : 0.5f);
         // The launcher's clock screen is not in the APK (the owner keeps the TV's own screensaver), so the row
         // that set its idle time has nothing to start. Hidden, not deleted, like the rows below it.
         findViewById(R.id.clockChoice).setVisibility(android.view.View.GONE);
@@ -461,7 +485,9 @@ public final class LauncherSettingsActivity extends Activity {
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("cinematic_home")
                 || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes") || choices.contains("ambient_glow")
                 || choices.contains(Config.PERF_CARD_KEY) || choices.contains(GtvActivity.PREF_BANNER_SP)
-                || choices.contains(GtvActivity.PREF_BANNER_BORDER) || choices.contains(GtvActivity.PREF_BANNER_FILL);
+                || choices.contains(GtvActivity.PREF_BANNER_BORDER) || choices.contains(GtvActivity.PREF_BANNER_FILL)
+                || choices.contains(GtvActivity.PREF_BANNER_STYLE) || choices.contains(GtvActivity.PREF_GLASS_BARS)
+                || choices.contains(GtvActivity.PREF_INPUTS_ON_HOME);
     }
 
     private void open(Intent intent) {

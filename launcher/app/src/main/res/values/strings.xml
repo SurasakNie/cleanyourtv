@@ -215,4 +215,14 @@
     <string name="gtv_dock_not_saved">Couldn\'t save Your apps</string>
     <string name="gtv_dock_last_app">Your apps keeps at least one app</string>
     <string name="gtv_dock_has_everything">Every app is already in Your apps</string>
+    <string name="inputs_home_state">Inputs on Home: %1$s</string>
+    <string name="hint_inputs_home">A row of HDMI, AV and Live TV under your apps.</string>
+    <string name="banner_style_state">Banner: %1$s</string>
+    <string name="banner_style_title">Banner</string>
+    <string name="banner_style_name">Name + glow</string>
+    <string name="banner_style_glass">Glass panel</string>
+    <string name="banner_style_off">Off</string>
+    <string name="hint_banner_style">How the selected app\'s name is drawn over the wallpaper.</string>
+    <string name="glass_bars_state">Glass bars: %1$s</string>
+    <string name="hint_glass_bars">The frosted strip behind the tabs and the clock.</string>
 </resources>

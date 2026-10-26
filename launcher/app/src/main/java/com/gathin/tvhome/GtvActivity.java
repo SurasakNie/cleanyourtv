@@ -122,6 +122,11 @@ public final class GtvActivity extends Activity {
     private View homePage, appsPage, inputsPage;
     /** Home: one grid of Your apps (first row) and Favorite apps (Rows below dock), with a header over each. */
     private RecyclerView homeGrid, appsGrid, dockRow;
+    /** The Inputs row on Home and its heading (Launcher settings, off by default). */
+    private LinearLayout homeInputs;
+    private TextView homeInputsHeader;
+    /** Whether Home shows the Inputs row, read once with the rest of the settings. */
+    private boolean inputsOnHome;
     /** The "Your apps" heading above the dock row; the banner and the card are fitted above it. */
     private TextView dockHeader;
     private final List<Object> homeItems = new ArrayList<>();
@@ -138,6 +143,8 @@ public final class GtvActivity extends Activity {
     private int cols, rowsBelow;
     /** The banner title's size in sp (Launcher settings); the compact title is 16 less. */
     private int bannerSp = BANNER_SP_DEFAULT;
+    /** Banner style (Launcher settings): name over the glow, the same on glass, or no banner. */
+    private int bannerStyle = BANNER_NAME;
     private List<String> dockApps;
     /** The Home tile being moved (hold OK, Move), or null. */
     private App moving;
@@ -166,6 +173,8 @@ public final class GtvActivity extends Activity {
     /** Left padding of the grids and the banner: 48 dp, more when tiles had to shrink (keeps the grid centred). */
     private int sidePad;
     private static final int CONTENT_TOP_DP = 90, HEADER_DP = 40, ARROW_DP = 30, GRID_PAD_DP = 10, GAP_DP = 18;
+    /** A tile below this is too small to read; the Inputs row gives up its place rather than go under it. */
+    private static final int MIN_TILE_DP = 56;
     private final List<App> dock = new ArrayList<>(), others = new ArrayList<>(), all = new ArrayList<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
 
@@ -233,19 +242,32 @@ public final class GtvActivity extends Activity {
         int screenW = getResources().getDisplayMetrics().widthPixels;
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
+        inputsOnHome = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
+                .getBoolean(PREF_INPUTS_ON_HOME, false);
         dockApps = cfg.dockApps;
         int screenH = getResources().getDisplayMetrics().heightPixels;
         tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * GAP_DP * dp) / cols);
         tileH = tileW * 9 / 16;
         // Home must fit under the top bar: Your apps + Favorite rows, their headers, padding and the chevron.
         // When it doesn't (5 or 6 per row with 2-3 rows), tiles shrink to fit and the grid stays centred.
-        // Your apps is its own row since 2.23, with its own 2 x GRID_PAD_DP, and the grid below keeps its own
-        // whenever it has rows to show — so the padding counted here follows the structure.
-        int rowsShown = 1 + rowsBelow;
-        float fixed = (CONTENT_TOP_DP + (rowsBelow > 0 ? 4 : 2) * GRID_PAD_DP
-                + (rowsBelow > 0 ? 2 : 1) * HEADER_DP + ARROW_DP
-                + rowsShown * GAP_DP) * dp;
-        int maxTileH = (int) ((screenH - fixed) / rowsShown);
+        // Your apps is its own row since 2.23, with its own 2 x GRID_PAD_DP; the grid below keeps its own
+        // whenever it has rows to show, and so does the Inputs row when it is on — the padding counted here
+        // follows the structure, section by section.
+        int maxTileH = 0;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            int sections = 1 + (rowsBelow > 0 ? 1 : 0) + (inputsOnHome ? 1 : 0);
+            int rowsShown = 1 + rowsBelow + (inputsOnHome ? 1 : 0);
+            float fixed = (CONTENT_TOP_DP + 2 * sections * GRID_PAD_DP + sections * HEADER_DP + ARROW_DP
+                    + rowsShown * GAP_DP) * dp;
+            maxTileH = (int) ((screenH - fixed) / rowsShown);
+            // Five rows of tiles do not fit a short screen: rather than shrink them all past reading, the
+            // Inputs row steps aside, as the banner and the performance card already do when there is no room.
+            if (inputsOnHome && maxTileH < MIN_TILE_DP * dp) {
+                inputsOnHome = false;
+                continue;
+            }
+            break;
+        }
         if (tileH > maxTileH) {
             tileH = maxTileH;
             tileW = tileH * 16 / 9;
@@ -509,6 +531,13 @@ public final class GtvActivity extends Activity {
         showMenu(anchor, getString(R.string.gtv_add_to_dock), titles, actions);
     }
 
+    /** Focuses the first input on Home, when that row is on and the TV has any ports. True when it took focus. */
+    private boolean focusHomeInputs() {
+        if (homeInputs == null || homeInputs.getVisibility() != View.VISIBLE
+                || homeInputs.getChildCount() == 0) return false;
+        return homeInputs.getChildAt(0).requestFocus();
+    }
+
     /** Focuses a place in Your apps, which also scrolls the row to put it in the middle. */
     private void focusDock(int index) {
         if (dockRow == null || index < 0 || index >= dockItems.size()) return;
@@ -691,8 +720,12 @@ public final class GtvActivity extends Activity {
             tabs[currentTab].requestFocus();
             return true;
         }
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeInputs) {
+            openAppsAt(0);
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == dockRow) {
-            // Down from Your apps: into the Favorite rows when there are any, otherwise on to the Apps tab.
+            // Down from Your apps: the Favorite rows, else the Inputs row, else on to the Apps tab.
             if (favouritesShown() > 0 && !others.isEmpty()) {
                 RecyclerView.ViewHolder vh =
                         homeGrid.findViewHolderForAdapterPosition(homeItems.indexOf(others.get(0)));
@@ -701,6 +734,7 @@ public final class GtvActivity extends Activity {
                     return true;
                 }
             }
+            if (focusHomeInputs()) return true;
             openAppsAt(0);
             return true;
         }
@@ -710,6 +744,7 @@ public final class GtvActivity extends Activity {
             int at = others.indexOf((App) homeItems.get(pos)), shown = favouritesShown();
             int lastRowStart = shown <= cols ? 0 : ((shown - 1) / cols) * cols;
             if (at < 0 || at < lastRowStart) return false;
+            if (focusHomeInputs()) return true;
             openAppsAt(at % cols);
             return true;
         }
@@ -1159,10 +1194,13 @@ public final class GtvActivity extends Activity {
         // which is how the owner wanted them back after 2.15 took them off the screen.
         SharedPreferences look = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         bannerSp = look.getInt(PREF_BANNER_SP, BANNER_SP_DEFAULT);
+        bannerStyle = bannerStyle(look);
         GradientDrawable g = new GradientDrawable();
         g.setCornerRadius(24 * dp);
-        if (look.getBoolean(PREF_BANNER_FILL, false)) g.setColor(0xCC0B0D12);
-        if (look.getBoolean(PREF_BANNER_BORDER, false)) g.setStroke((int) (1 * dp), 0x33FFFFFF);
+        if (bannerStyle == BANNER_GLASS) {
+            g.setColor(0xCC0B0D12);
+            g.setStroke((int) (1 * dp), 0x33FFFFFF);
+        }
         banner.setBackground(g);
         // The bottom padding is all the clearance the banner keeps from the rows, so it sits close to them.
         banner.setPadding((int) (28 * dp), (int) (20 * dp), (int) (28 * dp), (int) (16 * dp));
@@ -1223,6 +1261,22 @@ public final class GtvActivity extends Activity {
     static final String PREF_BANNER_BORDER = "gtv_banner_border";
     static final String PREF_BANNER_FILL = "gtv_banner_fill";
     static final int BANNER_SP_DEFAULT = 46;
+    /** Banner style: 0 the app's name over the glow, 1 that on a glass panel, 2 no banner at all. */
+    static final String PREF_BANNER_STYLE = "gtv_banner_style";
+    static final int BANNER_NAME = 0, BANNER_GLASS = 1, BANNER_OFF = 2;
+    /** The Inputs row under the Favorite rows, and the frosted strip behind the tabs and the clock. */
+    static final String PREF_INPUTS_ON_HOME = "gtv_inputs_on_home";
+    static final String PREF_GLASS_BARS = "gtv_glass_bars";
+
+    /**
+     * The style the banner draws in, with 2.21's two switches folded in: an owner who turned either of them on
+     * meant the glass panel, so that is what they get, and the old keys are not read again.
+     */
+    static int bannerStyle(SharedPreferences prefs) {
+        if (prefs.contains(PREF_BANNER_STYLE)) return prefs.getInt(PREF_BANNER_STYLE, BANNER_NAME);
+        boolean glass = prefs.getBoolean(PREF_BANNER_BORDER, false) || prefs.getBoolean(PREF_BANNER_FILL, false);
+        return glass ? BANNER_GLASS : BANNER_NAME;
+    }
 
     private GradientDrawable dotDrawable(boolean selected) {
         GradientDrawable d = new GradientDrawable();
@@ -1306,6 +1360,22 @@ public final class GtvActivity extends Activity {
         homeGrid = grid(homeItems);
         homeGrid.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         page.addView(homeGrid);
+        if (inputsOnHome) {
+            homeInputsHeader = header(getString(R.string.gtv_inputs));
+            homeInputsHeader.setPadding(sidePad + (int) (2 * dp), 0, 0, 0);
+            page.addView(homeInputsHeader, new LinearLayout.LayoutParams(-1, (int) (HEADER_DP * dp)));
+            homeInputs = new LinearLayout(this);
+            homeInputs.setPadding(sidePad, (int) (GRID_PAD_DP * dp), sidePad, (int) (GRID_PAD_DP * dp));
+            homeInputs.setClipChildren(false);
+            homeInputs.setClipToPadding(false);
+            fillInputs(homeInputs, true);
+            page.addView(homeInputs, new LinearLayout.LayoutParams(-1, -2));
+            // No ports (a set with no TvInputManager): the heading would name an empty row.
+            if (homeInputs.getChildCount() == 0) {
+                homeInputsHeader.setVisibility(View.GONE);
+                homeInputs.setVisibility(View.GONE);
+            }
+        }
         ImageView more = new ImageView(this);
         more.setImageResource(R.drawable.ic_more_below);
         more.setAlpha(0.75f);
@@ -1401,7 +1471,8 @@ public final class GtvActivity extends Activity {
 
     /** The banner names the selected app, so it shows only on Home, only when it fits, and only with a selection. */
     private void updateBanner() {
-        banner.setVisibility(currentTab == TAB_HOME && bannerFits && appSelected ? View.VISIBLE : View.INVISIBLE);
+        boolean show = bannerStyle != BANNER_OFF && currentTab == TAB_HOME && bannerFits && appSelected;
+        banner.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
     }
 
     /** The selection left the tiles (a tab or the gear): there is no app to name. */
@@ -1489,6 +1560,17 @@ public final class GtvActivity extends Activity {
         inputsRow.setPadding(sidePad, (int) (10 * dp), 0, (int) (10 * dp));
         inputsRow.setClipChildren(false);
         inputsRow.setClipToPadding(false);
+        fillInputs(inputsRow, false);
+        page.addView(inputsRow);
+        return page;
+    }
+
+    /**
+     * The HDMI, AV and Live TV tiles, in the Inputs tab and (since 2.24) in the row on Home. The row on Home
+     * clears the banner's selection when it takes focus: the banner names an app, and an input is not one.
+     */
+    private void fillInputs(LinearLayout row, boolean onHome) {
+        row.removeAllViews();
         for (InputPreview.Port p : InputPreview.ports(this)) {
             // Every port name sits at the same height; extra text in brackets ("eARC/ARC") is a small caption
             // at the bottom, so HDMI 3 lines up with the others.
@@ -1522,13 +1604,14 @@ public final class GtvActivity extends Activity {
                 tile.addView(c, clp);
             }
             tile.setOnClickListener(v -> openInput(p.id));
-            tile.setOnFocusChangeListener((v, has) -> focusTile(v, has));
+            tile.setOnFocusChangeListener((v, has) -> {
+                focusTile(v, has);
+                if (has && onHome) clearSelectedApp();
+            });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(tileW, tileH);
             lp.rightMargin = (int) (18 * dp);
-            inputsRow.addView(tile, lp);
+            row.addView(tile, lp);
         }
-        page.addView(inputsRow);
-        return page;
     }
 
     private void openInput(String id) {
@@ -1721,7 +1804,7 @@ public final class GtvActivity extends Activity {
     /** Fades every tile but this one, for the duration of a move. */
     private void dimOthers(View focused) {
         float others = moving != null ? DIM_MOVING : 1f;
-        for (ViewGroup group : new ViewGroup[]{dockRow, homeGrid, appsGrid, inputsRow}) {
+        for (ViewGroup group : new ViewGroup[]{dockRow, homeGrid, homeInputs, appsGrid, inputsRow}) {
             if (group == null) continue;
             for (int i = 0; i < group.getChildCount(); i++) {
                 View child = group.getChildAt(i);
@@ -1754,6 +1837,8 @@ public final class GtvActivity extends Activity {
     private LinearLayout glassStrip() {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.HORIZONTAL);
+        // Glass bars off (Launcher settings): the strip behind the pills goes, the pills keep their own look.
+        if (!getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getBoolean(PREF_GLASS_BARS, true)) return l;
         GradientDrawable g = new GradientDrawable();
         g.setColor(0x33FFFFFF);          // frosted, no outline: the owner found the hairline edge busy
         g.setCornerRadius(28 * dp);

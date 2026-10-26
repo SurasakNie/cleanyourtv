@@ -91,6 +91,13 @@
 
             <TextView android:id="@+id/hintRows" style="@style/SettingsHint" android:text="@string/hint_rows" />
 
+            <TextView
+                android:id="@+id/inputsHomeChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView style="@style/SettingsHint" android:text="@string/hint_inputs_home" />
+
             <TextView style="@style/SettingsSection" android:text="@string/section_look" />
 
             <TextView
@@ -114,6 +121,20 @@
             <TextView style="@style/SettingsHint" android:text="@string/hint_banner_size" />
 
             <TextView
+                android:id="@+id/bannerStyleChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView style="@style/SettingsHint" android:text="@string/hint_banner_style" />
+
+            <TextView
+                android:id="@+id/glassBarsChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView style="@style/SettingsHint" android:text="@string/hint_glass_bars" />
+
+            <TextView
                 android:id="@+id/cinematicChoice"
                 style="@style/SettingsRow"
                 android:layout_marginTop="10dp" />
@@ -130,22 +151,8 @@
             <TextView style="@style/SettingsSection" android:text="@string/section_effects" />
 
             <TextView
-                android:id="@+id/bannerBorderChoice"
-                style="@style/SettingsRow" />
-
-            <TextView style="@style/SettingsHint" android:text="@string/hint_banner_border" />
-
-            <TextView
-                android:id="@+id/bannerFillChoice"
-                style="@style/SettingsRow"
-                android:layout_marginTop="10dp" />
-
-            <TextView style="@style/SettingsHint" android:text="@string/hint_banner_fill" />
-
-            <TextView
                 android:id="@+id/glowChoice"
-                style="@style/SettingsRow"
-                android:layout_marginTop="10dp" />
+                style="@style/SettingsRow" />
 
             <TextView android:id="@+id/hintGlow" style="@style/SettingsHint" android:text="@string/hint_glow" />
 
