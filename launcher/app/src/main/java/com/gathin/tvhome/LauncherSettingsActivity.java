@@ -499,6 +499,10 @@ public final class LauncherSettingsActivity extends Activity {
         // that set its idle time has nothing to start. Hidden, not deleted, like the rows below it.
         findViewById(R.id.clockChoice).setVisibility(android.view.View.GONE);
         findViewById(R.id.hintClock).setVisibility(android.view.View.GONE);
+        // The Inputs row on Home is out of the APK too (GtvActivity.INPUTS_ROW_READY); its setting goes with it.
+        int inputsRowRows = GtvActivity.INPUTS_ROW_READY ? android.view.View.VISIBLE : android.view.View.GONE;
+        inputsHomeChoice.setVisibility(inputsRowRows);
+        findViewById(R.id.hintInputsHome).setVisibility(inputsRowRows);
         int unread = APPLE_ROWS_READY ? android.view.View.VISIBLE : android.view.View.GONE;
         for (int id : new int[]{R.id.cinematicChoice, R.id.hintCinematic, R.id.namesChoice, R.id.hintNames}) {
             findViewById(id).setVisibility(unread);

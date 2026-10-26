@@ -268,7 +268,7 @@ public final class GtvActivity extends Activity {
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
         SharedPreferences effects = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
-        inputsOnHome = effects.getBoolean(PREF_INPUTS_ON_HOME, false);
+        inputsOnHome = INPUTS_ROW_READY && effects.getBoolean(PREF_INPUTS_ON_HOME, false);
         animations = cfg.animations && !cfg.reducedMotion;
         advancedEffects = animations && cfg.advancedEffects;
         focusStyle = effects.getInt(PREF_FOCUS_STYLE, FOCUS_ZOOM);
@@ -1431,6 +1431,13 @@ public final class GtvActivity extends Activity {
     static final int BANNER_NAME = 0, BANNER_GLASS = 1, BANNER_OFF = 2, BANNER_LIVE = 3;
     /** The Inputs row under the Favorite rows, and the frosted strip behind the tabs and the clock. */
     static final String PREF_INPUTS_ON_HOME = "gtv_inputs_on_home";
+    /**
+     * The Inputs row on Home (2.24) is out of the APK, at the owner's word: on this TV (density 2.0) it stands down
+     * at two or more Favorite rows, and what is wanted in its place is a live window per input. Its code, its
+     * stored value and its row-end rule stay in the tree; flip this, and the row in Launcher settings with it, to
+     * bring it back. The Inputs tab is a different thing and is untouched.
+     */
+    static final boolean INPUTS_ROW_READY = false;
     static final String PREF_GLASS_BARS = "gtv_glass_bars";
     /** Focus style: 0 zoom (what Home has always done), 1 lift, 2 glass halo, 3 underline. */
     static final String PREF_FOCUS_STYLE = "gtv_focus_style";
