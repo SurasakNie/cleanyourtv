@@ -1690,11 +1690,17 @@ public final class GtvActivity extends Activity {
     private void placeGlow(GlowStyle.Spot spot) {
         if (glow == null || spot == null || glowStyle == GlowStyle.RIBBON) return;
         int w = getResources().getDisplayMetrics().widthPixels, h = getResources().getDisplayMetrics().heightPixels;
+        // The ellipse is made by stretching the full-screen view about the spot, and a stretch may only ever GROW it:
+        // squashing it (a scale below 1) left its rectangle smaller than the screen, and the gradient, not yet
+        // transparent at that edge, showed as a hard dark bar along the top and bottom (2.26, Random position and
+        // shape). Wider than tall: stretch X up and shrink the radius by the same ratio, so the ellipse is the same.
+        float ratio = spot.ry / spot.rx, radius = w * 0.6f * (spot.rx / 0.78f);
         glowDrawable.setGradientCenter(spot.x, spot.y);
-        glowDrawable.setGradientRadius(w * 0.6f * (spot.rx / 0.78f));
+        glowDrawable.setGradientRadius(ratio >= 1f ? radius : radius * ratio);
         glow.setPivotX(spot.x * w);
         glow.setPivotY(spot.y * h);
-        glow.setScaleY(spot.ry / spot.rx);
+        glow.setScaleX(ratio >= 1f ? 1f : 1f / ratio);
+        glow.setScaleY(ratio >= 1f ? ratio : 1f);
         glow.invalidate();
         for (int i = 0; i < extraDrawables.length; i++) {
             GlowStyle.Spot extra = i == 0 ? GlowStyle.second(spot) : GlowStyle.random(false);
