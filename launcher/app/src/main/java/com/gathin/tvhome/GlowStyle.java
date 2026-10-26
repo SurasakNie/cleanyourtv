@@ -12,8 +12,8 @@ import java.util.Random;
 final class GlowStyle {
     static final String PREF = "glow_style";
     static final int CLASSIC = 0, RANDOM = 1, PER_APP = 2, DRIFT = 3, FOLLOW = 4, RANDOM_SHAPE = 5, TWO_GLOWS = 6,
-            RANDOM_2 = 7, RANDOM_3 = 8;   // appended, so saved choices keep their meaning
-    static final int COUNT = 9;
+            RANDOM_2 = 7, RANDOM_3 = 8, RIBBON = 9;   // appended, so saved choices keep their meaning
+    static final int COUNT = 10;
 
     /** Centre (x, y) and radii (rx, ry) of one glow, as fractions of the screen width / height. */
     static final class Spot {
@@ -50,6 +50,7 @@ final class GlowStyle {
             case TWO_GLOWS: return R.string.glow_two;
             case RANDOM_2: return R.string.glow_random_2;
             case RANDOM_3: return R.string.glow_random_3;
+            case RIBBON: return R.string.glow_ribbon;
             default: return R.string.glow_classic;
         }
     }

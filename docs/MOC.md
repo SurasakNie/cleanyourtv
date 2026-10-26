@@ -115,6 +115,7 @@ articles and bookmarks. The cost is real and the gain is cosmetic, so please do 
 |---|---|
 | [`HANDOFF.md`](HANDOFF.md) | Current state, open work, how the owner tests |
 | `MOC.md` | This map |
+| [`TESTING.md`](TESTING.md) | What to check on the TV, build by build |
 | [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) | When something goes wrong on a TV |
 | [`REMOTE.md`](REMOTE.md) | Remote keys and the accessibility services |
 | [`app-library.md`](app-library.md) | The optional app library |

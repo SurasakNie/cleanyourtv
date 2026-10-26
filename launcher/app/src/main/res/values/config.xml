@@ -14,10 +14,6 @@
         <item>com.google.android.youtube.tv</item>
         <item>in.startv.hotstar</item>
     </string-array>
-    <!-- With fewer dock_apps than columns (or a dock app that is not installed), the free dock slots take
-         the first grid apps, so the dock never shows a gap. false leaves them empty (#162); a theme can
-         set "fill_dock": false. -->
-    <bool name="fill_dock">true</bool>
 
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
     <string-array name="hidden_apps">
@@ -41,10 +37,6 @@
 
     <!-- A tile's name instead of the app's own: "package=Name". It also shows above the dock. -->
     <string-array name="app_labels">
-    </string-array>
-    <!-- A tile's artwork instead of the app's banner: "package=drawable", a banner_* drawable bundled with the
-         launcher (res/drawable). banner_tv is a magenta field with the Live TV glyph. -->
-    <string-array name="app_banners">
     </string-array>
 
     <!-- TVs with no TvInputManager have no HDMI list to read, but their own source-selection panel
@@ -97,34 +89,8 @@
     <string-array name="app_keys" translatable="false">
     </string-array>
 
-    <!-- Show the Solar Hijri (Shamsi) date used in Iran and Afghanistan, e.g. "27 Mehr 1405", above the
-         Gregorian date. -->
-    <bool name="shamsi_date">false</bool>
 
-    <!-- A name after the greeting: "Mr. Trịnh" shows GOOD MORNING, MR. TRỊNH. Empty: the greeting alone. -->
-    <string name="greeting_name" translatable="false"></string>
-    <!-- Optional VPN app the network pill opens (hold the pill for Wi-Fi settings), e.g. the package of the
-         VPN you use. Empty: the pill opens Wi-Fi settings. The green VPN badge shows for any VPN either way;
-         with an app set here, a red "VPN off" badge also shows while no VPN is up. -->
-    <string name="vpn_app" translatable="false"></string>
-    <!-- The dock as its own row: a lighter band, no names under the tiles, parked low on the screen with the top
-         shelf above it. false makes the dock apps simply the first tiles of one plain grid (still in dock_apps
-         order, no empty slots), with names under every tile and the glow behind every focused tile. -->
-    <bool name="dock_row">true</bool>
-    <!-- A reorder button (two arrows) in the top bar. Off by default: reordering is also in the Settings
-         button's long-press menu, so it needs no extra button on screen. -->
-    <bool name="reorder_button">false</bool>
-    <!-- Inputs, Wi-Fi and Settings as round icon-only buttons (names move to the talkback description). -->
-    <bool name="icon_only_buttons">true</bool>
-    <!-- The app library as a round button in the top bar, beside Settings (app_library must be on too). -->
-    <bool name="library_button">false</bool>
-    <!-- With icon_only_buttons: keep the network name on the Wi-Fi pill up to this width in dp, cut with an ellipsis.
-         0 leaves the Wi-Fi pill as an icon. -->
-    <integer name="wifi_label_width">0</integer>
 
-    <!-- The Wi-Fi/Ethernet pill in the top bar. false hides it (on Android 14 with Location off it can
-         only say "Wi-Fi", not the network name). Can also be set with "show_network_pill" in a theme. -->
-    <bool name="show_network_pill">true</bool>
     <!-- Names under every tile, not only the focused one: unfocused names stay dimmed, the focused one is full white.
          With dock_row the band grows down to hold the dock's names too. -->
     <bool name="always_show_names">false</bool>
@@ -136,9 +102,6 @@
          the dock, its title and this many rows would not otherwise fit the screen height. -->
     <integer name="rows_below_dock">0</integer>
 
-    <!-- The focused dock app's name in large type above the dock. false keeps only the glow, which leaves room
-         for bigger tiles when rows_below_dock is 2 or 3. -->
-    <bool name="dock_title">true</bool>
 
     <!-- Tiles per row in the grid; the dock always has this many slots. Tiles are 180dp wide at 4 columns and
          shrink to fit from 5 up (about 144dp at 5, 117dp at 6 on a 1080p TV). -->
@@ -148,16 +111,8 @@
     <bool name="animations">true</bool>
     <bool name="advanced_effects">false</bool>
 
-    <!-- Optional Default-home tile; keep this key for existing themes and tile-ordering work.
-         Off by default because the chooser is also available from launcher settings. -->
-    <bool name="show_home_settings_shortcut">false</bool>
 
-    <!-- Installed launchable apps, including ordinary Android apps. Also settable in config.json. -->
-    <bool name="app_library">false</bool>
 
-    <!-- Module cards: an app that declares a card (docs/specs/card.md) can stand in for its tile with its own
-         label, caption and glow colour, once you answer Show on the prompt. false: never look for cards or ask. -->
-    <bool name="module_cards">true</bool>
 
     <!-- Reduced motion: for TVs whose GPU cannot keep up (MediaTek MT5895 on Android 10 is the known case).
          true keeps the GPU drawing path but calms the movement: a stiff highlight spring with no bounce,
@@ -165,15 +120,7 @@
          here or with "reduced_motion": true in a theme's config.json; false keeps the normal motion. -->
     <bool name="reduced_motion">false</bool>
 
-    <!-- One line under the clock: CPU, free memory and free storage. Off by default; a theme can set
-         "show_stats": true. Nothing is read, and the clock does not move, while this is false. -->
-    <bool name="show_stats">false</bool>
 
-    <!-- Time-of-day backdrop behind everything: a dark gradient that follows the clock, with a warm
-         horizon glow around sunrise and sunset. 0 keeps the plain background (the default); 1 to 100
-         sets its opacity. Around 60 reads clearly without hiding a wallpaper. Can also be set with
-         "sky_intensity": 60 in a theme's config.json. -->
-    <integer name="sky_intensity">0</integer>
     <!-- Where the TV is, in decimal degrees, so the sky's sunrise and sunset glows follow the real sun
          (computed on the TV, no network). Empty: a fixed temperate day, sunset glow around 19:00.
          Vilnius: 54.69 and 25.28. -->
@@ -197,4 +144,101 @@
     <integer name="home_idle_clock_minutes">0</integer>
     <!-- Home layout when Launcher settings has no choice yet: gtv (Google TV style) or apple. -->
     <string name="default_layout" translatable="false">gtv</string>
+
+    <!--
+      The Apple TV layout's keys, kept here as a comment since 2.27: the layout came out of the APK, so
+      nothing reads them and aapt no longer compiles them in. The text stays because the features they
+      describe - the festive skins, the app library, module cards, the network pill, the stats line - are
+      candidates for the Google TV layout rather than decisions already reversed. Config sets each field
+      to the default shown here. To bring one back: put its entry below the comment and read it in
+      Config.load again.
+
+      fill_dock:
+      With fewer dock_apps than columns (or a dock app that is not installed), the free dock slots take
+      the first grid apps, so the dock never shows a gap. false leaves them empty (#162); a theme can
+      set "fill_dock": false.
+      <bool name="fill_dock">true</bool>
+
+      app_banners:
+      A tile's artwork instead of the app's banner: "package=drawable", a banner_* drawable bundled with the
+      launcher (res/drawable). banner_tv is a magenta field with the Live TV glyph.
+      <string-array name="app_banners">
+      </string-array>
+
+      shamsi_date:
+      Show the Solar Hijri (Shamsi) date used in Iran and Afghanistan, e.g. "27 Mehr 1405", above the
+      Gregorian date.
+      <bool name="shamsi_date">false</bool>
+
+      greeting_name:
+      A name after the greeting: "Mr. Trịnh" shows GOOD MORNING, MR. TRỊNH. Empty: the greeting alone.
+      <string name="greeting_name" translatable="false"></string>
+
+      vpn_app:
+      Optional VPN app the network pill opens (hold the pill for Wi-Fi settings), e.g. the package of the
+      VPN you use. Empty: the pill opens Wi-Fi settings. The green VPN badge shows for any VPN either way;
+      with an app set here, a red "VPN off" badge also shows while no VPN is up.
+      <string name="vpn_app" translatable="false"></string>
+
+      dock_row:
+      The dock as its own row: a lighter band, no names under the tiles, parked low on the screen with the top
+      shelf above it. false makes the dock apps simply the first tiles of one plain grid (still in dock_apps
+      order, no empty slots), with names under every tile and the glow behind every focused tile.
+      <bool name="dock_row">true</bool>
+
+      reorder_button:
+      A reorder button (two arrows) in the top bar. Off by default: reordering is also in the Settings
+      button's long-press menu, so it needs no extra button on screen.
+      <bool name="reorder_button">false</bool>
+
+      icon_only_buttons:
+      Inputs, Wi-Fi and Settings as round icon-only buttons (names move to the talkback description).
+      <bool name="icon_only_buttons">true</bool>
+
+      library_button:
+      The app library as a round button in the top bar, beside Settings (app_library must be on too).
+      <bool name="library_button">false</bool>
+
+      wifi_label_width:
+      With icon_only_buttons: keep the network name on the Wi-Fi pill up to this width in dp, cut with an ellipsis.
+      0 leaves the Wi-Fi pill as an icon.
+      <integer name="wifi_label_width">0</integer>
+
+      show_network_pill:
+      The Wi-Fi/Ethernet pill in the top bar. false hides it (on Android 14 with Location off it can
+      only say "Wi-Fi", not the network name). Can also be set with "show_network_pill" in a theme.
+      <bool name="show_network_pill">true</bool>
+
+      dock_title:
+      The focused dock app's name in large type above the dock. false keeps only the glow, which leaves room
+      for bigger tiles when rows_below_dock is 2 or 3.
+      <bool name="dock_title">true</bool>
+
+      show_home_settings_shortcut:
+      Optional Default-home tile; keep this key for existing themes and tile-ordering work.
+      Off by default because the chooser is also available from launcher settings.
+      <bool name="show_home_settings_shortcut">false</bool>
+
+      app_library:
+      Installed launchable apps, including ordinary Android apps. Also settable in config.json.
+      <bool name="app_library">false</bool>
+
+      module_cards:
+      Module cards: an app that declares a card (docs/specs/card.md) can stand in for its tile with its own
+      label, caption and glow colour, once you answer Show on the prompt. false: never look for cards or ask.
+      <bool name="module_cards">true</bool>
+
+      show_stats:
+      One line under the clock: CPU, free memory and free storage. Off by default; a theme can set
+      "show_stats": true. Nothing is read, and the clock does not move, while this is false.
+      <bool name="show_stats">false</bool>
+
+      sky_intensity:
+      Time-of-day backdrop behind everything: a dark gradient that follows the clock, with a warm
+      horizon glow around sunrise and sunset. 0 keeps the plain background (the default); 1 to 100
+      sets its opacity. Around 60 reads clearly without hiding a wallpaper. Can also be set with
+      "sky_intensity": 60 in a theme's config.json.
+      <integer name="sky_intensity">0</integer>
+
+    -->
 </resources>

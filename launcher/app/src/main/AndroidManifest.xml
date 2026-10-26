@@ -110,26 +110,13 @@
                 android:resource="@xml/home_key_service" />
         </service>
 
-        <!-- The same clock, started by Home itself after home_idle_clock_minutes without input. -->
-        <activity
-            android:name=".ClockActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
-
-        <!-- Screensaver: pick it in Settings, or `settings put secure screensaver_components
-             com.gathin.tvhome/.ClockDream` over adb. -->
-        <service
-            android:name=".ClockDream"
-            android:label="@string/dream_name"
-            android:exported="true"
-            android:permission="android.permission.BIND_DREAM_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.dreams.DreamService" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </service>
+        <!--
+          The launcher's clock screen is not shipped: the owner keeps the TV's own screensaver, so neither
+          ClockActivity (Home's idle clock) nor ClockDream (the selectable screensaver) is declared here, and
+          nothing references them. R8 and resource shrinking then leave them out of the APK. ClockActivity.java,
+          ClockDream.java, ClockScene.java and dream_clock.xml stay in the repository on purpose; declaring the
+          two components again is all it takes to bring the feature back.
+        -->
 
         <!-- tools/theme.sh writes the theme through this where the shell can't reach Android/data;
              see ThemeProvider. WRITE_SECURE_SETTINGS: the adb shell has it, ordinary apps don't. -->

@@ -11,9 +11,10 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Launcher on the TV | **2.21** (`versionCode` 221), **installed, not yet tested**. Confirmed earlier: 2.19's shim and recovery screen, both buttons included. Still unconfirmed on screen: 2.18's page-indicator fix, and all of 2.21 — the choice pages, the banner size, the outline and fill switches, the five hidden rows, and the idle clock coming back |
-| Branch | `claude/zen-euler-0mir9r`. PR #3 merged 2.05–2.12; PR #4 carries 2.13–2.14 |
-| Merged so far | PR #1 (merge 0c5f3e3): the Apple TV layout and the debloat work. PR #2 (merge daad5b4): the Google TV layout at 2.04, this handoff and the repo map |
+| Latest build | **2.27** (`versionCode` 227), built and verified here; the APK is with the owner |
+| Last build installed on the TV | **2.21.** 2.22 to 2.27 were built and sent but have not been installed or tested — see [`docs/TESTING.md`](TESTING.md). **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
+| Branch | `claude/zen-euler-0mir9r`. Everything through 2.27 is merged; the branch is reused for the next round of builds |
+| Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. **PR #6: 2.22–2.27** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
 | Screensaver | the TV's own (Google Backdrop). The launcher never changed it; its Clock screensaver stays off. |
@@ -27,6 +28,12 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.27** | **The removed layout's config keys leave the APK.** 17 keys only the Apple TV layout ever read — `app_banners`, `fill_dock`, `banner_*`, `shelf_*`, `tile_names` and the rest — are no longer parsed by `Config`, and in `res/values/config.xml` they and their descriptions are now **one XML comment**, which aapt does not compile, so nothing of them reaches the package. `res/raw/keep.xml` is deleted, which lets resource shrinking drop `banner_tv` as well (the drawable file stays). The fields stay on `Config` as constants with their old defaults, so the Apple sources in the tree still compile — the removal is from the APK, as the owner's rule requires. `themes/README.md` records which keys a theme may still name and that they are ignored. Nothing visible changes. **Verified:** `aapt2 dump resources` finds **0** of the 17 keys and no `banner_tv`; APK **460,147 bytes** |
+| **2.26** | **Effects, part 1.** `GtvActivity` reads **`GlowStyle`** at last — Corner, Random, Fixed per app, Slow drift (a ticker that runs only while Home is in front), Follow (above the focused tile), Random shape, Two glows and Random ×2/×3 (extra glow views in a hue-shifted colour) — plus the new **Ribbon**, a diagonal band instead of a spot. **Animations** and **Advanced effects** are honoured too: off means the focus zoom and the indicator reach their places at once, and advanced fades the glow's colour between apps instead of cutting. New **Focus style**: Zoom (today's), Lift, Glass halo (the tile's shadow in the app's colour, Android 9 and up) and Underline (a bar in the app's colour, no zoom). The **white ring is not offered** — the owner turned it down twice. Glow, Animations and Advanced effects are **visible in the panel again**; Cinematic and App names stay hidden, since neither means anything in this layout |
+| **2.25** | **The banner can show a live input** (§6.7's last phase-2 pick). **Banner → Live input** puts a 260 dp 16:9 window of one HDMI port at the top of the banner, driven by the existing `InputPreview` — muted, offline, **no new permission**. **Live input source** picks the port. The window runs only while Home is in front with the banner on screen: `updateBanner()` is the single gate, and `onPause`, `open()` and `openInput()` each hand the input back before anything else asks the TV for it. **This is the first time anything in the Google TV layout has drawn `InputPreview`'s window** — the instance belonged to the Apple layout, so the old **Input preview** row had been storing a value nothing read; the banner style owns that switch now and the row is hidden |
+| **2.24** | **Phase 2's Home items.** An **Inputs row on Home** under the Favorite rows (Layout › Inputs on Home, **off by default**), built from the same tiles as the Inputs tab through a shared `fillInputs(...)`; Down walks Your apps → Favorites → Inputs → the Apps tab. **Banner** becomes one choice page — *Name + glow · Glass panel · Off* — replacing 2.21's two switches, which migrate (either one set meant Glass panel). **Glass bars: On / Off** turns the frosted strip behind the tabs and the clock off. Home's height arithmetic counts sections now, and **the Inputs row stands down rather than squeeze tiles below 56 dp** — at density 2.0 with 2–3 Favorite rows, which this TV (density 1.0) never hits |
+| **2.23** | **Your apps becomes a dock the owner keeps.** It is its own scrolling row now, not the first `columns` apps of one list: **Apps per row sets how many are on screen**, moving right brings the next one in, and the selected tile is kept in the **middle of the screen** except at the two ends (`CentreManager` answers `onRequestChildFocus` itself and scrolls to centre; the row clamps at its edges). The **last tile is a +** that lists every app not in the row, and **holding OK on an app offers Remove from Your apps**. The row is the owner's list in **`gtv_dock.txt`** (new `DockApps`, the shape of `Favorites`, MAX 32), seeded from `dock_apps` the first time so an updating TV keeps what it had. The page indicator hides above 12 apps rather than drawing a thicket of dots |
+| **2.22** | **The launcher's clock screen is out of the APK** — the owner keeps the TV's own screensaver. The manifest no longer declares `ClockActivity` (Home's idle clock) or `ClockDream` (the selectable screensaver), `GtvActivity` loses the idle timer it gained in 2.21, and the **Clock** row is hidden in the panel. Verified: **0 mentions of either component in the packaged manifest, 0 class names in the dex, and `dream_clock.xml` shrunk out**. `ClockActivity.java`, `ClockDream.java`, `ClockScene.java` and both `dream_clock.xml` files stay in the tree — re-declaring the two components is all it takes to bring the feature back. **The clock in Home's top-right corner is untouched:** it is a `TextView` in the top bar fed by the minute `tick`, nothing to do with this |
 | **2.21** | **The settings panel is finished, and the idle clock is back.** Choices now open as **a page inside the panel** (Wallpaper, Font, and Glow when it returns): the list steps aside, the page takes its place at the same width with the current choice marked, and Back returns to the list with the row still focused — no more pop-ups. New: **Banner title size** (Small 34 / Medium 46 / Large 58) and, in Effects, **Banner outline** and **Banner glass fill**, both off by default, which is 2.15's fill and border given back as switches. Five rows the Google TV layout does not read — Glow, Animations, Advanced effects, Cinematic, App names — are **hidden** behind `EFFECTS_READY` in `LauncherSettingsActivity`, values untouched. **Bug fix:** the idle clock (`ClockActivity`) had not started since 2.19 — `MainActivity.onUserInteraction` used to arm it and the shim dropped that; `GtvActivity` arms it now, cancelling on pause so it can never appear over an open app |
 | **2.19** | **The Apple TV layout is out of the APK.** `MainActivity` is now a 141-line shim: it keeps the HOME and LEANBACK intent filters (the TV's default-home setting names it, so that must not move) and opens `GtvActivity`. The Apple layout was also the fallback when Home failed to build, so it is replaced by a **recovery screen** in the shim — "Home could not start", with **Try again** and **TV settings** — drawn from nothing but that class, since the configuration, theme or fonts may be what failed. The `layout` preference, `GtvActivity.enabled()` and `fallBack()` are gone; a failure is recorded in `gtv_failed` and cleared when Home next draws. R8 drops the now unreferenced Apple code: the APK falls **598 KB → 440 KB**. The sources stay in the tree: 2.20 deleted them and was reverted on the owner's word — the removal was only ever meant to be from the APK |
 | **2.18** | **Page-indicator bug fix.** Holding left or right left a row of half-open dashes instead of one pill: `showDot()` animated only the new dot and the one before it, each from its resting width, so every dot further back was stranded part-way open when key repeat cut the 140 ms animation short. It now starts from the widths the dots actually have and moves all of them, so any interrupted run heals itself. Stepping one app at a time always worked, which is why 2.16 and 2.17 passed |
@@ -87,11 +94,21 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Waiting on a test
-2.21 is on the TV but untested. The two risky parts are the **choice pages** (they move the
-remote's focus between two panels) and the **idle clock** (it touches Home's lifecycle): check that Wallpaper and
-Font open as a page and Back returns to the list, and that the clock appears from Home, returns on any key and
-never appears over an open app. 2.18's page-indicator fix (hold left/right across the dock) has never been
-confirmed on screen either.
+The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work through it oldest-first, since each build leans on the one before.
+
+**2.23 to 2.27 are all untested** — the owner asked for the builds to be made and checked later. Test 2.23's dock first, since the others build on it. 2.27 is cleanup with nothing to see: its test is that Home, the panel and the themes behave exactly as 2.26 did.
+
+**2.25 carries the one item that may simply not work on this TV:** a non-system app tuning a passthrough input is allowed on some sets and refused on others, and nothing in this launcher had ever tried it. If the Sony refuses, the window says "Preview unavailable" and Home is otherwise untouched — that is an answer about the TV, not a bug to chase. What *would* be a bug: the TV's own Inputs or Live TV coming up dead after the banner has held an input, so test opening HDMI from the Inputs tab while the live banner is running.
+
+For 2.24: switch **Inputs on Home** on and check nothing overlaps at Rows below dock 0 and 3, that an input opens full screen from Home, each of the three **Banner** styles, and **Glass bars** on and off. One thing that looks like a bug and is not: with the row switched on, a screen too short for it leaves the setting On while Home does not draw it — it stands down rather than make every tile unreadable.
+
+2.23 changes Home's structure, so it needs a careful look: six tiles at *Apps per row = 6*, Right bringing the next app in with the selection staying centred, the first and last tiles resting at the edges, **+** adding, hold-OK removing, and **nothing overlapping at Rows below dock 0 and 3**. Up from the row must still land on the Home tab, and Down must reach the Favorite rows (or the Apps tab when there are none).
+
+2.22 was a removal, so its test is that **nothing changed**: Home as before, **the top-right clock still ticking**, the TV's own screensaver still starting, and no Clock row in the panel.
+
+2.18's page-indicator fix (hold left or right across the dock) has never been confirmed on screen either.
+
+**Before installing 2.22 on any other set:** check `settings get secure screensaver_components`. If it names `com.gathin.tvhome/.ClockDream`, point the TV at its own screensaver first, or it falls back to the system default with no warning.
 
 ### Known bugs
 None open in the launcher. Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s `onUserInteraction` timer; `GtvActivity` arms it now).
@@ -103,7 +120,7 @@ Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
 ### The APK size budget — resolved in 2.17
-**2.21 is 445 KB against the 900 KB gate — 455 KB clear.** The squeeze is over: the two CMU Sans font files were
+**2.27 is 449 KB against the 900 KB gate — 451 KB clear.** The squeeze is over: the two CMU Sans font files were
 subset in 2.17, from 830 KB down to 227 KB, with no visible change (811 and 809 mapped characters, every glyph the
 launcher draws present, all layout features kept). Thai, Hebrew and Chinese are unaffected — CMU never had those
 glyphs, so they already fall back to the TV's own fonts.
@@ -241,21 +258,27 @@ stage 1 (that code is 2.18's redirect branch line for line) and are not to be ch
 diverges permanently and makes merging from upstream painful — the owner chose this knowingly.
 
 ### Next phases (from the proposal, [`docs/proposals/google-tv-ui/README.md`](proposals/google-tv-ui/README.md))
-1. ~~**Settings redesign**~~ — **done** (2.13–2.14 for the panel, 2.21 for the choice pages, the banner title
-   size and the banner outline/fill switches). What the **Effects phase** inherits from it: set `EFFECTS_READY`
-   to true in `LauncherSettingsActivity` once `GtvActivity` reads `GlowStyle`, `animations` and
-   `advanced_effects`, and decide what Cinematic and App names mean in this layout (hidden rows, values kept).
-2. **Phase 2 layout**: Inputs row on Home, Live-input banner, side-rail navigation option, glass bars.
-3. **Effects** (§4): the focus and background effects chosen in §6.7.
+1. ~~**Settings redesign**~~ — **done** (2.13–2.14 the panel, 2.21 the choice pages and the banner title size,
+   2.24 the banner styles). Glow, Animations and Advanced effects came back in 2.26. **Cinematic** and **App
+   names** are still hidden behind `APPLE_ROWS_READY` in `LauncherSettingsActivity`: they described the Apple
+   layout's shelf and its always-on tile names, and a later phase has to decide what — if anything — they mean
+   here.
+2. **Phase 2 layout**: ~~Inputs row on Home~~ (2.24), ~~Live-input banner~~ (2.25), ~~glass bars~~ (2.24) — what
+   is left is the **side rail**, **Posters** and **Minimal** layout styles.
+3. **Effects** (§4): part 1 is in 2.26 (glow styles, Ribbon, animations, focus styles). Left from §6.7: **glass
+   tiles**, **tile light** (reflection), **title glow** and **colour wash**; and from §4.3 the focus extras
+   (shine sweep, 3D tilt, breathing), the transitions and the background motion.
 4. **Wallpapers** (§5): new sets, the 4K quality fix, online wallpapers (opt-in). **Check the licences first**
    for the sources listed in §8 Q7 (Wikimedia, Earth View, NASA, NatGeo, Apple) before any of them ship.
 5. **Hebrew and polish**: right-to-left for the new screens, a Hebrew strings pass, final tidy-up.
 6. **Merging**: done per set of builds — PR #1 (the Apple layout and the debloat), PR #2 (2.04), PR #3 (2.05–2.12),
-   PR #4 (2.13–2.14). The owner is the only person with access, so nobody else reviews; merge once CI is green.
+   PR #4 (2.13–2.14), PR #5 (2.15–2.21), PR #6 (2.22–2.27). The owner is the only person with access, so nobody
+   else reviews; merge once CI is green. **A merge does not mean tested** — PR #6 went in with 2.22–2.27 still
+   unseen on the TV, at the owner's instruction, so the test backlog outlives the branch.
 
 ### Decisions already made (do not re-ask)
 - Google TV layout is the default (`default_layout` in `config.xml`).
-- Your apps is the **same dock** as the Apple TV layout, kept in `order.txt`.
+- Your apps **was** the same dock as the Apple TV layout, kept in `order.txt`. Since 2.23 it is the owner's own list in `gtv_dock.txt` (`DockApps`), seeded from `dock_apps`; `order.txt` still decides the sort order of the apps, not which ones are in the row. **Move no longer crosses between Your apps and the Favorite rows** — it reorders within each — because the row's membership is now changed on purpose with + and hold-OK, and a move across the boundary would change it silently.
 - Favorite apps are the owner's own list (`gtv_favorites.txt`), **Google TV layout only**; the Apple layout keeps
   showing all apps under the dock.
 - Rows below dock sets the number of Favorite rows; Home sits on the bottom edge; ⌄⌄ marks the lowest row and
@@ -269,7 +292,7 @@ diverges permanently and makes merging from upstream painful — the owner chose
   the TV before this one settled: a white ring (2.09, 2.11), which says nothing on white artwork such as Netflix or
   the Play Store, and dimming every other tile (2.10), which the owner turned down. Dimming survives only while a
   tile is being carried. Please do not "improve" any of it back.
-- Continuous effects stay off by default; the screensaver stays the TV's own.
+- Continuous effects stay off by default; **the screensaver stays the TV's own** — the launcher's clock screen was taken out of the APK in 2.22 (files kept). Do not re-declare `ClockDream` or start `ClockActivity` from Home.
 
 ---
 

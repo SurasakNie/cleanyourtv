@@ -30,19 +30,21 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView glowChoice;
     private TextView fontChoice;
     private TextView ambientChoice, perfChoice;
-    private TextView bannerSizeChoice, bannerBorderChoice, bannerFillChoice;
+    private TextView bannerSizeChoice, bannerStyleChoice, glassBarsChoice, inputsHomeChoice, liveSourceChoice;
+    private TextView focusStyleChoice;
     /** The list and the choice page that takes its place; the row to focus again when the page closes. */
     private android.view.View list, page;
     private android.widget.LinearLayout pageList;
     private TextView pageTitle;
     private TextView pageOpenedBy;
     /**
-     * Rows whose setting the Google TV layout does not read yet: the glow styles, animations, advanced effects,
-     * the cinematic shelf and always-on app names. They drew the Apple TV layout, and the Effects phase decides
-     * what each becomes here. Hidden rather than deleted, with their values untouched, so that phase flips this
-     * one line back.
+     * Glow, Animations and Advanced effects came back in 2.26, when GtvActivity started reading them.
+     *
+     * Cinematic and App names are still hidden: they described the Apple TV layout's shelf and its always-on tile
+     * names, and neither has a meaning in this layout. Hidden rather than deleted, values untouched, so a later
+     * phase can give them one.
      */
-    private static final boolean EFFECTS_READY = false;
+    private static final boolean APPLE_ROWS_READY = false;
     private boolean ambientGlow;
     private boolean cinematic;
     private boolean alwaysShowNames;
@@ -176,10 +178,16 @@ public final class LauncherSettingsActivity extends Activity {
         fontChoice.setOnClickListener(v -> showFontPicker());
         bannerSizeChoice = findViewById(R.id.bannerSizeChoice);
         bannerSizeChoice.setOnClickListener(v -> showBannerSizePage());
-        bannerBorderChoice = findViewById(R.id.bannerBorderChoice);
-        bannerBorderChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_BANNER_BORDER));
-        bannerFillChoice = findViewById(R.id.bannerFillChoice);
-        bannerFillChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_BANNER_FILL));
+        bannerStyleChoice = findViewById(R.id.bannerStyleChoice);
+        bannerStyleChoice.setOnClickListener(v -> showBannerStylePage());
+        liveSourceChoice = findViewById(R.id.liveSourceChoice);
+        liveSourceChoice.setOnClickListener(v -> showLiveSourcePage());
+        focusStyleChoice = findViewById(R.id.focusStyleChoice);
+        focusStyleChoice.setOnClickListener(v -> showFocusStylePage());
+        glassBarsChoice = findViewById(R.id.glassBarsChoice);
+        glassBarsChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_GLASS_BARS, true));
+        inputsHomeChoice = findViewById(R.id.inputsHomeChoice);
+        inputsHomeChoice.setOnClickListener(v -> toggle(GtvActivity.PREF_INPUTS_ON_HOME, false));
         previewChoice = findViewById(R.id.previewChoice);
         previewChoice.setOnClickListener(v -> {
             choices.edit().putBoolean(InputPreview.PREF_ON, !InputPreview.enabled(this)).apply();
@@ -193,7 +201,10 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
                     .remove("cinematic_home").remove("always_show_names").remove("home_idle_clock_minutes").remove("ambient_glow").remove(Config.PERF_CARD_KEY)
                     .remove(GtvActivity.PREF_BANNER_SP).remove(GtvActivity.PREF_BANNER_BORDER)
-                    .remove(GtvActivity.PREF_BANNER_FILL).commit();
+                    .remove(GtvActivity.PREF_BANNER_FILL).remove(GtvActivity.PREF_BANNER_STYLE)
+                    .remove(GtvActivity.PREF_GLASS_BARS).remove(GtvActivity.PREF_INPUTS_ON_HOME)
+                    .remove(InputPreview.PREF_ON).remove(GtvActivity.PREF_FOCUS_STYLE)
+                    .remove(GlowStyle.PREF).commit();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -303,11 +314,50 @@ public final class LauncherSettingsActivity extends Activity {
     /** The banner sizes in sp, in the order the page lists them; the middle one is the banner's own default. */
     private static final int[] BANNER_SIZES = {34, GtvActivity.BANNER_SP_DEFAULT, 58};
 
-    /** One on/off setting, stored and reflected straight away. */
-    private void toggle(String key) {
-        choices.edit().putBoolean(key, !choices.getBoolean(key, false)).apply();
+    /** One on/off setting, stored and reflected straight away; fallback is what the launcher does unset. */
+    private void toggle(String key, boolean fallback) {
+        choices.edit().putBoolean(key, !choices.getBoolean(key, fallback)).apply();
         setResult(RESULT_OK);
         refresh();
+    }
+
+    /**
+     * Banner: the app's name over the glow, the same on a glass panel, or no banner at all. Picking any of them
+     * settles 2.21's two switches, which this page replaces.
+     */
+    private void showBannerStylePage() {
+        String[] labels = {getString(R.string.banner_style_name), getString(R.string.banner_style_glass),
+                getString(R.string.banner_style_off), getString(R.string.banner_style_live)};
+        showPage(R.string.banner_style_title, labels, GtvActivity.bannerStyle(choices), which -> {
+            // InputPreview's own enabled() gate follows the style, so the launcher has one switch, not two.
+            choices.edit().putInt(GtvActivity.PREF_BANNER_STYLE, which)
+                    .putBoolean(InputPreview.PREF_ON, which == GtvActivity.BANNER_LIVE)
+                    .remove(GtvActivity.PREF_BANNER_BORDER).remove(GtvActivity.PREF_BANNER_FILL).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+    }
+
+    /** Which HDMI port the live banner shows; the first one when nothing is chosen or the choice is gone. */
+    private void showLiveSourcePage() {
+        java.util.List<InputPreview.Port> ports = InputPreview.ports(this);
+        if (ports.isEmpty()) {
+            Toast.makeText(this, R.string.gtv_no_inputs_found, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] labels = new String[ports.size()];
+        int checked = 0;
+        String current = choices.getString(InputPreview.PREF_SOURCE, null);
+        for (int i = 0; i < ports.size(); i++) {
+            labels[i] = ports.get(i).label;
+            if (ports.get(i).id.equals(current)) checked = i;
+        }
+        final int[] pick = {checked};
+        showPage(R.string.live_source_title, labels, pick[0], which -> {
+            choices.edit().putString(InputPreview.PREF_SOURCE, ports.get(which).id).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
     }
 
     /**
@@ -425,16 +475,34 @@ public final class LauncherSettingsActivity extends Activity {
                 getString(ambientGlow ? R.string.on : R.string.off)));
         ((TextView) findViewById(R.id.hintRows)).setText(R.string.hint_rows_gtv);
         bannerSizeChoice.setText(getString(R.string.banner_size_state, getString(bannerSizeLabel())));
-        bannerBorderChoice.setText(getString(R.string.banner_border_state,
-                getString(choices.getBoolean(GtvActivity.PREF_BANNER_BORDER, false) ? R.string.on : R.string.off)));
-        bannerFillChoice.setText(getString(R.string.banner_fill_state,
-                getString(choices.getBoolean(GtvActivity.PREF_BANNER_FILL, false) ? R.string.on : R.string.off)));
-        int unread = EFFECTS_READY ? android.view.View.VISIBLE : android.view.View.GONE;
-        for (int id : new int[]{R.id.glowChoice, R.id.hintGlow, R.id.animationsChoice, R.id.hintAnimations,
-                R.id.advancedChoice, R.id.hintAdvanced, R.id.cinematicChoice, R.id.hintCinematic,
-                R.id.namesChoice, R.id.hintNames}) {
+        int[] styleLabels = {R.string.banner_style_name, R.string.banner_style_glass, R.string.banner_style_off,
+                R.string.banner_style_live};
+        int style = Math.max(0, Math.min(3, GtvActivity.bannerStyle(choices)));
+        bannerStyleChoice.setText(getString(R.string.banner_style_state, getString(styleLabels[style])));
+        // The source only means something while the banner is the live window.
+        boolean live = style == GtvActivity.BANNER_LIVE;
+        liveSourceChoice.setVisibility(live ? android.view.View.VISIBLE : android.view.View.GONE);
+        findViewById(R.id.hintLiveSource).setVisibility(live ? android.view.View.VISIBLE : android.view.View.GONE);
+        if (live) liveSourceChoice.setText(getString(R.string.live_source_state, liveSourceLabel()));
+        // Input preview was this same window under another name, and nothing drew it: the style owns it now.
+        findViewById(R.id.previewChoice).setVisibility(android.view.View.GONE);
+        findViewById(R.id.hintPreview).setVisibility(android.view.View.GONE);
+        glassBarsChoice.setText(getString(R.string.glass_bars_state,
+                getString(choices.getBoolean(GtvActivity.PREF_GLASS_BARS, true) ? R.string.on : R.string.off)));
+        inputsHomeChoice.setText(getString(R.string.inputs_home_state,
+                getString(choices.getBoolean(GtvActivity.PREF_INPUTS_ON_HOME, false) ? R.string.on : R.string.off)));
+        // The banner's size says nothing when there is no banner.
+        bannerSizeChoice.setEnabled(GtvActivity.bannerStyle(choices) != GtvActivity.BANNER_OFF);
+        bannerSizeChoice.setAlpha(bannerSizeChoice.isEnabled() ? 1f : 0.5f);
+        // The launcher's clock screen is not in the APK (the owner keeps the TV's own screensaver), so the row
+        // that set its idle time has nothing to start. Hidden, not deleted, like the rows below it.
+        findViewById(R.id.clockChoice).setVisibility(android.view.View.GONE);
+        findViewById(R.id.hintClock).setVisibility(android.view.View.GONE);
+        int unread = APPLE_ROWS_READY ? android.view.View.VISIBLE : android.view.View.GONE;
+        for (int id : new int[]{R.id.cinematicChoice, R.id.hintCinematic, R.id.namesChoice, R.id.hintNames}) {
             findViewById(id).setVisibility(unread);
         }
+        focusStyleChoice.setText(getString(R.string.focus_style_state, getString(focusStyleLabel())));
         perfChoice.setText(getString(R.string.perf_state,
                 getString(choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
@@ -451,13 +519,45 @@ public final class LauncherSettingsActivity extends Activity {
         return R.string.banner_size_medium;
     }
 
+    /** How the selected app is told apart: the zoom Home has always used, a lift, a halo or an underline. */
+    private void showFocusStylePage() {
+        String[] labels = {getString(R.string.focus_zoom), getString(R.string.focus_lift),
+                getString(R.string.focus_halo), getString(R.string.focus_underline)};
+        int current = choices.getInt(GtvActivity.PREF_FOCUS_STYLE, GtvActivity.FOCUS_ZOOM);
+        showPage(R.string.focus_style_title, labels, current, which -> {
+            choices.edit().putInt(GtvActivity.PREF_FOCUS_STYLE, which).apply();
+            setResult(RESULT_OK);
+            refresh();
+        });
+    }
+
+    private int focusStyleLabel() {
+        switch (choices.getInt(GtvActivity.PREF_FOCUS_STYLE, GtvActivity.FOCUS_ZOOM)) {
+            case GtvActivity.FOCUS_LIFT: return R.string.focus_lift;
+            case GtvActivity.FOCUS_HALO: return R.string.focus_halo;
+            case GtvActivity.FOCUS_UNDERLINE: return R.string.focus_underline;
+            default: return R.string.focus_zoom;
+        }
+    }
+
+    /** The chosen port's name, or the first port's, or a dash when the TV reports none. */
+    private String liveSourceLabel() {
+        java.util.List<InputPreview.Port> ports = InputPreview.ports(this);
+        if (ports.isEmpty()) return getString(R.string.unknown);
+        String current = choices.getString(InputPreview.PREF_SOURCE, null);
+        for (InputPreview.Port p : ports) if (p.id.equals(current)) return p.label;
+        return ports.get(0).label;
+    }
+
     private boolean hasOnTvChoices() {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains("cinematic_home")
                 || choices.contains("always_show_names") || choices.contains("home_idle_clock_minutes") || choices.contains("ambient_glow")
                 || choices.contains(Config.PERF_CARD_KEY) || choices.contains(GtvActivity.PREF_BANNER_SP)
-                || choices.contains(GtvActivity.PREF_BANNER_BORDER) || choices.contains(GtvActivity.PREF_BANNER_FILL);
+                || choices.contains(GtvActivity.PREF_BANNER_BORDER) || choices.contains(GtvActivity.PREF_BANNER_FILL)
+                || choices.contains(GtvActivity.PREF_BANNER_STYLE) || choices.contains(GtvActivity.PREF_GLASS_BARS)
+                || choices.contains(GtvActivity.PREF_INPUTS_ON_HOME);
     }
 
     private void open(Intent intent) {
