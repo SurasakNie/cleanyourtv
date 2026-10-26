@@ -757,13 +757,11 @@ public final class GtvActivity extends Activity {
             return true;
         }
         if ((code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)
-                && currentTab == TAB_HOME && f.getParent() == dockRow) {
-            // Nothing else handles Left or Right here, so at the row's ends the platform's focus search picks
-            // whatever focusable it can reach - which is a tile in the rows below. Swallow the key instead: the
-            // row stops at its first tile and at the +, and Down is the only way out of it.
-            int at = dockRow.getChildAdapterPosition(f);
-            if (at < 0) return false;
-            return code == KeyEvent.KEYCODE_DPAD_RIGHT ? at >= dockItems.size() - 1 : at == 0;
+                && atRowEnd(f, code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            // Nothing else handles Left or Right here, so at a row's end the platform's focus search picks
+            // whatever focusable it can reach - the next item in adapter order, which is the neighbouring row.
+            // Swallow the key instead: a row stops at its ends, and Up and Down are the only ways out of it.
+            return true;
         }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeInputs) {
             openAppsAt(0);
@@ -792,6 +790,27 @@ public final class GtvActivity extends Activity {
             if (focusHomeInputs()) return true;
             openAppsAt(at % cols);
             return true;
+        }
+        return false;
+    }
+
+    /**
+     * True when this tile is the last one in its row in the direction pressed, so the key must stop here. Every
+     * lookup is guarded by the tile's parent: {@code getChildAdapterPosition} casts the layout parameters to
+     * RecyclerView's own and throws for a view from any other container (2.28).
+     */
+    private boolean atRowEnd(View f, boolean right) {
+        ViewParent parent = f.getParent();
+        if (currentTab == TAB_HOME && parent == dockRow) {
+            int at = dockRow.getChildAdapterPosition(f);
+            if (at < 0) return false;
+            return right ? at >= dockItems.size() - 1 : at == 0;
+        }
+        if (currentTab == TAB_HOME && parent == homeGrid) {
+            // Position 0 is the section header, so the Favorites start at 1.
+            int at = homeGrid.getChildAdapterPosition(f) - 1;
+            if (at < 0) return false;
+            return right ? at % cols == cols - 1 || at >= favouritesShown() - 1 : at % cols == 0;
         }
         return false;
     }
