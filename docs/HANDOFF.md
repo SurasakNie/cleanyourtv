@@ -11,9 +11,9 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Latest build | **2.27** (`versionCode` 227), built and verified here; the APK is with the owner |
-| Last build installed on the TV | **2.27**, installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat, and **Home draws** — the owner operated the dock on it, so `GtvActivity` built, the row has tiles and the D-pad works; 2.19's recovery screen was never seen. **2.23 to 2.27's features are still untested** — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
-| Branch | `claude/zen-euler-0mir9r`. Everything through 2.27 is merged; the branch is reused for the next round of builds |
+| Latest build | **2.28** (`versionCode` 228), built and verified here, and installed on the TV |
+| Last build installed on the TV | **2.28**, installed 26 Oct. **Confirmed on the TV:** with Focus style = Glass halo, Down on the Inputs tab and Down from the gear onto the inputs row no longer crash — the case that failed every time before; the halo is the app's own colour on Your apps and the Favorite rows and white on an input tile. **Not yet confirmed:** Inputs on Home with Glass halo, the second place the same fault could bite, so 2.28 is not fully tested. Before that, **2.27** was installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat, and **Home draws** — the owner operated the dock on it, so `GtvActivity` built, the row has tiles and the D-pad works; 2.19's recovery screen was never seen. **2.23 to 2.27's features are still untested** — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
+| Branch | `claude/zen-euler-0mir9r`. Merged through 2.27 (PR #6); **2.28 and the documentation after it are unmerged** and want a PR #7 |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. **PR #6 (2ea447f): 2.22–2.27** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
@@ -113,13 +113,19 @@ For 2.24: switch **Inputs on Home** on and check nothing overlaps at Rows below 
 
 ### Known bugs
 
-**Fixed in 2.28: the Inputs tab killed the launcher.** With **Focus style = Glass halo**, pressing Down from the
+**Fixed in 2.28, and confirmed on the TV: the Inputs tab killed the launcher.** With **Focus style = Glass halo**, pressing Down from the
 Inputs pill or the gear crashed `GtvActivity` with `ClassCastException` in `haloColour`, every time — the screen
 went black and Home came back because the process had died and been restarted. The log also showed Android
 reacting to its home app dying: `Clearing package preferred activities from com.gathin.tvhome` and
 `Adding package as fallback role holder … role: android.app.role.HOME`. It kept the default-home assignment this
 time, but **a crashing home app can lose it**, which is why this counted as serious rather than cosmetic. The
 recovery screen never appeared because that only catches a failure to *build* Home, not a crash after it is up.
+
+*On reading the evidence, because this will come up again:* logcat keeps its buffer across an install, so a
+`FATAL`/`ClassCast` line seen after updating may be the **old** crash still sitting there. After 2.28 went on,
+three such lines were still visible and all three predated it — PID 28193 at 22:01:56.603 is the identical line
+from the first report, and 28435 and 28743 at 22:03 are the restarts crashing again during the attempt to
+reproduce. Run `adb logcat -c` before the check, or the result means nothing.
 
 **Open: Your apps flashes black at the ends of the row (2.27, not reproduced).** Holding Left or Right to run to
 the end of Your apps makes the screen go black for an instant — the owner's word was "บางครั้ง", so it is
@@ -327,6 +333,16 @@ diverges permanently and makes merging from upstream painful — the owner chose
   how to undo it — and then waits for the owner's word. This holds however small or obvious the change looks, and
   it covers documentation as much as code. Reading, searching, `git log`, running the tests and building to verify
   change nothing and need no asking.
+- **Where the live input window is, and where it is not** (asked and answered 26 Oct, so it is not re-asked). The
+  mini window that showed a picture per input, where OK offered *open full screen* or *switch to another port*,
+  belonged to **`MainActivity` — the Apple TV layout's Home**, under its top-bar pills; it arrived in `6aa614e`
+  and was switched on from Launcher settings › Input preview. It **left the APK in 2.19** with that layout,
+  because the window itself lived in `activity_main.xml`. The **Inputs tab of the Google TV layout has never had
+  a preview**: `fillInputs` builds a `FrameLayout` and a `TextView`, never a `TvView`. The only live window in
+  the code today is `buildLiveWindow()` (`GtvActivity.java:1299-1310`), which 2.25 added for the **banner**. So
+  three things from the old behaviour are still absent — it is on the banner rather than the Inputs tab, it shows
+  **one** chosen port rather than a picture per input, and there is **no OK menu**. The owner is trying
+  Banner › Live input as it stands before deciding whether any of that comes back.
 - Google TV layout is the default (`default_layout` in `config.xml`).
 - Your apps **was** the same dock as the Apple TV layout, kept in `order.txt`. Since 2.23 it is the owner's own list in `gtv_dock.txt` (`DockApps`), seeded from `dock_apps`; `order.txt` still decides the sort order of the apps, not which ones are in the row. **Move no longer crosses between Your apps and the Favorite rows** — it reorders within each — because the row's membership is now changed on purpose with + and hold-OK, and a move across the boundary would change it silently.
 - Favorite apps are the owner's own list (`gtv_favorites.txt`), **Google TV layout only**; the Apple layout keeps
