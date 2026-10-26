@@ -812,6 +812,18 @@ public final class GtvActivity extends Activity {
             if (at < 0) return false;
             return right ? at % cols == cols - 1 || at >= favouritesShown() - 1 : at % cols == 0;
         }
+        if (currentTab == TAB_APPS && parent == appsGrid) {
+            int at = appsGrid.getChildAdapterPosition(f);
+            if (at < 0) return false;
+            return right ? at % cols == cols - 1 || at >= all.size() - 1 : at % cols == 0;
+        }
+        // The Inputs rows are plain LinearLayouts, so no adapter is asked: the tile's place among its siblings.
+        LinearLayout row = currentTab == TAB_HOME && parent == homeInputs ? homeInputs
+                : currentTab == TAB_INPUTS && parent == inputsRow ? inputsRow : null;
+        if (row != null) {
+            int at = row.indexOfChild(f);
+            return right ? at == row.getChildCount() - 1 : at == 0;
+        }
         return false;
     }
 
