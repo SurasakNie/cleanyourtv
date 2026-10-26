@@ -226,4 +226,12 @@
     <string name="live_source_title">מקור הכניסה החיה</string>
     <string name="hint_live_source">איזו כניסת HDMI מוצגת בבאנר.</string>
     <string name="gtv_no_inputs_found">הטלוויזיה לא מדווחת על כניסות HDMI</string>
+    <string name="glow_ribbon">סרט אור</string>
+    <string name="focus_style_state">סגנון בחירה: %1$s</string>
+    <string name="focus_style_title">סגנון בחירה</string>
+    <string name="focus_zoom">הגדלה</string>
+    <string name="focus_lift">הרמה</string>
+    <string name="focus_halo">הילת זכוכית</string>
+    <string name="focus_underline">קו תחתון</string>
+    <string name="hint_focus_style">איך האפליקציה הנבחרת נבדלת משאר הלוח.</string>
 </resources>

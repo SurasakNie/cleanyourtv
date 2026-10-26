@@ -230,4 +230,12 @@
     <string name="live_source_title">Live input source</string>
     <string name="hint_live_source">Which HDMI port the banner shows.</string>
     <string name="gtv_no_inputs_found">This TV reports no HDMI inputs</string>
+    <string name="glow_ribbon">Ribbon</string>
+    <string name="focus_style_state">Focus style: %1$s</string>
+    <string name="focus_style_title">Focus style</string>
+    <string name="focus_zoom">Zoom</string>
+    <string name="focus_lift">Lift</string>
+    <string name="focus_halo">Glass halo</string>
+    <string name="focus_underline">Underline</string>
+    <string name="hint_focus_style">How the selected app is told apart.</string>
 </resources>

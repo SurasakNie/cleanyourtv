@@ -111,6 +111,26 @@ public final class GtvActivity extends Activity {
     private FrameLayout root;
     private View glow;
     private GradientDrawable glowDrawable;
+    /** Glow style (Launcher settings, Glow): where the glow sits and whether others join it. */
+    private int glowStyle = GlowStyle.CLASSIC;
+    /** Animations and the advanced extras (config.xml or Launcher settings), honoured here since 2.26. */
+    private boolean animations = true, advancedEffects;
+    /** Focus style (Launcher settings); the zoom is what every build before 2.26 did. */
+    private int focusStyle = FOCUS_ZOOM;
+    /** The colour the glow is showing, so an advanced fade knows where to start. */
+    private int glowColor;
+    private android.animation.ValueAnimator glowFade;
+    private View[] extraGlows = new View[0];
+    private GradientDrawable[] extraDrawables = new GradientDrawable[0];
+    /** Slow drift moves the glow by itself; the ticker runs only while Home is in front. */
+    private long driftStart;
+    private final Runnable drift = new Runnable() {
+        @Override public void run() {
+            if (!resumed || currentTab != TAB_HOME) return;
+            placeGlow(GlowStyle.drift((SystemClock.elapsedRealtime() - driftStart) / 1000.0));
+            handler.postDelayed(this, 120);
+        }
+    };
     private TextView title, subtitle, clock;
     /** One dot per app in Your apps; the selected one stretches into a pill. */
     private LinearLayout dots;
@@ -245,8 +265,11 @@ public final class GtvActivity extends Activity {
         int screenW = getResources().getDisplayMetrics().widthPixels;
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
-        inputsOnHome = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
-                .getBoolean(PREF_INPUTS_ON_HOME, false);
+        SharedPreferences effects = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
+        inputsOnHome = effects.getBoolean(PREF_INPUTS_ON_HOME, false);
+        animations = cfg.animations && !cfg.reducedMotion;
+        advancedEffects = animations && cfg.advancedEffects;
+        focusStyle = effects.getInt(PREF_FOCUS_STYLE, FOCUS_ZOOM);
         dockApps = cfg.dockApps;
         int screenH = getResources().getDisplayMetrics().heightPixels;
         tileW = (int) ((screenW - 2 * 48 * dp - (cols - 1) * GAP_DP * dp) / cols);
@@ -320,6 +343,11 @@ public final class GtvActivity extends Activity {
         handler.post(tick);
         startPerf();
         updateBanner();   // the live input window, if there is one, may run again now Home is in front
+        if (glowStyle == GlowStyle.DRIFT) {
+            driftStart = SystemClock.elapsedRealtime();
+            handler.removeCallbacks(drift);
+            handler.post(drift);
+        }
     }
 
     @Override
@@ -328,6 +356,7 @@ public final class GtvActivity extends Activity {
         closeMenu();
         stopPerf();
         resumed = false;
+        handler.removeCallbacks(drift);
         updateLivePreview(false);   // Home is leaving: the input goes back to the TV
         handler.removeCallbacks(tick);
     }
@@ -989,13 +1018,31 @@ public final class GtvActivity extends Activity {
             }
         }
         glow = new View(this);
+        glowStyle = GlowStyle.load(this);
         glowDrawable = new GradientDrawable();
-        glowDrawable.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        glowDrawable.setGradientCenter(0.8f, 0.05f);
-        glowDrawable.setGradientRadius(getResources().getDisplayMetrics().widthPixels * 0.6f);
+        if (glowStyle == GlowStyle.RIBBON) {
+            // A diagonal band of light rather than a spot: a linear gradient across the screen.
+            glowDrawable.setOrientation(GradientDrawable.Orientation.BL_TR);
+            glowDrawable.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        } else {
+            glowDrawable.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        }
         glow.setBackground(glowDrawable);
         glow.setVisibility(cfg.ambientGlow ? View.VISIBLE : View.GONE);
         root.addView(glow, new FrameLayout.LayoutParams(-1, -1));
+        // The extra glows of Two glows, Random x2 and Random x3: their own views, tinted a shifted colour.
+        int extras = GlowStyle.extraCount(glowStyle);
+        extraGlows = new View[extras];
+        extraDrawables = new GradientDrawable[extras];
+        for (int i = 0; i < extras; i++) {
+            extraDrawables[i] = new GradientDrawable();
+            extraDrawables[i].setGradientType(GradientDrawable.RADIAL_GRADIENT);
+            extraGlows[i] = new View(this);
+            extraGlows[i].setBackground(extraDrawables[i]);
+            extraGlows[i].setVisibility(cfg.ambientGlow ? View.VISIBLE : View.GONE);
+            root.addView(extraGlows[i], new FrameLayout.LayoutParams(-1, -1));
+        }
+        placeGlow(GlowStyle.classic(getResources().getBoolean(R.bool.rtl_app_grid)));
         // Keep the lower half dark so rows stay readable over any picture.
         View shade = new View(this);
         GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
@@ -1316,6 +1363,11 @@ public final class GtvActivity extends Activity {
     /** The Inputs row under the Favorite rows, and the frosted strip behind the tabs and the clock. */
     static final String PREF_INPUTS_ON_HOME = "gtv_inputs_on_home";
     static final String PREF_GLASS_BARS = "gtv_glass_bars";
+    /** Focus style: 0 zoom (what Home has always done), 1 lift, 2 glass halo, 3 underline. */
+    static final String PREF_FOCUS_STYLE = "gtv_focus_style";
+    static final int FOCUS_ZOOM = 0, FOCUS_LIFT = 1, FOCUS_HALO = 2, FOCUS_UNDERLINE = 3;
+    /** The bar an underlined tile shows; looked up by tag, since tiles, inputs and the + tile differ. */
+    private static final String TAG_FOCUS_BAR = "focusBar";
 
     /**
      * The style the banner draws in, with 2.21's two switches folded in: an owner who turned either of them on
@@ -1359,7 +1411,7 @@ public final class GtvActivity extends Activity {
             dot.setBackground(dotDrawable(i == index));
         }
         dotAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        dotAnimator.setDuration(140);
+        dotAnimator.setDuration(animations ? 140 : 0);
         dotAnimator.addUpdateListener(an -> {
             float t = (float) an.getAnimatedValue();
             for (int i = 0; i < from.length && i < dots.getChildCount(); i++) {
@@ -1379,6 +1431,11 @@ public final class GtvActivity extends Activity {
 
     /** The banner and glow follow the selected app. */
     private void showApp(App a) {
+        showApp(a, null);
+    }
+
+    /** The tile is passed in for Glow: Follow, which sits the glow above the tile that has just taken focus. */
+    private void showApp(App a, View tile) {
         appSelected = true;
         updateBanner();
         showDot(dock.indexOf(a));
@@ -1387,7 +1444,44 @@ public final class GtvActivity extends Activity {
         subtitle.setText(when > 0 ? getString(R.string.last_opened, LastOpened.describe(this, when)) : "");
         subtitle.setVisibility(when > 0 && !bannerCompact && bannerStyle != BANNER_LIVE
                 ? View.VISIBLE : View.GONE);
-        glowDrawable.setColors(new int[]{(a.color & 0x00FFFFFF) | 0xA6000000, (a.color & 0x00FFFFFF) | 0x33000000, 0x00000000});
+        tintGlow(a.color);
+        placeGlow(spotFor(a, tile));
+    }
+
+    /**
+     * The glow takes the app's colour, and the extra glows take it turned round the hue wheel. With advanced
+     * effects on it fades from the colour it is showing instead of cutting to the new one.
+     */
+    private void tintGlow(int color) {
+        if (glowFade != null) glowFade.cancel();
+        if (!advancedEffects || glowColor == 0) {
+            paintGlow(color);
+            glowColor = color;
+            return;
+        }
+        final int from = glowColor;
+        glowFade = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        glowFade.setDuration(260);
+        glowFade.addUpdateListener(an -> {
+            float t = (float) an.getAnimatedValue();
+            paintGlow((int) new android.animation.ArgbEvaluator().evaluate(t, from, color));
+        });
+        glowFade.start();
+        glowColor = color;
+    }
+
+    private void paintGlow(int color) {
+        if (glowStyle == GlowStyle.RIBBON) {
+            // The band is brightest down its middle and fades out to both edges.
+            glowDrawable.setColors(new int[]{0x00000000, (color & 0x00FFFFFF) | 0x8C000000, 0x00000000});
+        } else {
+            glowDrawable.setColors(new int[]{(color & 0x00FFFFFF) | 0xA6000000,
+                    (color & 0x00FFFFFF) | 0x33000000, 0x00000000});
+        }
+        for (int i = 0; i < extraDrawables.length; i++) {
+            int c = GlowStyle.shifted(color, 45f * (i + 1));
+            extraDrawables[i].setColors(new int[]{(c & 0x00FFFFFF) | 0x66000000, (c & 0x00FFFFFF) | 0x22000000, 0x00000000});
+        }
     }
 
     // ---- pages -----------------------------------------------------------------------------------
@@ -1517,6 +1611,54 @@ public final class GtvActivity extends Activity {
             banner.setLayoutParams(lp);
         }
         updateBanner();
+    }
+
+    /**
+     * Puts the glow where a style says: the centre as a fraction of the screen, the radius from rx (0.78 is the
+     * size the glow has always had), and ry through the view's own scale about that centre, which is the only way
+     * a radial GradientDrawable can be an ellipse.
+     */
+    private void placeGlow(GlowStyle.Spot spot) {
+        if (glow == null || spot == null || glowStyle == GlowStyle.RIBBON) return;
+        int w = getResources().getDisplayMetrics().widthPixels, h = getResources().getDisplayMetrics().heightPixels;
+        glowDrawable.setGradientCenter(spot.x, spot.y);
+        glowDrawable.setGradientRadius(w * 0.6f * (spot.rx / 0.78f));
+        glow.setPivotX(spot.x * w);
+        glow.setPivotY(spot.y * h);
+        glow.setScaleY(spot.ry / spot.rx);
+        glow.invalidate();
+        for (int i = 0; i < extraDrawables.length; i++) {
+            GlowStyle.Spot extra = i == 0 ? GlowStyle.second(spot) : GlowStyle.random(false);
+            extraDrawables[i].setGradientCenter(extra.x, extra.y);
+            extraDrawables[i].setGradientRadius(w * 0.6f * (extra.rx / 0.78f));
+            extraGlows[i].invalidate();
+        }
+    }
+
+    /** The spot this style wants for the app that has just been selected. */
+    private GlowStyle.Spot spotFor(App a, View tile) {
+        boolean rtl = getResources().getBoolean(R.bool.rtl_app_grid);
+        switch (glowStyle) {
+            case GlowStyle.RANDOM:
+                return GlowStyle.random(false);
+            case GlowStyle.RANDOM_SHAPE:
+                return GlowStyle.random(true);
+            case GlowStyle.RANDOM_2:
+            case GlowStyle.RANDOM_3:
+                return GlowStyle.random(false);
+            case GlowStyle.PER_APP:
+                return GlowStyle.perApp(a == null ? null : a.pkg);
+            case GlowStyle.FOLLOW:
+                if (tile == null) return GlowStyle.classicNormal();
+                int[] at = new int[2];
+                tile.getLocationOnScreen(at);
+                float centre = (at[0] + tile.getWidth() / 2f) / getResources().getDisplayMetrics().widthPixels;
+                return GlowStyle.follow(Math.max(0.05f, Math.min(0.95f, centre)));
+            case GlowStyle.DRIFT:
+                return null;   // the ticker owns the position
+            default:
+                return GlowStyle.classic(rtl);
+        }
     }
 
     /** The banner names the selected app, so it shows only on Home, only when it fits, and only with a selection. */
@@ -1685,6 +1827,10 @@ public final class GtvActivity extends Activity {
         // use the full height, and a card left on screen there would sit over the grid's right-hand tiles.
         updateBanner();
         if (perfCard != null) perfCard.setVisibility(tab == TAB_HOME && perfFits ? View.VISIBLE : View.GONE);
+        if (glowStyle == GlowStyle.DRIFT) {
+            handler.removeCallbacks(drift);
+            if (tab == TAB_HOME && resumed) handler.post(drift);
+        }
     }
 
     /** Home's first app (Your apps, first place), or the + tile when the dock is empty. */
@@ -1779,6 +1925,12 @@ public final class GtvActivity extends Activity {
             name.setGravity(Gravity.CENTER);
             name.setPadding((int) (8 * dp), 0, (int) (8 * dp), 0);
             card.addView(name, new FrameLayout.LayoutParams(-1, -1));
+            // The underline focus style's bar: along the tile's bottom edge, hidden until that style selects it.
+            View bar = new View(GtvActivity.this);
+            bar.setTag(TAG_FOCUS_BAR);
+            bar.setVisibility(View.GONE);
+            FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(-1, (int) (4 * dp), Gravity.BOTTOM);
+            card.addView(bar, blp);
             Fonts.apply(card);
             return new RecyclerView.ViewHolder(card) { };
         }
@@ -1807,6 +1959,8 @@ public final class GtvActivity extends Activity {
             FrameLayout card = (FrameLayout) h.itemView;
             ImageView img = (ImageView) card.getChildAt(0);
             TextView name = (TextView) card.getChildAt(1);
+            View focusBar = card.findViewWithTag(TAG_FOCUS_BAR);
+            if (focusBar != null) focusBar.setBackgroundColor((a.color & 0x00FFFFFF) | 0xFF000000);
             card.setBackground(tileBackground(a.banner != null ? 0xFF1B2029 : darker(a.color)));
             if (a.banner != null) {
                 img.setImageDrawable(a.banner);
@@ -1819,16 +1973,19 @@ public final class GtvActivity extends Activity {
             boolean focused = card.isFocused(), carried = a == moving;
             card.animate().cancel();
             boolean carrying = moving != null;
-            float scale = focused ? (carrying ? 1.15f : 1.1f) : 1f;
+            float scale = focused ? (carrying ? 1.15f : focusScale()) : 1f;
             card.setScaleX(scale);
             card.setScaleY(scale);
-            card.setTranslationZ(focused ? (carrying ? 16 : 8) * dp : 0);
+            card.setTranslationY(focused && !carrying && focusStyle == FOCUS_LIFT ? -10 * dp : 0f);
+            card.setTranslationZ(focused ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0);
             card.setAlpha(focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f));
+            showFocusBar(card, focused && !carrying && focusStyle == FOCUS_UNDERLINE);
+            haloTile(card, focused && !carrying && focusStyle == FOCUS_HALO);
             card.setOnClickListener(v -> open(a));
             card.setOnLongClickListener(v -> { menu(a, v); return true; });
             card.setOnFocusChangeListener((v, has) -> {
                 focusTile(v, has);
-                if (has) showApp(a);
+                if (has) showApp(a, v);
             });
         }
 
@@ -1845,12 +2002,63 @@ public final class GtvActivity extends Activity {
      */
     private void focusTile(View v, boolean has) {
         boolean carrying = moving != null;
-        float scale = has ? (carrying ? 1.15f : 1.1f) : 1f;
-        v.animate().scaleX(scale).scaleY(scale)
-                .translationZ(has ? (carrying ? 16 : 8) * dp : 0)
-                .alpha(has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f))
-                .setDuration(140).start();
+        float scale = has ? (carrying ? 1.15f : focusScale()) : 1f;
+        float lift = has && !carrying && focusStyle == FOCUS_LIFT ? -10 * dp : 0f;
+        float z = has ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0;
+        float alpha = has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f);
+        if (animations) {
+            v.animate().scaleX(scale).scaleY(scale).translationY(lift).translationZ(z).alpha(alpha)
+                    .setDuration(140).start();
+        } else {
+            // Animations off: the same places, reached at once.
+            v.animate().cancel();
+            v.setScaleX(scale);
+            v.setScaleY(scale);
+            v.setTranslationY(lift);
+            v.setTranslationZ(z);
+            v.setAlpha(alpha);
+        }
+        showFocusBar(v, has && !carrying && focusStyle == FOCUS_UNDERLINE);
+        haloTile(v, has && !carrying && focusStyle == FOCUS_HALO);
         if (has && carrying) dimOthers(v);
+    }
+
+    /** Underline leaves the tile its own size; every other style zooms it, as Home always has. */
+    private float focusScale() {
+        return focusStyle == FOCUS_UNDERLINE ? 1f : focusStyle == FOCUS_LIFT ? 1.06f : 1.1f;
+    }
+
+    /** The bar under an underlined tile, in the app's own colour. */
+    private void showFocusBar(View v, boolean on) {
+        if (!(v instanceof ViewGroup)) return;
+        View bar = v.findViewWithTag(TAG_FOCUS_BAR);
+        if (bar == null) return;
+        bar.setVisibility(on ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * Glass halo: the tile's shadow is painted in its own colour, so the light around it looks like the app's.
+     * Tinted shadows arrived in Android 9, which is this TV; older sets keep a plain shadow.
+     */
+    private void haloTile(View v, boolean on) {
+        if (android.os.Build.VERSION.SDK_INT < 28) return;
+        int colour = on ? haloColour(v) : 0xFF000000;
+        v.setOutlineSpotShadowColor(colour);
+        v.setOutlineAmbientShadowColor(colour);
+    }
+
+    private int haloColour(View v) {
+        if (dockRow != null) {
+            int at = dockRow.getChildAdapterPosition(v);
+            if (at >= 0 && at < dock.size()) return dock.get(at).color;
+        }
+        if (homeGrid != null) {
+            int at = homeGrid.getChildAdapterPosition(v);
+            if (at >= 0 && at < homeItems.size() && homeItems.get(at) instanceof App) {
+                return ((App) homeItems.get(at)).color;
+            }
+        }
+        return 0xFFFFFFFF;
     }
 
     /** Fades every tile but this one, for the duration of a move. */
