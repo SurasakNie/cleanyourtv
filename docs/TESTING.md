@@ -81,16 +81,16 @@ Set **Apps per row = 6** before testing.
       exercised by the 2.29 test)*
 - [x] Picking one adds it to the end and leaves the selection on it *(but see the known intermittent defect: now
       and then the app that appears is not the one picked — cause not found)*
-- [ ] **Hold OK** → **Remove from Your apps** takes an app out — **it does, but the focus afterwards is wrong**: it
-      does not land on the row's last app and sometimes seems random (nothing sets it on removal; fixed in 2.30,
-      to be confirmed)
-- [ ] The **last** app cannot be removed (a message says so) — *no clear result; replaced in 2.30 by a rule: the
-      Remove entry is hidden once the row holds Apps per row apps*
+- [x] **Hold OK** → **Remove from Your apps** takes an app out — *it worked, but the focus afterwards was wrong: it
+      did not land on the row's last app and sometimes seemed random (nothing set it on removal). Fixed in 2.30 and
+      confirmed on the TV 27 Oct: ten removes, the focus on the last app every time*
+- [x] The **last** app cannot be removed (a message says so) — *no clear result at the time; replaced in 2.30 by a
+      rule — the Remove entry is hidden once the row holds Apps per row apps — which passed on the TV 27 Oct*
 - [x] **Up** from the row lands on the **Home tab**
 - [x] **Down** reaches the Favorite rows, or the Apps tab when there are none *(exercised by the 2.29 test)*
 - [x] Rows below dock **0** and **3**: nothing overlaps
-- [ ] Hold OK → **Move** still reorders within the row, and within the Favorite rows — *passed in Your apps (the
-      2.29 test); not reported for the Favorite rows*
+- [x] Hold OK → **Move** still reorders within the row, and within the Favorite rows — *Your apps: the 2.29 test;
+      the Favorite rows: 27 Oct*
 - [x] More than 12 apps in the row: the dots disappear
 
 ---
@@ -108,15 +108,18 @@ Set **Apps per row = 6** before testing.
 - **Glass bars: On / Off** for the frosted strip behind the tabs and the clock.
 - The height arithmetic counts **sections** now. With three sections on a short screen tiles would shrink past
   reading, so the **Inputs row stands down** below 56 dp — like the banner and the performance card, which
-  already step aside. On this TV (density 1.0) that never triggers.
+  already step aside. On this TV (density 2.0, inferred from the run — confirm with `wm density`) it **does** trigger, at Favorite rows 2 and 3.
 
-- [ ] **Inputs on Home** starts **Off**; switching it on adds the row
-- [ ] An input on that row opens full screen
-- [ ] With the row on: Rows below dock **0** and **3**, nothing overlaps
-- [ ] Each **Banner** style: Name + glow, Glass panel, Off
-- [ ] With Banner off, **Banner title size** is greyed out
-- [ ] **Glass bars** off: the strip behind the tabs and the clock goes, the pills stay
-- [ ] Down from Your apps reaches Favorites, then Inputs, then the Apps tab
+- [x] **Inputs on Home** starts **Off**; switching it on adds the row
+- [x] An input on that row opens full screen
+- [x] With the row on: Rows below dock **0** and **3**, nothing overlaps *(at 3 the row has stood down, so there is
+      nothing to overlap)*
+- [x] Each **Banner** style: Name + glow, Glass panel, Off
+- [x] With Banner off, **Banner title size** is greyed out
+- [x] **Glass bars** off: the strip behind the tabs and the clock goes, the pills stay
+- [ ] Down from Your apps reaches Favorites, then Inputs, then the Apps tab — *at Favorite rows 2 the Inputs row is not
+      drawn, so the walk goes Favorites → Apps tab. Designed (it stands down below 56 dp — this TV is density 2.0, so
+      that is 112 px, and the row has 84 px at 2 rows), but silent. Retired when 2.31 hides the row*
 
 ---
 
@@ -139,10 +142,12 @@ value nothing read. The banner style owns that switch now and the row is hidden.
 passthrough input on every set, and it has never been tried here. A clear message instead of a picture is an
 answer about the TV, not a bug.
 
-- [ ] Banner → **Live input**, then **Live input source** → HDMI 2 (the NVR)
-- [ ] The window shows the picture, **or** a clear message
-- [ ] Open an app, press HOME: Home returns and the window starts again
-- [ ] **The important one:** with the live banner running, open HDMI from the Inputs tab, or Live TV on the
+- [x] Banner → **Live input**, then **Live input source** → HDMI 2 (the NVR)
+- [ ] The window shows the picture, **or** a clear message — **FAILED 27 Oct: a plain black rectangle with no message.**
+      The code shows its status text in every failure, and hides it only when the system reports the video available,
+      so this reads as *available but black*. Evidence requested (log + screencap); cause not found
+- [x] Open an app, press HOME: Home returns and the window starts again
+- [x] **The important one:** with the live banner running, open HDMI from the Inputs tab, or Live TV on the
       remote. The picture must be the TV's own — **not a black screen.** Black means the launcher is holding an
       input it should have handed back: say so and stop
 
@@ -165,13 +170,14 @@ band instead of a spot.
 - Glow, Animations and Advanced effects are **visible in the panel again**. **Cinematic** and **App names** stay
   hidden: they described the Apple layout's shelf and its always-on tile names and mean nothing here.
 
-- [ ] **Glow** now has an effect. Worth trying: *Corner* (the old look), *Follow*, *Fixed per app*, *Slow drift*,
-      *Ribbon*
-- [ ] **Slow drift** moves while Home is on screen and stops when you open an app or another tab
-- [ ] **Animations** off: the focus zoom and the dots jump instead of sliding
-- [ ] **Advanced effects** on: moving between apps **fades** the glow's colour
-- [ ] Each **Focus style**: Zoom, Lift, Glass halo, Underline
-- [ ] Glow, Animations and Advanced effects are back in the panel; **Cinematic** and **App names** are still gone
+- [x] **Glow** now has an effect. Worth trying: *Corner* (the old look), *Follow*, *Fixed per app*, *Slow drift*,
+      *Ribbon*. **"Random position and shape" shows a dark bar at the top and a thicker dark area at the bottom, some of
+      the time — a bug (the glow view is squashed smaller than the screen); Classic removes it. Fixed in 2.31**
+- [x] **Slow drift** moves while Home is on screen and stops when you open an app or another tab
+- [x] **Animations** off: the focus zoom and the dots jump instead of sliding
+- [x] **Advanced effects** on: moving between apps **fades** the glow's colour
+- [x] Each **Focus style**: Zoom, Lift, Glass halo, Underline
+- [x] Glow, Animations and Advanced effects are back in the panel; **Cinematic** and **App names** are still gone
 
 ---
 
@@ -193,11 +199,11 @@ parsed by `Config` and still shipped as string resources, months after the layou
 **Verified before the build left here:** `aapt2 dump resources` finds **0** of the 17 keys and no `banner_tv`;
 219 tests pass; signer `a215696a…436e`; 3 permissions; **460,147 bytes** against the 921,600-byte gate.
 
-- [ ] Home looks and behaves exactly as 2.26 did — this build should be indistinguishable
-- [ ] Launcher settings opens and every row still works
+- [x] Home looks and behaves exactly as 2.26 did — this build should be indistinguishable
+- [x] Launcher settings opens and every row still works
 - [ ] **Follow theme** / a theme push still applies: a theme naming one of the 17 old keys must be **accepted and
-      the key ignored**, not rejected
-- [ ] Nothing from `com.gathin.tvhome` in logcat
+      the key ignored**, not rejected — *skipped 27 Oct: no theme file to try*
+- [x] Nothing from `com.gathin.tvhome` in logcat
 
 ---
 
@@ -220,10 +226,10 @@ default home this time, but a home app that keeps crashing can lose that and han
 - [x] Set **Focus style = Glass halo**. On the **Inputs tab**, press **Down** — the launcher must **not** blink and
       return to Home. Before 2.28 this crashed every time
 - [x] Same with the **gear** focused: Down onto the inputs row, no crash
-- [ ] Switch **Inputs on Home** on, still on Glass halo: move Down onto that row — no crash there either
+- [x] Switch **Inputs on Home** on, still on Glass halo: move Down onto that row — no crash there either
 - [x] The halo still shows the **app's own colour** on Your apps and the Favorite rows
 - [x] An input tile's halo is white rather than coloured — correct, an input has no app colour
-- [ ] The other three focus styles (Zoom, Lift, Underline) are unchanged
+- [x] The other three focus styles (Zoom, Lift, Underline) are unchanged
 
 ---
 
@@ -250,9 +256,9 @@ identical.
 - [x] **Up** from the row still lands on the Home tab
 - [x] Hold OK → **Move** still carries a tile left and right along the row, and still reorders
 - [x] The page-indicator dots still follow the selection (the 2.18 fix, unchanged)
-- [ ] **FAILS, found on 2.29:** holding Left or Right in the **Favorite rows** jumps to the neighbouring row instead
+- [x] **Failed on 2.29, fixed in 2.30 and confirmed on the TV 27 Oct:** holding Left or Right in the **Favorite rows** jumps to the neighbouring row instead
       of stopping at the end. Same cause as the Your apps fault — the grid steps to the next item in adapter order —
-      in a different container. Fixed in 2.30, to be confirmed
+      in a different container
 
 ---
 
@@ -276,23 +282,28 @@ it; every change is a separate commit, and each has its own lines below.
 
 **Set Favorite apps rows to 1 or more first** for lines 1 and 2 — with none, there is nothing to jump into.
 
-- [ ] **1.** Favorite rows: hold **Right** to the end of a row — the focus stops there; hold **Left** — it stops at the
+- [x] **1.** Favorite rows: hold **Right** to the end of a row — the focus stops there; hold **Left** — it stops at the
       start; neither jumps to the row above or below. **Down** and **Up** still move between rows
-- [ ] **1.** The last Favorite row has fewer apps than a full row: Right stops on its last app
-- [ ] **2.** Apps tab: hold Right to the end of a row and Left to the start — it stops instead of wrapping to the next row
-- [ ] **3.** Inputs tab, and the Inputs row on Home (switch **Inputs on Home** on): Left/Right stop at the first and last
-      input and do not jump anywhere
-- [ ] **4.** From the **+**, add an app: the focus lands on **the app you added**, at the end of the row. Do it **ten
+- [x] **1.** The last Favorite row has fewer apps than a full row: Right stops on its last app
+- [x] **2.** Apps tab: hold Right to the end of a row and Left to the start — it stops instead of wrapping to the next row
+- [x] **3.** Inputs tab, and the Inputs row on Home (switch **Inputs on Home** on): Left/Right stop at the first and last
+      input and do not jump anywhere. *Holding a key can skip the zoom on some icons: expected — key repeat is faster
+      than the 140 ms animation, so the tiles in between are focused too briefly to finish zooming. The dock does
+      the same*
+- [x] **4.** From the **+**, add an app: the focus lands on **the app you added**, at the end of the row. Do it **ten
       times** with different apps — this is the intermittent fault, so one try proves nothing
-- [ ] **4.** Remove an app: the focus lands on the **last app in the row**, every time (ten tries again)
-- [ ] **5.** With exactly Apps per row apps in the row, hold OK on one: the menu has **no Remove entry**. Add one more
+- [x] **4.** Remove an app: the focus lands on the **last app in the row**, every time (ten tries again)
+- [x] **5.** With exactly Apps per row apps in the row, hold OK on one: the menu has **no Remove entry**. Add one more
       and Remove appears. *Expect this on a fresh install: the seeded row is small, so Remove is absent until the
       row has grown past Apps per row*
-- [ ] **6.** The setting reads **Favorite apps rows**
-- [ ] **7.** Set it to **3**: the Performance card row is grey, reads **Off**, and a line explains why; the card is not
+- [x] **6.** The setting reads **Favorite apps rows** *(not reported on its own; the whole run used it without comment)*
+- [ ] **7.** **FAILED 27 Oct** — the row was **not greyed and still toggled, read On, and showed no explanation**, while the
+      card **was** gone from Home. Lowering to 2 brought the card back with the setting still On (that half passed). The
+      panel's logic reads correctly and the cause is not found; evidence requested (`dumpsys` of the panel at rows = 3,
+      plus a screenshot). Set it to **3**: the Performance card row is grey, reads **Off**, and a line explains why; the card is not
       on Home. Switch the card **On** first (rows 0–2), then set rows to 3, then back to 2 — the card returns, and
       the setting still said On
-- [ ] The other focus paths are unchanged: Move still carries a tile; Down from Your apps still reaches the Favorite rows
+- [x] The other focus paths are unchanged: Move still carries a tile; Down from Your apps still reaches the Favorite rows
 
 **If the intermittent "wrong app appears" fault survives:** it was never reproduced and 2.30's fix is built from
 reading the code, not from seeing it. Note whether the **toast names the app you pressed**, whether that app is
