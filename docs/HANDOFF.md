@@ -92,6 +92,8 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ## 2. Open work
 
 ### Waiting on a test
+The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work through it oldest-first, since each build leans on the one before.
+
 **2.23 to 2.26 are all untested** — the owner asked for the builds to be made and checked later. Test 2.23's dock first, since the others build on it.
 
 **2.25 carries the one item that may simply not work on this TV:** a non-system app tuning a passthrough input is allowed on some sets and refused on others, and nothing in this launcher had ever tried it. If the Sony refuses, the window says "Preview unavailable" and Home is otherwise untouched — that is an answer about the TV, not a bug to chase. What *would* be a bug: the TV's own Inputs or Live TV coming up dead after the banner has held an input, so test opening HDMI from the Inputs tab while the live banner is running.
