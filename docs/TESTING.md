@@ -14,7 +14,7 @@ afterwards.
 ```
 .\adb.exe connect 192.168.1.3:5555
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.30.apk
+.\adb.exe install -r tvhome-2.31.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -308,6 +308,37 @@ it; every change is a separate commit, and each has its own lines below.
 **If the intermittent "wrong app appears" fault survives:** it was never reproduced and 2.30's fix is built from
 reading the code, not from seeing it. Note whether the **toast names the app you pressed**, whether that app is
 in the row, and **which app and which place in the list** it happened with.
+
+---
+
+## 2.31 — the glow bars, the Inputs row hidden, and a clearer name
+
+**What changed — three things, one commit each.**
+
+1. **The dark bars are gone.** With Glow style **Random position and shape**, a dark band about 83 px tall showed
+   across the top and a thick dark area at the bottom, with hard edges, some of the time. It was my 2.26 code:
+   `placeGlow` squashed the full-screen glow view to make an ellipse, and with a ratio below 1 the view became
+   smaller than the screen. The view now only ever grows — the same ellipse, a rectangle that always covers the
+   screen. A screenshot of the framebuffer showed the bars, which is how it was known to be the launcher and not the
+   TV's panel or the Glass bars.
+2. **The Inputs row on Home is out of the APK** (the owner's call). It stood down silently at Favorite rows 2–3 on this
+   TV, and what is wanted instead is a live window per input. Kept in the repository behind one flag; the setting
+   and its hint are hidden; a value saved earlier is ignored, not erased. The **Inputs tab is unchanged.**
+3. **"Animations" is now "Focus & indicator animations"** (English and Hebrew; other languages keep their word). The
+   stored value is not renamed, so the choice you made is kept.
+
+- [ ] **1.** Set Glow style to **Random position and shape** and move the focus around Home **thirty times or more**
+      (rows, tabs, back to the dock): **no dark bar at the top and no heavy dark area at the bottom, ever.** The glow
+      still changes shape and place from move to move
+- [ ] **1.** Take a `screencap` while the style is on, at a moment it used to show: the framebuffer has no band
+- [ ] **1.** The other styles look as before: Classic, Follow selected app, Fixed per app, Slow drift, Ribbon,
+      Random position, Two glows
+- [ ] **2.** Launcher settings › Layout has **no "Inputs on Home" row and no hint for it**
+- [ ] **2.** Home has no Inputs row at **Favorite apps rows 0, 1, 2 and 3**; Down from the last row goes to the Apps tab
+- [ ] **2.** The **Inputs tab** still lists HDMI 1–4, opens an input full screen, and Left/Right stop at its ends
+- [ ] **3.** The row reads **Focus & indicator animations: On/Off**; switching it still turns the focus zoom and the dots
+      from sliding to jumping, and **Advanced effects** still greys out with it
+- [ ] The Performance-card and Live-input faults are **not** touched by this build; they stay open
 
 ---
 
