@@ -28,6 +28,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.28** | **Glass halo crashed the launcher on the Inputs tab.** `haloColour` asked `dockRow` and `homeGrid` for a view's adapter position without checking the view was theirs; `RecyclerView.getChildAdapterPosition` casts the view's layout parameters to its own without checking either, so an input tile — a **LinearLayout** child, on Home and in the Inputs tab alike — threw `ClassCastException` and **killed the process**. Pressing Down from the Inputs pill or the gear was enough, because `focusContent()` puts the focus on the first input tile itself. It now reads `v.getParent()` first and asks only the row that owns the tile, which is also what the old code should have done — it was asking two different RecyclerViews about one view. An input has no app colour, so it gets plain white. New `tests/test_focus_styles.py` holds the rule: every `getChildAdapterPosition` call must establish the view's parent first (verified to fail against the 2.26 code) |
 | **2.27** | **The removed layout's config keys leave the APK.** 17 keys only the Apple TV layout ever read — `app_banners`, `fill_dock`, `banner_*`, `shelf_*`, `tile_names` and the rest — are no longer parsed by `Config`, and in `res/values/config.xml` they and their descriptions are now **one XML comment**, which aapt does not compile, so nothing of them reaches the package. `res/raw/keep.xml` is deleted, which lets resource shrinking drop `banner_tv` as well (the drawable file stays). The fields stay on `Config` as constants with their old defaults, so the Apple sources in the tree still compile — the removal is from the APK, as the owner's rule requires. `themes/README.md` records which keys a theme may still name and that they are ignored. Nothing visible changes. **Verified:** `aapt2 dump resources` finds **0** of the 17 keys and no `banner_tv`; APK **460,147 bytes** |
 | **2.26** | **Effects, part 1.** `GtvActivity` reads **`GlowStyle`** at last — Corner, Random, Fixed per app, Slow drift (a ticker that runs only while Home is in front), Follow (above the focused tile), Random shape, Two glows and Random ×2/×3 (extra glow views in a hue-shifted colour) — plus the new **Ribbon**, a diagonal band instead of a spot. **Animations** and **Advanced effects** are honoured too: off means the focus zoom and the indicator reach their places at once, and advanced fades the glow's colour between apps instead of cutting. New **Focus style**: Zoom (today's), Lift, Glass halo (the tile's shadow in the app's colour, Android 9 and up) and Underline (a bar in the app's colour, no zoom). The **white ring is not offered** — the owner turned it down twice. Glow, Animations and Advanced effects are **visible in the panel again**; Cinematic and App names stay hidden, since neither means anything in this layout |
 | **2.25** | **The banner can show a live input** (§6.7's last phase-2 pick). **Banner → Live input** puts a 260 dp 16:9 window of one HDMI port at the top of the banner, driven by the existing `InputPreview` — muted, offline, **no new permission**. **Live input source** picks the port. The window runs only while Home is in front with the banner on screen: `updateBanner()` is the single gate, and `onPause`, `open()` and `openInput()` each hand the input back before anything else asks the TV for it. **This is the first time anything in the Google TV layout has drawn `InputPreview`'s window** — the instance belonged to the Apple layout, so the old **Input preview** row had been storing a value nothing read; the banner style owns that switch now and the row is hidden |
@@ -112,6 +113,14 @@ For 2.24: switch **Inputs on Home** on and check nothing overlaps at Rows below 
 
 ### Known bugs
 
+**Fixed in 2.28: the Inputs tab killed the launcher.** With **Focus style = Glass halo**, pressing Down from the
+Inputs pill or the gear crashed `GtvActivity` with `ClassCastException` in `haloColour`, every time — the screen
+went black and Home came back because the process had died and been restarted. The log also showed Android
+reacting to its home app dying: `Clearing package preferred activities from com.gathin.tvhome` and
+`Adding package as fallback role holder … role: android.app.role.HOME`. It kept the default-home assignment this
+time, but **a crashing home app can lose it**, which is why this counted as serious rather than cosmetic. The
+recovery screen never appeared because that only catches a failure to *build* Home, not a crash after it is up.
+
 **Open: Your apps flashes black at the ends of the row (2.27, not reproduced).** Holding Left or Right to run to
 the end of Your apps makes the screen go black for an instant — the owner's word was "บางครั้ง", so it is
 intermittent. It cannot predate 2.23: a row you can run to the end of only exists since the dock became
@@ -133,6 +142,10 @@ needed before that measurement is trusted again.
 `dumpsys meminfo` straight after the test read `status normal`, 486 MB free, 117 MB cached — unusually healthy
 for this TV, which §3 records reaching `status critical` with 0 KB cached after heavy streaming use. If that is
 it, the flash returns after days of use, not on a fresh install.
+
+*Not the same fault as 2.28's crash*, on the evidence there is: a full buffer captured over the 30 sweeps holds
+no `FATAL` and no `ClassCast` line. Weak evidence, since no flash was seen during that capture either — so the
+first thing to check when it next happens is still whether a crash is in the log.
 
 *To catch it next time*, run these the moment it is seen, while the buffer is still warm:
 ```
