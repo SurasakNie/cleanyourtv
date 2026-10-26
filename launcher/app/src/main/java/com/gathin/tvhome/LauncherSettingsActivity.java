@@ -29,7 +29,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView previewChoice;
     private TextView glowChoice;
     private TextView fontChoice;
-    private TextView ambientChoice, perfChoice;
+    private TextView ambientChoice, perfChoice, hintPerfRows;
     private TextView bannerSizeChoice, bannerStyleChoice, glassBarsChoice, inputsHomeChoice, liveSourceChoice;
     private TextView focusStyleChoice;
     /** The list and the choice page that takes its place; the row to focus again when the page closes. */
@@ -168,6 +168,7 @@ public final class LauncherSettingsActivity extends Activity {
             refresh();
         });
         perfChoice = findViewById(R.id.perfChoice);
+        hintPerfRows = findViewById(R.id.hintPerfRows);
         perfChoice.setOnClickListener(v -> {
             boolean on = !choices.getBoolean(Config.PERF_CARD_KEY, false);
             choices.edit().putBoolean(Config.PERF_CARD_KEY, on).apply();
@@ -503,8 +504,14 @@ public final class LauncherSettingsActivity extends Activity {
             findViewById(id).setVisibility(unread);
         }
         focusStyleChoice.setText(getString(R.string.focus_style_state, getString(focusStyleLabel())));
-        perfChoice.setText(getString(R.string.perf_state,
-                getString(choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
+        // At the most Favorite rows the card is forced off: the row greys out and reads Off, the stored choice is
+        // not touched, and a line says why. Lower the rows and it is back as the owner left it.
+        boolean perfBlocked = rowsBelowDock >= Config.PERF_CARD_OFF_AT_ROWS;
+        perfChoice.setEnabled(!perfBlocked);
+        perfChoice.setAlpha(perfBlocked ? 0.5f : 1f);
+        hintPerfRows.setVisibility(perfBlocked ? android.view.View.VISIBLE : android.view.View.GONE);
+        perfChoice.setText(getString(R.string.perf_state, getString(
+                !perfBlocked && choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));

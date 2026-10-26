@@ -41,6 +41,11 @@ final class Config {
     static final String WALLPAPER_CHOICE_KEY = "wallpaper_choice";
     /** Launcher settings: show the performance card (processor, memory, storage, temperature, network). */
     static final String PERF_CARD_KEY = "perf_card";
+    /**
+     * At this many Favorite rows (the most there can be) there is no room under the clock, so the performance
+     * card is forced off. The stored choice is left alone and the card comes back when the rows are lowered.
+     */
+    static final int PERF_CARD_OFF_AT_ROWS = 3;
     private static final String THEME_REVISION_NAME = "theme_revision";
     private static final String THEME_SIGNATURE_KEY = "theme_signature";
 

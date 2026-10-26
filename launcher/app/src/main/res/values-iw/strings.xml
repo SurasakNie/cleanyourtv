@@ -172,6 +172,7 @@
     <string name="unknown">לא ידוע</string>
     <string name="perf_state">כרטיס ביצועים: %1$s</string>
     <string name="hint_perf">כרטיס קטן מתחת לשעון שמראה מה הטלוויזיה עושה: מעבד, זיכרון, אחסון, טמפרטורה, קצב פריימים, רשת וזמן פעילות. נתונים שהטלוויזיה אינה חושפת פשוט לא יוצגו.</string>
+    <string name="hint_perf_rows">כבוי כאשר שורות האפליקציות המועדפות הן 3: אין מקום מתחת לשעון. הבחירה שלך נשמרת, והכרטיס חוזר כשמורידים את מספר השורות.</string>
     <string name="perf_title">ביצועים</string>
     <string name="perf_cpu">מעבד</string>
     <string name="perf_load">עומס (דקה)</string>

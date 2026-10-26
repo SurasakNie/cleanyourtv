@@ -1207,6 +1207,8 @@ public final class GtvActivity extends Activity {
      * while it is off nothing is read and no thread runs.
      */
     private void buildPerfCard(Config cfg) {
+        // Forced off at the most Favorite rows, whatever was chosen: the rows reach up to the card there.
+        if (rowsBelow >= Config.PERF_CARD_OFF_AT_ROWS) return;
         if (!getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getBoolean(Config.PERF_CARD_KEY, false)) return;
         stats = new Stats(this);
         perfCard = new LinearLayout(this);

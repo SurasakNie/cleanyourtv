@@ -172,6 +172,7 @@
     <string name="unknown">Unknown</string>
     <string name="perf_state">Performance card: %1$s</string>
     <string name="hint_perf">A small card under the clock showing what the TV is doing: processor, memory, storage, temperature, frame rate, network and uptime. Figures this TV keeps private are left out.</string>
+    <string name="hint_perf_rows">Off while Favorite apps rows is 3: there is no room under the clock. Your choice is kept, and the card comes back when you lower the rows.</string>
     <string name="perf_title">Performance</string>
     <string name="perf_cpu">Processor</string>
     <string name="perf_load">Load (1 min)</string>
