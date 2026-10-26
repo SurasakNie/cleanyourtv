@@ -54,6 +54,30 @@ class DockStoreTest(unittest.TestCase):
         self.assertIn("dock.size() <= 1", home)
         self.assertIn("gtv_dock_last_app", home)
 
+    def test_remove_is_only_offered_while_the_row_holds_more_than_apps_per_row(self):
+        home = (SRC / "GtvActivity.java").read_text(encoding="utf-8")
+        menu = home[home.index("private void menu(App a, View card)"):home.index("// ---- moving a Home tile")]
+        self.assertRegex(
+            menu,
+            r"if \(dock\.size\(\) > cols\) \{\s+titles\.add\(getString\(R\.string\.gtv_remove_from_dock\)\)",
+            "the Remove entry must sit inside the size check",
+        )
+        # The check hides the entry; setInDock still refuses the last app on its own.
+        self.assertIn("dock.size() <= 1", home)
+
+    def test_a_dock_edit_takes_the_focus_after_a_layout_pass_on_add_and_on_remove(self):
+        home = (SRC / "GtvActivity.java").read_text(encoding="utf-8")
+        edit = home[home.index("private void setInDock"):home.index("private void showDockChooser")]
+        self.assertIn("focusLastDockApp();", edit)
+        self.assertNotIn("if (inDock) dockRow.post", edit, "removing must take the focus too, not only adding")
+        start = home.index("private void focusLastDockApp()")
+        helper = home[start:home.index("\n    }\n", start)]
+        for call in ("addOnGlobalLayoutListener", "findViewHolderForAdapterPosition", "scrollToPosition",
+                     "++pass >= 3", "removeOnGlobalLayoutListener"):
+            self.assertIn(call, helper)
+        # A runnable posted straight after notifyDataSetChanged() can run before the layout pass: that was the race.
+        self.assertNotIn("dockRow.post(", helper)
+
     def test_row_strings_exist_in_english_and_hebrew_with_the_same_arguments(self):
         default, hebrew = strings("values"), strings("values-iw")
         for name in ("gtv_add_to_dock", "gtv_remove_from_dock", "gtv_added_to_dock", "gtv_removed_from_dock",

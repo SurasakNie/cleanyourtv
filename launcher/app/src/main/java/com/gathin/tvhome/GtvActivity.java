@@ -34,6 +34,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.ViewParent;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -547,7 +548,7 @@ public final class GtvActivity extends Activity {
         homeGrid.getAdapter().notifyDataSetChanged();
         Toast.makeText(this, getString(inDock ? R.string.gtv_added_to_dock : R.string.gtv_removed_from_dock,
                 a.label), Toast.LENGTH_SHORT).show();
-        if (inDock) dockRow.post(() -> focusDock(dock.size() - 1));
+        focusLastDockApp();
     }
 
     /** The + tile: every app that is not in Your apps yet, in the Apps tab's order. */
@@ -573,20 +574,41 @@ public final class GtvActivity extends Activity {
         return homeInputs.getChildAt(0).requestFocus();
     }
 
-    /** Focuses a place in Your apps, which also scrolls the row to put it in the middle. */
-    private void focusDock(int index) {
-        if (dockRow == null || index < 0 || index >= dockItems.size()) return;
-        RecyclerView.ViewHolder vh = dockRow.findViewHolderForAdapterPosition(index);
-        if (vh != null) {
-            vh.itemView.requestFocus();
-            return;
-        }
-        // Not laid out yet: scroll to it, then take the focus once the row has caught up.
-        dockRow.scrollToPosition(index);
-        dockRow.post(() -> {
-            RecyclerView.ViewHolder then = dockRow.findViewHolderForAdapterPosition(index);
-            if (then != null) then.itemView.requestFocus();
+    /**
+     * Focuses the last app in Your apps - which also scrolls the row to put it in the middle - once the row has
+     * been laid out again. A dock edit rebuilds the tile that held the focus, and a runnable posted straight
+     * after notifyDataSetChanged() can run before the next layout pass, when the holder is not there yet; the
+     * choice then went to the platform, so the focus landed somewhere that looked random. This waits for a layout
+     * pass instead, scrolls to the tile if it is still missing, and tries three passes at most.
+     */
+    private void focusLastDockApp() {
+        if (dockRow == null || dock.isEmpty()) return;
+        dockRow.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            private int pass;
+
+            @Override
+            public void onGlobalLayout() {
+                int at = dock.size() - 1;
+                RecyclerView.ViewHolder vh = at >= 0 ? dockRow.findViewHolderForAdapterPosition(at) : null;
+                boolean done = vh != null || ++pass >= 3;
+                if (vh != null) {
+                    View tile = vh.itemView;
+                    tile.requestFocus();
+                    // The menu that started this edit is still closing; if the platform moves the focus once
+                    // more as the window comes back, take it again on the next frame.
+                    dockRow.postOnAnimation(() -> {
+                        if (getCurrentFocus() != tile && tile.isAttachedToWindow()) tile.requestFocus();
+                    });
+                } else if (!done) {
+                    dockRow.scrollToPosition(at);
+                }
+                if (done) {
+                    ViewTreeObserver tree = dockRow.getViewTreeObserver();
+                    if (tree.isAlive()) tree.removeOnGlobalLayoutListener(this);
+                }
+            }
         });
+        dockRow.requestLayout();   // there has to be a layout pass to wait for
     }
 
     private static String key(App a) {
@@ -649,8 +671,12 @@ public final class GtvActivity extends Activity {
             actions.add(() -> startMove(a));
         }
         if (inDock) {
-            titles.add(getString(R.string.gtv_remove_from_dock));
-            actions.add(() -> setInDock(a, false));
+            // The row never shrinks below Apps per row, so Remove is not offered at that size. setInDock still
+            // refuses to take the last app, as the final line of defence.
+            if (dock.size() > cols) {
+                titles.add(getString(R.string.gtv_remove_from_dock));
+                actions.add(() -> setInDock(a, false));
+            }
         } else {
             titles.add(getString(R.string.gtv_add_to_dock));
             actions.add(() -> setInDock(a, true));
