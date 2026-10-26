@@ -88,7 +88,7 @@
         <item quantity="other">%1$d אפליקציות</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
-    <string name="rows_below_dock_label">שורות מתחת לעגינה</string>
+    <string name="rows_below_dock_label">שורות אפליקציות מועדפות</string>
     <string name="wallpaper_label">טפט</string>
     <string name="wallpaper_state">טפט: %1$s</string>
     <string name="wallpaper_none">ללא</string>
