@@ -14,7 +14,7 @@ afterwards.
 ```
 .\adb.exe connect 192.168.1.3:5555
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.29.apk
+.\adb.exe install -r tvhome-2.30.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -253,6 +253,50 @@ identical.
 - [ ] **FAILS, found on 2.29:** holding Left or Right in the **Favorite rows** jumps to the neighbouring row instead
       of stopping at the end. Same cause as the Your apps fault — the grid steps to the next item in adapter order —
       in a different container. Fixed in 2.30, to be confirmed
+
+---
+
+## 2.30 — focus at the ends of every row, the dock after an edit, and two settings
+
+**What changed — seven things, one build, so a failure should name its line.** The owner chose one build for all of
+it; every change is a separate commit, and each has its own lines below.
+
+1. **Favorite rows: Left/Right stop at the ends.** Found on 2.29, which fixed Your apps: the same fault one
+   container down. The grid stepped to the next item in adapter order, which is the neighbouring row.
+2. **Apps tab: Left/Right stop at the ends.** This is a **change in behaviour** — the Apps grid used to wrap from the
+   end of one row to the start of the next. The owner chose stopping.
+3. **Inputs rows (on Home and in the Inputs tab): the same.**
+4. **After adding or removing an app in Your apps the focus lands on the row's last app, every time.** It used to
+   be set only when adding — and by a runnable posted before the layout pass, so sometimes the platform chose
+   instead. Removing set nothing at all. Now it waits for a layout pass.
+5. **Remove from Your apps is hidden while the row holds Apps per row apps or fewer.** The minimum is Apps per row.
+6. **"Rows below dock" is now "Favorite apps rows"** (English and Hebrew; the stored value is not renamed).
+7. **At Favorite apps rows = 3 the Performance card is forced off** — its settings row greys out and reads Off, with
+   a line saying why. The choice you made is kept and comes back when you lower the rows.
+
+**Set Favorite apps rows to 1 or more first** for lines 1 and 2 — with none, there is nothing to jump into.
+
+- [ ] **1.** Favorite rows: hold **Right** to the end of a row — the focus stops there; hold **Left** — it stops at the
+      start; neither jumps to the row above or below. **Down** and **Up** still move between rows
+- [ ] **1.** The last Favorite row has fewer apps than a full row: Right stops on its last app
+- [ ] **2.** Apps tab: hold Right to the end of a row and Left to the start — it stops instead of wrapping to the next row
+- [ ] **3.** Inputs tab, and the Inputs row on Home (switch **Inputs on Home** on): Left/Right stop at the first and last
+      input and do not jump anywhere
+- [ ] **4.** From the **+**, add an app: the focus lands on **the app you added**, at the end of the row. Do it **ten
+      times** with different apps — this is the intermittent fault, so one try proves nothing
+- [ ] **4.** Remove an app: the focus lands on the **last app in the row**, every time (ten tries again)
+- [ ] **5.** With exactly Apps per row apps in the row, hold OK on one: the menu has **no Remove entry**. Add one more
+      and Remove appears. *Expect this on a fresh install: the seeded row is small, so Remove is absent until the
+      row has grown past Apps per row*
+- [ ] **6.** The setting reads **Favorite apps rows**
+- [ ] **7.** Set it to **3**: the Performance card row is grey, reads **Off**, and a line explains why; the card is not
+      on Home. Switch the card **On** first (rows 0–2), then set rows to 3, then back to 2 — the card returns, and
+      the setting still said On
+- [ ] The other focus paths are unchanged: Move still carries a tile; Down from Your apps still reaches the Favorite rows
+
+**If the intermittent "wrong app appears" fault survives:** it was never reproduced and 2.30's fix is built from
+reading the code, not from seeing it. Note whether the **toast names the app you pressed**, whether that app is
+in the row, and **which app and which place in the list** it happened with.
 
 ---
 
