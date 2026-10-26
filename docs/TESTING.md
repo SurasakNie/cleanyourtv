@@ -11,7 +11,7 @@ afterwards.
 ```
 .\adb.exe connect 192.168.1.3:5555
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.27.apk
+.\adb.exe install -r tvhome-2.28.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -189,6 +189,32 @@ parsed by `Config` and still shipped as string resources, months after the layou
 - [ ] **Follow theme** / a theme push still applies: a theme naming one of the 17 old keys must be **accepted and
       the key ignored**, not rejected
 - [ ] Nothing from `com.gathin.tvhome` in logcat
+
+---
+
+## 2.28 — the Inputs tab no longer kills the launcher
+
+**What changed.** A real crash, found on the TV and reproduced from the log. With **Focus style = Glass halo**,
+pressing **Down** on the Inputs tab threw `ClassCastException` and the launcher's process **died** — which is why
+the screen went black and Home came back: Android restarted it.
+
+`haloColour` asked `dockRow` and then `homeGrid` for a view's adapter position without checking the view belonged
+to either. `RecyclerView.getChildAdapterPosition` casts the view's layout parameters to RecyclerView's own without
+checking them, so an **input tile** — which lives in a `LinearLayout`, on Home and in the Inputs tab alike — threw.
+Down from the Inputs pill or the gear was enough on its own, because `focusContent()` hands the focus to the first
+input tile. It now reads the view's parent and asks only the row that owns it. Inputs have no app colour, so their
+halo is plain white.
+
+**Worth knowing:** the crash made Android clear the launcher's preferred-activity registration. It stayed the
+default home this time, but a home app that keeps crashing can lose that and hand the TV back to Sony's launcher.
+
+- [ ] Set **Focus style = Glass halo**. On the **Inputs tab**, press **Down** — the launcher must **not** blink and
+      return to Home. Before 2.28 this crashed every time
+- [ ] Same with the **gear** focused: Down onto the inputs row, no crash
+- [ ] Switch **Inputs on Home** on, still on Glass halo: move Down onto that row — no crash there either
+- [ ] The halo still shows the **app's own colour** on Your apps and the Favorite rows
+- [ ] An input tile's halo is white rather than coloured — correct, an input has no app colour
+- [ ] The other three focus styles (Zoom, Lift, Underline) are unchanged
 
 ---
 

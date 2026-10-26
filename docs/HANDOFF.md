@@ -11,10 +11,10 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Latest build | **2.27** (`versionCode` 227), built and verified here; the APK is with the owner |
-| Last build installed on the TV | **2.21.** 2.22 to 2.27 were built and sent but have not been installed or tested — see [`docs/TESTING.md`](TESTING.md). **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
-| Branch | `claude/zen-euler-0mir9r`. Everything through 2.27 is merged; the branch is reused for the next round of builds |
-| Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. **PR #6: 2.22–2.27** |
+| Latest build | **2.28** (`versionCode` 228), built and verified here, and installed on the TV |
+| Last build installed on the TV | **2.28**, installed 26 Oct. **Confirmed on the TV:** with Focus style = Glass halo, Down on the Inputs tab and Down from the gear onto the inputs row no longer crash — the case that failed every time before; the halo is the app's own colour on Your apps and the Favorite rows and white on an input tile. **Not yet confirmed:** Inputs on Home with Glass halo, the second place the same fault could bite, so 2.28 is not fully tested. Before that, **2.27** was installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat, and **Home draws** — the owner operated the dock on it, so `GtvActivity` built, the row has tiles and the D-pad works; 2.19's recovery screen was never seen. **2.23 to 2.27's features are still untested** — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
+| Branch | `claude/zen-euler-0mir9r`. Merged through 2.27 (PR #6); **2.28 and the documentation after it are unmerged** and want a PR #7 |
+| Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. **PR #6 (2ea447f): 2.22–2.27** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
 | Screensaver | the TV's own (Google Backdrop). The launcher never changed it; its Clock screensaver stays off. |
@@ -28,6 +28,7 @@ Newest first; PR #2 merged at 2.04.
 
 | | |
 |---|---|
+| **2.28** | **Glass halo crashed the launcher on the Inputs tab.** `haloColour` asked `dockRow` and `homeGrid` for a view's adapter position without checking the view was theirs; `RecyclerView.getChildAdapterPosition` casts the view's layout parameters to its own without checking either, so an input tile — a **LinearLayout** child, on Home and in the Inputs tab alike — threw `ClassCastException` and **killed the process**. Pressing Down from the Inputs pill or the gear was enough, because `focusContent()` puts the focus on the first input tile itself. It now reads `v.getParent()` first and asks only the row that owns the tile, which is also what the old code should have done — it was asking two different RecyclerViews about one view. An input has no app colour, so it gets plain white. New `tests/test_focus_styles.py` holds the rule: every `getChildAdapterPosition` call must establish the view's parent first (verified to fail against the 2.26 code) |
 | **2.27** | **The removed layout's config keys leave the APK.** 17 keys only the Apple TV layout ever read — `app_banners`, `fill_dock`, `banner_*`, `shelf_*`, `tile_names` and the rest — are no longer parsed by `Config`, and in `res/values/config.xml` they and their descriptions are now **one XML comment**, which aapt does not compile, so nothing of them reaches the package. `res/raw/keep.xml` is deleted, which lets resource shrinking drop `banner_tv` as well (the drawable file stays). The fields stay on `Config` as constants with their old defaults, so the Apple sources in the tree still compile — the removal is from the APK, as the owner's rule requires. `themes/README.md` records which keys a theme may still name and that they are ignored. Nothing visible changes. **Verified:** `aapt2 dump resources` finds **0** of the 17 keys and no `banner_tv`; APK **460,147 bytes** |
 | **2.26** | **Effects, part 1.** `GtvActivity` reads **`GlowStyle`** at last — Corner, Random, Fixed per app, Slow drift (a ticker that runs only while Home is in front), Follow (above the focused tile), Random shape, Two glows and Random ×2/×3 (extra glow views in a hue-shifted colour) — plus the new **Ribbon**, a diagonal band instead of a spot. **Animations** and **Advanced effects** are honoured too: off means the focus zoom and the indicator reach their places at once, and advanced fades the glow's colour between apps instead of cutting. New **Focus style**: Zoom (today's), Lift, Glass halo (the tile's shadow in the app's colour, Android 9 and up) and Underline (a bar in the app's colour, no zoom). The **white ring is not offered** — the owner turned it down twice. Glow, Animations and Advanced effects are **visible in the panel again**; Cinematic and App names stay hidden, since neither means anything in this layout |
 | **2.25** | **The banner can show a live input** (§6.7's last phase-2 pick). **Banner → Live input** puts a 260 dp 16:9 window of one HDMI port at the top of the banner, driven by the existing `InputPreview` — muted, offline, **no new permission**. **Live input source** picks the port. The window runs only while Home is in front with the banner on screen: `updateBanner()` is the single gate, and `onPause`, `open()` and `openInput()` each hand the input back before anything else asks the TV for it. **This is the first time anything in the Google TV layout has drawn `InputPreview`'s window** — the instance belonged to the Apple layout, so the old **Input preview** row had been storing a value nothing read; the banner style owns that switch now and the row is hidden |
@@ -111,11 +112,61 @@ For 2.24: switch **Inputs on Home** on and check nothing overlaps at Rows below 
 **Before installing 2.22 on any other set:** check `settings get secure screensaver_components`. If it names `com.gathin.tvhome/.ClockDream`, point the TV at its own screensaver first, or it falls back to the system default with no warning.
 
 ### Known bugs
-None open in the launcher. Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s `onUserInteraction` timer; `GtvActivity` arms it now).
+
+**Fixed in 2.28, and confirmed on the TV: the Inputs tab killed the launcher.** With **Focus style = Glass halo**, pressing Down from the
+Inputs pill or the gear crashed `GtvActivity` with `ClassCastException` in `haloColour`, every time — the screen
+went black and Home came back because the process had died and been restarted. The log also showed Android
+reacting to its home app dying: `Clearing package preferred activities from com.gathin.tvhome` and
+`Adding package as fallback role holder … role: android.app.role.HOME`. It kept the default-home assignment this
+time, but **a crashing home app can lose it**, which is why this counted as serious rather than cosmetic. The
+recovery screen never appeared because that only catches a failure to *build* Home, not a crash after it is up.
+
+*On reading the evidence, because this will come up again:* logcat keeps its buffer across an install, so a
+`FATAL`/`ClassCast` line seen after updating may be the **old** crash still sitting there. After 2.28 went on,
+three such lines were still visible and all three predated it — PID 28193 at 22:01:56.603 is the identical line
+from the first report, and 28435 and 28743 at 22:03 are the restarts crashing again during the attempt to
+reproduce. Run `adb logcat -c` before the check, or the result means nothing.
+
+**Open: Your apps flashes black at the ends of the row (2.27, not reproduced).** Holding Left or Right to run to
+the end of Your apps makes the screen go black for an instant — the owner's word was "บางครั้ง", so it is
+intermittent. It cannot predate 2.23: a row you can run to the end of only exists since the dock became
+scrollable, and the set ran 2.22 before this.
+
+*Tried on 26 Oct, and it did not reproduce:* 15 hold-sweeps left-and-right at **Glow style = Classic**, then 15
+more at **Random position**. No black screen either time, and `Choreographer … Skipped` appeared **zero** times
+in the whole buffer across both rounds.
+
+*What that rules out, and what it does not:* both rounds ran with **Animations on**, so only the glow was varied.
+The leading hypothesis is therefore **untested** — `CentreManager.onRequestChildFocus`
+(`GtvActivity.java:1574-1578`) asks for a `smoothScrollBy` the row cannot perform: at either end the focused tile
+can never reach the centre, so `to` is never 0 and a scroll is requested on *every* focus event while key repeat
+fires them continuously. Testing it means turning **Animations off** and sweeping again. Treat the zero with
+suspicion too: no `Skipped` line from *any* app in the whole device is itself odd, so a positive control is
+needed before that measurement is trusted again.
+
+*Most likely on today's evidence:* it needs memory pressure. The set had just been cleared and restarted, and
+`dumpsys meminfo` straight after the test read `status normal`, 486 MB free, 117 MB cached — unusually healthy
+for this TV, which §3 records reaching `status critical` with 0 KB cached after heavy streaming use. If that is
+it, the flash returns after days of use, not on a fresh install.
+
+*Not the same fault as 2.28's crash*, on the evidence there is: a full buffer captured over the 30 sweeps holds
+no `FATAL` and no `ClassCast` line. Weak evidence, since no flash was seen during that capture either — so the
+first thing to check when it next happens is still whether a crash is in the log.
+
+*To catch it next time*, run these the moment it is seen, while the buffer is still warm:
+```
+.\adb.exe logcat -d > black.txt
+.\adb.exe shell dumpsys meminfo | findstr /i "Total RAM Free RAM status"
+```
+
+Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s
+`onUserInteraction` timer; `GtvActivity` arms it now).
 
 Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and recorded so they are not chased again:
 - `com.tencent.qqlivei18n:push` (WeTV) throws `IllegalStateException: WorkManager is not initialized properly` from its recommendation-channel code roughly **every 30 minutes** (18:10, 19:07, 20:07, 20:37, 21:07, 21:37, 22:21 on 25 Oct). Their bug; it wakes a process and burns a little CPU each time. `pm disable-user` on that push component would stop it if it ever matters.
 - `com.google.android.permissioncontroller` NPEs in `SettingsFragment.onActivityCreated` (a null ActionBar) when the TV's default-app settings screen opens. Sony/Google's, not ours.
+- `com.android.systemui` throws `IllegalStateException: Task already scheduled or cancelled` from `com.sony.dtv.systemui.infoboard.InfoBoard.startUpdateClockTimer`, by way of `onConfigurationChanged` → `startClock`. Sony's info-board clock scheduling its timer twice on a configuration change. Seen 26 Oct 00:17.
+- `com.sony.dtv.configsettings` throws `IllegalArgumentException: Service not registered` from `DisplaySoundActivity.onClear`, unbinding a service it never bound, when the Display & Sound screen closes. Sony's. Seen 26 Oct 00:21.
  The bottom-row menu was fixed in 2.08 (`GtvActivity.showPanel()` now measures the panel and opens it
 above the tile when it will not fit below, the same rule `MainActivity.onTileLongPressed()` uses).
 
@@ -277,6 +328,21 @@ diverges permanently and makes merging from upstream painful — the owner chose
    unseen on the TV, at the owner's instruction, so the test backlog outlives the branch.
 
 ### Decisions already made (do not re-ask)
+- **Ask before changing anything, every time** (the owner's rule, 26 Oct). Any instruction to modify something, in
+  whole or in part, is answered with a proposal and a stop — what would change, in which files, the blast radius,
+  how to undo it — and then waits for the owner's word. This holds however small or obvious the change looks, and
+  it covers documentation as much as code. Reading, searching, `git log`, running the tests and building to verify
+  change nothing and need no asking.
+- **Where the live input window is, and where it is not** (asked and answered 26 Oct, so it is not re-asked). The
+  mini window that showed a picture per input, where OK offered *open full screen* or *switch to another port*,
+  belonged to **`MainActivity` — the Apple TV layout's Home**, under its top-bar pills; it arrived in `6aa614e`
+  and was switched on from Launcher settings › Input preview. It **left the APK in 2.19** with that layout,
+  because the window itself lived in `activity_main.xml`. The **Inputs tab of the Google TV layout has never had
+  a preview**: `fillInputs` builds a `FrameLayout` and a `TextView`, never a `TvView`. The only live window in
+  the code today is `buildLiveWindow()` (`GtvActivity.java:1299-1310`), which 2.25 added for the **banner**. So
+  three things from the old behaviour are still absent — it is on the banner rather than the Inputs tab, it shows
+  **one** chosen port rather than a picture per input, and there is **no OK menu**. The owner is trying
+  Banner › Live input as it stands before deciding whether any of that comes back.
 - Google TV layout is the default (`default_layout` in `config.xml`).
 - Your apps **was** the same dock as the Apple TV layout, kept in `order.txt`. Since 2.23 it is the owner's own list in `gtv_dock.txt` (`DockApps`), seeded from `dock_apps`; `order.txt` still decides the sort order of the apps, not which ones are in the row. **Move no longer crosses between Your apps and the Favorite rows** — it reorders within each — because the row's membership is now changed on purpose with + and hold-OK, and a move across the boundary would change it silently.
 - Favorite apps are the owner's own list (`gtv_favorites.txt`), **Google TV layout only**; the Apple layout keeps

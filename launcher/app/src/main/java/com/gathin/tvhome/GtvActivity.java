@@ -33,6 +33,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -2047,12 +2048,18 @@ public final class GtvActivity extends Activity {
         v.setOutlineAmbientShadowColor(colour);
     }
 
+    /**
+     * The colour for that halo. Only a tile that is a child of one of the two RecyclerViews has an app behind it:
+     * {@code getChildAdapterPosition} casts the view's layout parameters to RecyclerView's own, so asking it about
+     * a view from anywhere else throws. The Inputs row is a LinearLayout, on Home and in the Inputs tab alike, and
+     * an input has no app colour to borrow, so anything else gets plain white.
+     */
     private int haloColour(View v) {
-        if (dockRow != null) {
+        ViewParent parent = v.getParent();
+        if (parent == dockRow) {
             int at = dockRow.getChildAdapterPosition(v);
             if (at >= 0 && at < dock.size()) return dock.get(at).color;
-        }
-        if (homeGrid != null) {
+        } else if (parent == homeGrid) {
             int at = homeGrid.getChildAdapterPosition(v);
             if (at >= 0 && at < homeItems.size() && homeItems.get(at) instanceof App) {
                 return ((App) homeItems.get(at)).color;
