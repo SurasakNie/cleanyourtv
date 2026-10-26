@@ -11,7 +11,7 @@ afterwards.
 ```
 .\adb.exe connect 192.168.1.3:5555
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.28.apk
+.\adb.exe install -r tvhome-2.29.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -20,19 +20,19 @@ and the ⌄⌄ arrow each step aside rather than sit on top of one another. Chec
 
 ---
 
-## 2.18 — the page indicator (never confirmed on screen)
+## 2.18 — the page indicator (**passed on the TV, 26 Oct**)
 
 **What changed.** `GtvActivity.showDot()` animated only two dots — the new one and the one before it — and started
 each from its *resting* width. Key repeat moves focus faster than the 140 ms animation, so every dot further back
 was stranded part-way open: a row of half-open dashes instead of one pill. It now reads the widths the dots
 actually have and moves all of them, so an interrupted run heals itself.
 
-- [ ] **Hold** Left and Right across Your apps for a few seconds, then let go: one pill, every other dot small
-- [ ] A short hold that ends mid-animation leaves no half-open dash
+- [x] **Hold** Left and Right across Your apps for a few seconds, then let go: one pill, every other dot small
+- [x] A short hold that ends mid-animation leaves no half-open dash
 
 ---
 
-## 2.22 — the clock screen is out of the APK
+## 2.22 — the clock screen is out of the APK (**passed on the TV, 26 Oct**)
 
 **What changed.** The launcher had two clock screens: `ClockActivity` (Home's idle clock) and `ClockDream` (a
 screensaver you could pick in the TV's settings). You keep the TV's own screensaver, so both are **undeclared in
@@ -43,10 +43,10 @@ The `.java` files stay in the repository. The **Clock** row in Launcher settings
 **Not touched:** the clock in Home's top-right corner. That is a `TextView` in the top bar on a minute ticker —
 a different thing entirely.
 
-- [ ] HOME brings up the launcher as before
-- [ ] The **top-right clock still ticks**
-- [ ] The TV's own screensaver still starts when the TV is left alone
-- [ ] Launcher settings has **no Clock row**
+- [x] HOME brings up the launcher as before
+- [x] The **top-right clock still ticks**
+- [x] The TV's own screensaver still starts when the TV is left alone
+- [x] Launcher settings has **no Clock row**
 
 ---
 
@@ -215,6 +215,32 @@ default home this time, but a home app that keeps crashing can lose that and han
 - [ ] The halo still shows the **app's own colour** on Your apps and the Favorite rows
 - [ ] An input tile's halo is white rather than coloured — correct, an input has no app colour
 - [ ] The other three focus styles (Zoom, Lift, Underline) are unchanged
+
+---
+
+## 2.29 — Your apps keeps the focus at its right edge
+
+**What changed.** Found by the owner while testing 2.18, which is not something the checklist was looking for:
+holding **Right** to the end of Your apps dropped the focus **down into the Favorite rows**, onto their right-hand
+end. Holding Left to the other end was fine. It only shows when there are Favorite rows below to fall into.
+
+The cause is that ordinary navigation had **nothing handling Left or Right at all**. `handleEdgeKey` takes Up and
+Down; the Left/Right branches in `dispatchKeyEvent` belong to *carrying* a tile during Move. Past the row's last
+item the platform's own focus search picked whatever focusable it could reach, and that was a tile in the rows
+below — which is also why it was lopsided: a heuristic, not our code treating the ends differently. A new branch
+swallows the key at the row's two ends, so the row stops at its first tile and at the **+**, and Down is the only
+way out.
+
+**Set Rows below dock to 1 or more first** — with none, there is nothing to fall into and the old behaviour looks
+identical.
+
+- [ ] Hold **Right** to the end of Your apps: the focus stops on the **+** tile and **stays in the row**
+- [ ] Keep holding Right: nothing happens — no jump into the Favorite rows, no wrap-around
+- [ ] Hold **Left** to the other end: it stops on the first tile and stays there
+- [ ] **Down** from anywhere in the row still reaches the Favorite rows — the route this must not break
+- [ ] **Up** from the row still lands on the Home tab
+- [ ] Hold OK → **Move** still carries a tile left and right along the row, and still reorders
+- [ ] The page-indicator dots still follow the selection (the 2.18 fix, unchanged)
 
 ---
 

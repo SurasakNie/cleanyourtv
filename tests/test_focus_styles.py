@@ -43,8 +43,8 @@ class HaloColourTest(unittest.TestCase):
                 window, rf"{name}\.getParent\(\)|parent == \w+",
                 f"line {line_no}: {name} reaches getChildAdapterPosition with no parent established above it",
             )
-        # Two in haloColour, one in the Down handler; each must establish the parent first.
-        self.assertEqual(calls, 3, "a new getChildAdapterPosition call needs the same parent guard")
+        # Two in haloColour, one in the Down handler, one at the row ends; each must establish the parent first.
+        self.assertEqual(calls, 4, "a new getChildAdapterPosition call needs the same parent guard")
 
     def test_halo_colour_asks_each_row_only_about_its_own_children(self):
         halo = body(source(), "private int haloColour(View v)")

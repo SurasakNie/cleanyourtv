@@ -756,6 +756,15 @@ public final class GtvActivity extends Activity {
             tabs[currentTab].requestFocus();
             return true;
         }
+        if ((code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)
+                && currentTab == TAB_HOME && f.getParent() == dockRow) {
+            // Nothing else handles Left or Right here, so at the row's ends the platform's focus search picks
+            // whatever focusable it can reach - which is a tile in the rows below. Swallow the key instead: the
+            // row stops at its first tile and at the +, and Down is the only way out of it.
+            int at = dockRow.getChildAdapterPosition(f);
+            if (at < 0) return false;
+            return code == KeyEvent.KEYCODE_DPAD_RIGHT ? at >= dockItems.size() - 1 : at == 0;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeInputs) {
             openAppsAt(0);
             return true;
