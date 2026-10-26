@@ -12,7 +12,7 @@ Where the work stands, what is still open, and where everything lives. Read the 
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
 | Latest build | **2.27** (`versionCode` 227), built and verified here; the APK is with the owner |
-| Last build installed on the TV | **2.27**, installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat. **2.23 to 2.27's features are still untested** — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
+| Last build installed on the TV | **2.27**, installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat, and **Home draws** — the owner operated the dock on it, so `GtvActivity` built, the row has tiles and the D-pad works; 2.19's recovery screen was never seen. **2.23 to 2.27's features are still untested** — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
 | Branch | `claude/zen-euler-0mir9r`. Everything through 2.27 is merged; the branch is reused for the next round of builds |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. **PR #6 (2ea447f): 2.22–2.27** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -111,7 +111,37 @@ For 2.24: switch **Inputs on Home** on and check nothing overlaps at Rows below 
 **Before installing 2.22 on any other set:** check `settings get secure screensaver_components`. If it names `com.gathin.tvhome/.ClockDream`, point the TV at its own screensaver first, or it falls back to the system default with no warning.
 
 ### Known bugs
-None open in the launcher. Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s `onUserInteraction` timer; `GtvActivity` arms it now).
+
+**Open: Your apps flashes black at the ends of the row (2.27, not reproduced).** Holding Left or Right to run to
+the end of Your apps makes the screen go black for an instant — the owner's word was "บางครั้ง", so it is
+intermittent. It cannot predate 2.23: a row you can run to the end of only exists since the dock became
+scrollable, and the set ran 2.22 before this.
+
+*Tried on 26 Oct, and it did not reproduce:* 15 hold-sweeps left-and-right at **Glow style = Classic**, then 15
+more at **Random position**. No black screen either time, and `Choreographer … Skipped` appeared **zero** times
+in the whole buffer across both rounds.
+
+*What that rules out, and what it does not:* both rounds ran with **Animations on**, so only the glow was varied.
+The leading hypothesis is therefore **untested** — `CentreManager.onRequestChildFocus`
+(`GtvActivity.java:1574-1578`) asks for a `smoothScrollBy` the row cannot perform: at either end the focused tile
+can never reach the centre, so `to` is never 0 and a scroll is requested on *every* focus event while key repeat
+fires them continuously. Testing it means turning **Animations off** and sweeping again. Treat the zero with
+suspicion too: no `Skipped` line from *any* app in the whole device is itself odd, so a positive control is
+needed before that measurement is trusted again.
+
+*Most likely on today's evidence:* it needs memory pressure. The set had just been cleared and restarted, and
+`dumpsys meminfo` straight after the test read `status normal`, 486 MB free, 117 MB cached — unusually healthy
+for this TV, which §3 records reaching `status critical` with 0 KB cached after heavy streaming use. If that is
+it, the flash returns after days of use, not on a fresh install.
+
+*To catch it next time*, run these the moment it is seen, while the buffer is still warm:
+```
+.\adb.exe logcat -d > black.txt
+.\adb.exe shell dumpsys meminfo | findstr /i "Total RAM Free RAM status"
+```
+
+Fixed in 2.21: the idle clock did nothing between 2.19 and 2.20 (the shim dropped `MainActivity`'s
+`onUserInteraction` timer; `GtvActivity` arms it now).
 
 Two crashes in this TV's logcat are **other apps'**, seen while testing 2.19 and recorded so they are not chased again:
 - `com.tencent.qqlivei18n:push` (WeTV) throws `IllegalStateException: WorkManager is not initialized properly` from its recommendation-channel code roughly **every 30 minutes** (18:10, 19:07, 20:07, 20:37, 21:07, 21:37, 22:21 on 25 Oct). Their bug; it wakes a process and burns a little CPU each time. `pm disable-user` on that push component would stop it if it ever matters.
@@ -279,6 +309,11 @@ diverges permanently and makes merging from upstream painful — the owner chose
    unseen on the TV, at the owner's instruction, so the test backlog outlives the branch.
 
 ### Decisions already made (do not re-ask)
+- **Ask before changing anything, every time** (the owner's rule, 26 Oct). Any instruction to modify something, in
+  whole or in part, is answered with a proposal and a stop — what would change, in which files, the blast radius,
+  how to undo it — and then waits for the owner's word. This holds however small or obvious the change looks, and
+  it covers documentation as much as code. Reading, searching, `git log`, running the tests and building to verify
+  change nothing and need no asking.
 - Google TV layout is the default (`default_layout` in `config.xml`).
 - Your apps **was** the same dock as the Apple TV layout, kept in `order.txt`. Since 2.23 it is the owner's own list in `gtv_dock.txt` (`DockApps`), seeded from `dock_apps`; `order.txt` still decides the sort order of the apps, not which ones are in the row. **Move no longer crosses between Your apps and the Favorite rows** — it reorders within each — because the row's membership is now changed on purpose with + and hold-OK, and a move across the boundary would change it silently.
 - Favorite apps are the owner's own list (`gtv_favorites.txt`), **Google TV layout only**; the Apple layout keeps
