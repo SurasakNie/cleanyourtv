@@ -25,6 +25,13 @@ powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost 192.168.1.50 th
 Every key is optional; a missing key keeps the value from `config.xml`, an unknown or wrongly typed key
 is ignored, and a file that doesn't parse is ignored as a whole, so a theme can never break Home.
 
+> **Since 2.27 the keys of the removed Apple TV layout do nothing.** `fill_dock`, `app_banners`, `shamsi_date`,
+> `greeting_name`, `module_cards`, `dock_title`, `dock_row`, `reorder_button`, `show_network_pill`,
+> `icon_only_buttons`, `library_button`, `wifi_label_width`, `vpn_app`, `show_home_settings_shortcut`,
+> `show_stats`, `app_library` and `sky_intensity` are no longer read or shipped — a theme may still set them and
+> they are simply ignored. Their descriptions stay below, and in a comment in `config.xml`, because the features
+> they name are candidates for the Google TV layout rather than decisions already reversed.
+
 | Key | Type | Meaning |
 |---|---|---|
 | `dock_apps` | list of package names | The dock row, in order; missing apps are skipped |

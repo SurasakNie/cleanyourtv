@@ -45,8 +45,6 @@ final class Config {
     private static final String THEME_SIGNATURE_KEY = "theme_signature";
 
     final List<String> dockApps;
-    /** Grid apps fill the dock slots dock_apps leaves free (config.xml, fill_dock); on by default, false leaves the slots empty. */
-    final boolean fillDock;
     final List<String> hiddenApps;
     final String liveTvPackage;
     final String liveTvAction;
@@ -54,8 +52,6 @@ final class Config {
     final Map<String, String> launchActions;
     /** Package to the name its tile shows instead of the app's label (config.xml, app_labels). */
     final Map<String, String> appLabels;
-    /** Package to a bundled banner_* drawable its tile shows instead of the app's art (config.xml, app_banners). */
-    final Map<String, String> appBanners;
     final String sourcePanelService;
     final String sourcePanelAction;
     final String inputAction;
@@ -63,40 +59,14 @@ final class Config {
     final boolean animations;
     final boolean advancedEffects;
     final int rowsBelowDock;
-    final boolean shamsiDate;
-    /** Name after the greeting ("Good morning, Mr. Trịnh"); empty for the greeting alone. */
-    final String greetingName;
-    final boolean moduleCards;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
-    /** The focused dock app's name in large type above the dock (config.xml, dock_title). */
-    final boolean dockTitle;
-    /** The dock as its own row: band, no names, parked low (config.xml dock_row). false: one plain grid. */
-    final boolean dockRow;
     /** Names under every tile, dimmed until focused (config.xml always_show_names); the dock band grows for them. */
     final boolean alwaysShowNames;
-    /** Reorder button in the top bar (config.xml reorder_button); the Settings long-press menu offers it either way. */
-    final boolean reorderButton;
-    /** Show the Wi-Fi/Ethernet pill in the top bar (config.xml, show_network_pill). */
-    final boolean showNetworkPill;
-    /** Wi-Fi and Settings pills as round icon buttons, Inputs keeps its label (config.xml icon_only_buttons). */
-    final boolean iconOnlyButtons;
-    /** App library as a round button in the top bar (config.xml library_button); needs app_library. */
-    final boolean libraryButton;
-    /** With icon_only_buttons, the Wi-Fi pill keeps the network name up to this width in dp (0: icon only). */
-    final int wifiLabelWidth;
     /** Decode wallpapers in 32-bit colour instead of RGB_565 (config.xml wallpaper_true_color). */
     final boolean wallpaperTrueColor;
-    final String vpnApp;
-    final boolean showHomeSettingsShortcut;
-    /** One line under the clock: CPU, free memory, free storage. Off unless config or a theme turns it on. */
-    final boolean showStats;
-    /** App library pill after the last Home row (config.xml app_library). */
-    final boolean appLibrary;
     /** Background colour behind everything, #RRGGBB; black unless a theme says otherwise. */
     final int backgroundColor;
-    /** Time-of-day backdrop, 0 to 100 (config.xml, sky_intensity); 0 keeps the plain background. */
-    final int skyIntensity;
     /** Remote keycodes that open Settings through HomeKeyService (config.xml, settings_key_keycodes). */
     final int[] settingsKeycodes;
     /** Extra keycodes that open the input switcher in InputKeyService (config.xml input_key_keycodes). */
@@ -120,6 +90,27 @@ final class Config {
     final String wallpaperOrder;
     /** Whether the overlay file was present and parsed. */
     final boolean overlayApplied;
+
+    // ---- the Apple TV layout's keys ------------------------------------------------------------------
+    // Set to fixed values in the constructor, not read from config.xml or a theme: see the note there. They are
+    // here so the removed layout's sources still compile, and R8 drops them from the APK with those sources.
+    final boolean fillDock;
+    final Map<String, String> appBanners;
+    final boolean shamsiDate;
+    final String greetingName;
+    final boolean moduleCards;
+    final boolean dockTitle;
+    final boolean dockRow;
+    final boolean reorderButton;
+    final boolean showNetworkPill;
+    final boolean iconOnlyButtons;
+    final boolean libraryButton;
+    final int wifiLabelWidth;
+    final String vpnApp;
+    final boolean showHomeSettingsShortcut;
+    final boolean showStats;
+    final boolean appLibrary;
+    final int skyIntensity;
     /** Festive skin from a theme (festival, festival_until, greeting, accent_color); {@link Festival#NONE} if none. */
     final Festival festival;
     /** F1 weekends from a theme's race_calendar (see RaceWeekend); empty when the theme has none. */
@@ -131,12 +122,12 @@ final class Config {
     /** Minutes Home may sit untouched before the clock screensaver (config.xml, home_idle_clock_minutes); 0 is off. */
     final int homeIdleClockMinutes;
 
-    private Config(List<String> dockApps, boolean fillDock, List<String> hiddenApps, String liveTvPackage,
+    private Config(List<String> dockApps, List<String> hiddenApps, String liveTvPackage,
                    String liveTvAction, Map<String, String> launchActions, Map<String, String> appLabels,
-                   Map<String, String> appBanners, String sourcePanelService, String sourcePanelAction, String inputAction,
+                   String sourcePanelService, String sourcePanelAction, String inputAction,
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
-                   boolean shamsiDate, String greetingName, boolean moduleCards, boolean reducedMotion, boolean dockTitle, boolean dockRow, boolean reorderButton, boolean showNetworkPill, boolean iconOnlyButtons, boolean libraryButton, int wifiLabelWidth, boolean alwaysShowNames, boolean wallpaperTrueColor, String vpnApp,
-                   boolean showHomeSettingsShortcut, boolean showStats, boolean appLibrary, int backgroundColor, int skyIntensity,
+                   boolean reducedMotion, boolean alwaysShowNames, boolean wallpaperTrueColor,
+                   int backgroundColor,
                    int[] settingsKeycodes, boolean settingsKeyPanel, boolean wallpaperEnabled, File wallpaper, List<File> wallpapers,
                    int wallpaperRotationMinutes, int wallpaperDim, String wallpaperOrder, boolean overlayApplied,
                    Festival festival, int[] inputKeycodes, List<String> appKeys,
@@ -144,13 +135,11 @@ final class Config {
         this.inputKeycodes = inputKeycodes;
         this.appKeys = Collections.unmodifiableList(appKeys);
         this.dockApps = Collections.unmodifiableList(dockApps);
-        this.fillDock = fillDock;
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
         this.liveTvPackage = liveTvPackage;
         this.liveTvAction = liveTvAction;
         this.launchActions = Collections.unmodifiableMap(launchActions);
         this.appLabels = Collections.unmodifiableMap(appLabels);
-        this.appBanners = Collections.unmodifiableMap(appBanners);
         this.sourcePanelService = sourcePanelService;
         this.sourcePanelAction = sourcePanelAction;
         this.inputAction = inputAction;
@@ -158,25 +147,10 @@ final class Config {
         this.rowsBelowDock = rowsBelowDock;
         this.animations = animations;
         this.advancedEffects = advancedEffects;
-        this.shamsiDate = shamsiDate;
-        this.greetingName = greetingName;
-        this.moduleCards = moduleCards;
         this.reducedMotion = reducedMotion;
-        this.dockTitle = dockTitle;
-        this.dockRow = dockRow;
-        this.reorderButton = reorderButton;
-        this.showNetworkPill = showNetworkPill;
-        this.iconOnlyButtons = iconOnlyButtons;
-        this.libraryButton = libraryButton;
-        this.wifiLabelWidth = wifiLabelWidth;
         this.alwaysShowNames = alwaysShowNames;
         this.wallpaperTrueColor = wallpaperTrueColor;
-        this.vpnApp = vpnApp;
-        this.showHomeSettingsShortcut = showHomeSettingsShortcut;
-        this.showStats = showStats;
-        this.appLibrary = appLibrary;
         this.backgroundColor = backgroundColor;
-        this.skyIntensity = skyIntensity;
         this.settingsKeycodes = settingsKeycodes;
         this.settingsKeyPanel = settingsKeyPanel;
         this.wallpaperEnabled = wallpaperEnabled;
@@ -186,6 +160,26 @@ final class Config {
         this.wallpaperDim = wallpaperDim;
         this.wallpaperOrder = wallpaperOrder;
         this.overlayApplied = overlayApplied;
+        // Keys the Apple TV layout read. They left config.xml in 2.27 (the APK carries neither the entries nor
+        // the code that parsed them); the fields stay at what config.xml used to default to, because that
+        // layout's sources are still in the repository and have to compile. Nothing in the launcher reads them.
+        this.fillDock = true;
+        this.appBanners = Collections.emptyMap();
+        this.shamsiDate = false;
+        this.greetingName = "";
+        this.moduleCards = true;
+        this.dockTitle = true;
+        this.dockRow = true;
+        this.reorderButton = false;
+        this.showNetworkPill = true;
+        this.iconOnlyButtons = true;
+        this.libraryButton = false;
+        this.wifiLabelWidth = 0;
+        this.vpnApp = "";
+        this.showHomeSettingsShortcut = false;
+        this.showStats = false;
+        this.appLibrary = false;
+        this.skyIntensity = 0;
         this.festival = festival;
         this.raceCalendar = Collections.unmodifiableList(raceCalendar);
         this.cinematicHome = cinematicHome;
@@ -201,13 +195,11 @@ final class Config {
     static Config load(Context ctx) {
         Resources res = ctx.getResources();
         List<String> dock = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.dock_apps)));
-        boolean fillDock = res.getBoolean(R.bool.fill_dock);
         List<String> hidden = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.hidden_apps)));
         String liveTv = res.getString(R.string.live_tv_package).trim();
         String liveTvAction = res.getString(R.string.live_tv_action).trim();
         List<String> launchActions = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.launch_actions)));
         List<String> appLabels = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.app_labels)));
-        List<String> appBanners = new ArrayList<>(Arrays.asList(res.getStringArray(R.array.app_banners)));
         String panelService = res.getString(R.string.source_panel_service).trim();
         String panelAction = res.getString(R.string.source_panel_action).trim();
         String inputAction = res.getString(R.string.input_action).trim();
@@ -215,25 +207,10 @@ final class Config {
         int rowsBelow = res.getInteger(R.integer.rows_below_dock);
         boolean animations = res.getBoolean(R.bool.animations);
         boolean advancedEffects = res.getBoolean(R.bool.advanced_effects);
-        boolean shamsi = res.getBoolean(R.bool.shamsi_date);
-        String greetingName = res.getString(R.string.greeting_name).trim();
-        boolean moduleCards = res.getBoolean(R.bool.module_cards);
         boolean reducedMotion = res.getBoolean(R.bool.reduced_motion);
-        boolean dockTitle = res.getBoolean(R.bool.dock_title);
-        boolean dockRow = res.getBoolean(R.bool.dock_row);
-        boolean reorderButton = res.getBoolean(R.bool.reorder_button);
-        boolean showNetworkPill = res.getBoolean(R.bool.show_network_pill);
-        boolean iconOnlyButtons = res.getBoolean(R.bool.icon_only_buttons);
-        boolean libraryButton = res.getBoolean(R.bool.library_button);
-        int wifiLabelWidth = res.getInteger(R.integer.wifi_label_width);
         boolean alwaysShowNames = res.getBoolean(R.bool.always_show_names);
         boolean wallpaperTrueColor = res.getBoolean(R.bool.wallpaper_true_color);
-        String vpn = res.getString(R.string.vpn_app).trim();
-        boolean homeSettings = res.getBoolean(R.bool.show_home_settings_shortcut);
-        boolean showStats = res.getBoolean(R.bool.show_stats);
-        boolean library = res.getBoolean(R.bool.app_library);
         int background = 0xFF000000;
-        int skyIntensity = res.getInteger(R.integer.sky_intensity);
         int[] settingsKeycodes = res.getIntArray(R.array.settings_key_keycodes);
         boolean settingsKeyPanel = res.getBoolean(R.bool.settings_key_panel);
         int[] inputKeycodes = res.getIntArray(R.array.input_key_keycodes);
@@ -250,13 +227,11 @@ final class Config {
         if (json != null) {
             applied = true;
             dock = stringList(json, "dock_apps", dock);
-            fillDock = bool(json, "fill_dock", fillDock);
             hidden = stringList(json, "hidden_apps", hidden);
             liveTv = string(json, "live_tv_package", liveTv);
             liveTvAction = string(json, "live_tv_action", liveTvAction);
             launchActions = stringList(json, "launch_actions", launchActions);
             appLabels = stringList(json, "app_labels", appLabels);
-            appBanners = stringList(json, "app_banners", appBanners);
             panelService = string(json, "source_panel_service", panelService);
             panelAction = string(json, "source_panel_action", panelAction);
             inputAction = string(json, "input_action", inputAction);
@@ -264,25 +239,10 @@ final class Config {
             rowsBelow = integer(json, "rows_below_dock", rowsBelow, 0, 3);
             animations = bool(json, "animations", animations);
             advancedEffects = bool(json, "advanced_effects", advancedEffects);
-            shamsi = bool(json, "shamsi_date", shamsi);
-            greetingName = string(json, "greeting_name", greetingName).trim();
-            moduleCards = bool(json, "module_cards", moduleCards);
             reducedMotion = bool(json, "reduced_motion", reducedMotion);
-            dockTitle = bool(json, "dock_title", dockTitle);
-            dockRow = bool(json, "dock_row", dockRow);
-            reorderButton = bool(json, "reorder_button", reorderButton);
-            showNetworkPill = bool(json, "show_network_pill", showNetworkPill);
-            iconOnlyButtons = bool(json, "icon_only_buttons", iconOnlyButtons);
-            libraryButton = bool(json, "library_button", libraryButton);
-            wifiLabelWidth = integer(json, "wifi_label_width", wifiLabelWidth, 0, 300);
             alwaysShowNames = bool(json, "always_show_names", alwaysShowNames);
             wallpaperTrueColor = bool(json, "wallpaper_true_color", wallpaperTrueColor);
-            vpn = string(json, "vpn_app", vpn);
-            homeSettings = bool(json, "show_home_settings_shortcut", homeSettings);
-            showStats = bool(json, "show_stats", showStats);
-            library = bool(json, "app_library", library);
             background = color(json, "background_color", background);
-            skyIntensity = integer(json, "sky_intensity", skyIntensity, 0, 100);
             settingsKeycodes = intArray(json, "settings_key_keycodes", settingsKeycodes);
             settingsKeyPanel = bool(json, "settings_key_panel", settingsKeyPanel);
             inputKeycodes = intArray(json, "input_key_keycodes", inputKeycodes);
@@ -346,12 +306,12 @@ final class Config {
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
 
-        return new Config(dock, fillDock, hidden, liveTv, liveTvAction, packageMap(launchActions), packageMap(appLabels),
-                packageMap(appBanners), panelService,
+        return new Config(dock, hidden, liveTv, liveTvAction, packageMap(launchActions), packageMap(appLabels),
+                panelService,
                 panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, greetingName, moduleCards, reducedMotion, dockTitle, dockRow, reorderButton, showNetworkPill, iconOnlyButtons, libraryButton, wifiLabelWidth, alwaysShowNames, wallpaperTrueColor, vpn, homeSettings, showStats, library, background,
-                Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, wallpaperEnabled, wallpaper,
+                reducedMotion, alwaysShowNames, wallpaperTrueColor, background,
+                settingsKeycodes, settingsKeyPanel, wallpaperEnabled, wallpaper,
                 wallpapers, rotationMinutes, wallpaperDim, wallpaperOrder, applied,
                 festival, inputKeycodes, appKeys, json == null ? Collections.emptyList() : raceCalendar(json), cinematic, ambientGlow,
                 Math.max(0, idleClockMinutes));
