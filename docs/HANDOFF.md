@@ -11,8 +11,8 @@ Where the work stands, what is still open, and where everything lives. Read the 
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| Latest build | **2.29** (`versionCode` 229), built and verified here; the APK is with the owner. 2.28 is the build on the TV |
-| Last build installed on the TV | **2.28**, installed 26 Oct. **Confirmed on the TV:** with Focus style = Glass halo, Down on the Inputs tab and Down from the gear onto the inputs row no longer crash — the case that failed every time before; the halo is the app's own colour on Your apps and the Favorite rows and white on an input tile. **Not yet confirmed:** Inputs on Home with Glass halo, the second place the same fault could bite, so 2.28 is not fully tested. Before that, **2.27** was installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat, and **Home draws** — the owner operated the dock on it, so `GtvActivity` built, the row has tiles and the D-pad works; 2.19's recovery screen was never seen. **2.23 to 2.27's features are still untested**, apart from the dock's basic navigation, which the 2.18 test exercised — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.28:** 2.18's page-indicator fix (hold Left/Right across Your apps — one pill, every other dot small, no half-open dash after a hold that ends mid-animation; confirmed months after it shipped) and 2.22's removal (top-right clock ticks, the TV's own screensaver starts, no Clock row in the panel). **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
+| Latest build | **2.29** (`versionCode` 229), built and verified here and installed on the TV; **2.30** is planned and not started |
+| Last build installed on the TV | **2.29**, tested 26 Oct. **Confirmed at 2.29:** in Your apps, Right stops on the + and stays in the row, Left stops on the first tile, Down still reaches the Favorite rows, Move still works. **Fails at 2.29:** holding Left/Right in the **Favorite rows** jumps to the neighbouring row — see Known bugs. **2.23 is tested** (passes, with two defects, below); **2.24 to 2.27 are not**. Before that **2.28**, installed 26 Oct. **Confirmed at 2.28:** with Focus style = Glass halo, Down on the Inputs tab and Down from the gear onto the inputs row no longer crash — the case that failed every time before; the halo is the app's own colour on Your apps and the Favorite rows and white on an input tile. **Not yet confirmed:** Inputs on Home with Glass halo, the second place the same fault could bite, so 2.28 is not fully tested. Before that, **2.27** was installed 26 Oct 18:21 as a **fresh start**: `install -r` over 2.22, then `pm clear`, so `gtv_dock.txt`, `gtv_favorites.txt`, `order.txt`, `config.json` and every setting were wiped and reseeded. Installing *over the top* rather than uninstalling kept the TV's default-home assignment — the packaged manifest is the HOME app at `versionCode` 227, confirmed in the package cache. Nothing from `com.gathin.tvhome` in logcat, and **Home draws** — the owner operated the dock on it, so `GtvActivity` built, the row has tiles and the D-pad works; 2.19's recovery screen was never seen. **2.24 to 2.27's features are still untested** — see [`docs/TESTING.md`](TESTING.md). (The set had been running **2.22**, not 2.21 as this table said until now; the owner's 26 Oct log shows `versionCode=222` installed before the update.) **Confirmed on the TV at 2.28:** 2.18's page-indicator fix (hold Left/Right across Your apps — one pill, every other dot small, no half-open dash after a hold that ends mid-animation; confirmed months after it shipped) and 2.22's removal (top-right clock ticks, the TV's own screensaver starts, no Clock row in the panel). **Confirmed on the TV at 2.21:** the choice pages (Wallpaper and Font open in the panel, Back returns to the row), all three banner title sizes, the outline and fill switches, and the five rows gone from the panel. Plus 2.19's shim and recovery screen with both buttons. Still unconfirmed: 2.18's page-indicator fix. (2.21's idle clock was never reported on, and 2.22 removed it, so there is nothing left to confirm there) |
 | Branch | `claude/zen-euler-0mir9r`. Merged through 2.28 (PR #7); **2.29 is unmerged** |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. PR #6 (2ea447f): 2.22–2.27. **PR #7 (ddac328): 2.28** |
 | Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
@@ -98,7 +98,7 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ### Waiting on a test
 The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work through it oldest-first, since each build leans on the one before.
 
-**2.23 to 2.27 are all untested** — the owner asked for the builds to be made and checked later. Test 2.23's dock first, since the others build on it. 2.27 is cleanup with nothing to see: its test is that Home, the panel and the themes behave exactly as 2.26 did.
+**2.24 to 2.27 are still untested; 2.23 passed on 26 Oct with two defects** (below) — the owner asked for the builds to be made and checked later. Test 2.23's dock first, since the others build on it. 2.27 is cleanup with nothing to see: its test is that Home, the panel and the themes behave exactly as 2.26 did.
 
 **2.25 carries the one item that may simply not work on this TV:** a non-system app tuning a passthrough input is allowed on some sets and refused on others, and nothing in this launcher had ever tried it. If the Sony refuses, the window says "Preview unavailable" and Home is otherwise untouched — that is an answer about the TV, not a bug to chase. What *would* be a bug: the TV's own Inputs or Live TV coming up dead after the banner has held an input, so test opening HDMI from the Inputs tab while the live banner is running.
 
@@ -127,6 +127,28 @@ recovery screen never appeared because that only catches a failure to *build* Ho
 three such lines were still visible and all three predated it — PID 28193 at 22:01:56.603 is the identical line
 from the first report, and 28435 and 28743 at 22:03 are the restarts crashing again during the attempt to
 reproduce. Run `adb logcat -c` before the check, or the result means nothing.
+
+**Open: after Remove, the focus in Your apps is wrong (2.23).** Hold OK → Remove from Your apps works, but the focus
+that follows does not land on the row's last app and sometimes looks random. Cause, from the code: `setInDock`
+(`GtvActivity.java:526`) calls `focusDock` only when it *adds* (`if (inDock) dockRow.post(...)`), never when it
+removes, and `notifyDataSetChanged()` rebuilds the tile that held the focus, so the platform picks. Fix in 2.30.
+The owner's rule: after Remove the focus goes to **the row's last app**.
+
+**Open: sometimes the app picked from the + is not the one that appears (2.23, cause unknown).** **Ruled out by the
+code:** a package with several launcher activities entering twice — `loadApps` keeps one app per package
+(`seen.add(pkg)`, `GtvActivity.java:397`), so the `com.sony.dtv.timers` pair in the log is not a candidate — and the
+menu's loop variable, which is a fresh effectively-final per iteration, with `showMenu` pairing `titles.get(i)` to
+`actions.get(i)`. **Leading suspect, shared with the entry above:** `setInDock` calls `notifyDataSetChanged()` and
+then posts `focusDock`; a posted runnable can run *before* the layout pass, so the holder lookup returns null and
+the focus is left to the platform — a race, which fits "บางครั้ง". **Unproven; it cannot be run here.** If it
+survives 2.30, ask the owner whether the toast names the app they pressed, whether that app is in the row, and
+which app and which place in the list it happens with.
+
+**Open: the Favorite rows let Left/Right jump to the neighbouring row (found on 2.29).** Holding Left or Right at
+the end of a Favorite row moves the focus to the other row instead of stopping. Same root cause as the 2.29 fix:
+`homeGrid` is a `GridLayoutManager` (`:1730`), `handleEdgeKey` handles Up and Down only, and at a row's end the
+grid steps to the next item in adapter order. Position 0 is the section header, so the column is
+`(position − 1) % cols`. The Apps tab grid wraps the same way and the Inputs rows are likely to. Fix in 2.30.
 
 **Open: Your apps flashes black at the ends of the row (2.27, not reproduced).** Holding Left or Right to run to
 the end of Your apps makes the screen go black for an instant — the owner's word was "บางครั้ง", so it is
@@ -334,6 +356,14 @@ diverges permanently and makes merging from upstream painful — the owner chose
   how to undo it — and then waits for the owner's word. This holds however small or obvious the change looks, and
   it covers documentation as much as code. Reading, searching, `git log`, running the tests and building to verify
   change nothing and need no asking.
+- **Decided 26 Oct, for 2.30** (so they are not re-asked): after Remove, the focus goes to **the row's last app**.
+  The Remove entry is **hidden when Your apps holds Apps per row apps or fewer** — the minimum is Apps per row —
+  and `setInDock`'s `dock.size() <= 1` guard stays as the last line of defence. The setting **"Rows below dock" is
+  renamed "Favorite apps rows"** — the visible text only, the stored key `rows_below_dock` is unchanged so no saved
+  value is lost. At **Favorite apps rows = 3** the Performance card is **forced off**: its row is greyed and reads
+  Off with a hint saying why, the stored value is not overwritten, and the card returns when the rows are lowered.
+  Left/Right **stops at the ends of the Favorite rows, the Apps tab and the Inputs rows** (the Apps tab changes
+  from wrapping to stopping). All of this ships as **one build, 2.30**.
 - **Where the live input window is, and where it is not** (asked and answered 26 Oct, so it is not re-asked). The
   mini window that showed a picture per input, where OK offered *open full screen* or *switch to another port*,
   belonged to **`MainActivity` — the Apple TV layout's Home**, under its top-bar pills; it arrived in `6aa614e`

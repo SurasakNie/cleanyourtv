@@ -6,6 +6,9 @@ leans on the one before it, so a fault in 2.23 explains faults in 2.24 and later
 Anything that fails: stop on that build and say which line — more useful than a list of everything that happened
 afterwards.
 
+**A name that changes.** The setting these checklists call **Rows below dock** is renamed **Favorite apps rows** in
+2.30. Until then the TV still shows the old label.
+
 ## Before you start
 
 ```
@@ -71,18 +74,24 @@ was Apps per row. It could not hold more than fitted on screen, and there was no
 
 Set **Apps per row = 6** before testing.
 
-- [ ] Six tiles are on screen
-- [ ] Holding **Right** brings the next app in, and the selected tile stays in the **middle of the screen**
-- [ ] The **first** and **last** tiles rest at the edges instead of being dragged to the middle
-- [ ] Right past the last app reaches the **+**; it opens a list of apps not in the row
-- [ ] Picking one adds it to the end and leaves the selection on it
-- [ ] **Hold OK** → **Remove from Your apps** takes an app out
-- [ ] The **last** app cannot be removed (a message says so)
-- [ ] **Up** from the row lands on the **Home tab**
-- [ ] **Down** reaches the Favorite rows, or the Apps tab when there are none
-- [ ] Rows below dock **0** and **3**: nothing overlaps
-- [ ] Hold OK → **Move** still reorders within the row, and within the Favorite rows
-- [ ] More than 12 apps in the row: the dots disappear
+- [x] Six tiles are on screen
+- [x] Holding **Right** brings the next app in, and the selected tile stays in the **middle of the screen**
+- [x] The **first** and **last** tiles rest at the edges instead of being dragged to the middle
+- [x] Right past the last app reaches the **+**; it opens a list of apps not in the row *(reaching the + was
+      exercised by the 2.29 test)*
+- [x] Picking one adds it to the end and leaves the selection on it *(but see the known intermittent defect: now
+      and then the app that appears is not the one picked — cause not found)*
+- [ ] **Hold OK** → **Remove from Your apps** takes an app out — **it does, but the focus afterwards is wrong**: it
+      does not land on the row's last app and sometimes seems random (nothing sets it on removal; fixed in 2.30,
+      to be confirmed)
+- [ ] The **last** app cannot be removed (a message says so) — *no clear result; replaced in 2.30 by a rule: the
+      Remove entry is hidden once the row holds Apps per row apps*
+- [x] **Up** from the row lands on the **Home tab**
+- [x] **Down** reaches the Favorite rows, or the Apps tab when there are none *(exercised by the 2.29 test)*
+- [x] Rows below dock **0** and **3**: nothing overlaps
+- [ ] Hold OK → **Move** still reorders within the row, and within the Favorite rows — *passed in Your apps (the
+      2.29 test); not reported for the Favorite rows*
+- [x] More than 12 apps in the row: the dots disappear
 
 ---
 
@@ -208,12 +217,12 @@ halo is plain white.
 **Worth knowing:** the crash made Android clear the launcher's preferred-activity registration. It stayed the
 default home this time, but a home app that keeps crashing can lose that and hand the TV back to Sony's launcher.
 
-- [ ] Set **Focus style = Glass halo**. On the **Inputs tab**, press **Down** — the launcher must **not** blink and
+- [x] Set **Focus style = Glass halo**. On the **Inputs tab**, press **Down** — the launcher must **not** blink and
       return to Home. Before 2.28 this crashed every time
-- [ ] Same with the **gear** focused: Down onto the inputs row, no crash
+- [x] Same with the **gear** focused: Down onto the inputs row, no crash
 - [ ] Switch **Inputs on Home** on, still on Glass halo: move Down onto that row — no crash there either
-- [ ] The halo still shows the **app's own colour** on Your apps and the Favorite rows
-- [ ] An input tile's halo is white rather than coloured — correct, an input has no app colour
+- [x] The halo still shows the **app's own colour** on Your apps and the Favorite rows
+- [x] An input tile's halo is white rather than coloured — correct, an input has no app colour
 - [ ] The other three focus styles (Zoom, Lift, Underline) are unchanged
 
 ---
@@ -234,13 +243,16 @@ way out.
 **Set Rows below dock to 1 or more first** — with none, there is nothing to fall into and the old behaviour looks
 identical.
 
-- [ ] Hold **Right** to the end of Your apps: the focus stops on the **+** tile and **stays in the row**
-- [ ] Keep holding Right: nothing happens — no jump into the Favorite rows, no wrap-around
-- [ ] Hold **Left** to the other end: it stops on the first tile and stays there
-- [ ] **Down** from anywhere in the row still reaches the Favorite rows — the route this must not break
-- [ ] **Up** from the row still lands on the Home tab
-- [ ] Hold OK → **Move** still carries a tile left and right along the row, and still reorders
-- [ ] The page-indicator dots still follow the selection (the 2.18 fix, unchanged)
+- [x] Hold **Right** to the end of Your apps: the focus stops on the **+** tile and **stays in the row**
+- [x] Keep holding Right: nothing happens — no jump into the Favorite rows, no wrap-around
+- [x] Hold **Left** to the other end: it stops on the first tile and stays there
+- [x] **Down** from anywhere in the row still reaches the Favorite rows — the route this must not break
+- [x] **Up** from the row still lands on the Home tab
+- [x] Hold OK → **Move** still carries a tile left and right along the row, and still reorders
+- [x] The page-indicator dots still follow the selection (the 2.18 fix, unchanged)
+- [ ] **FAILS, found on 2.29:** holding Left or Right in the **Favorite rows** jumps to the neighbouring row instead
+      of stopping at the end. Same cause as the Your apps fault — the grid steps to the next item in adapter order —
+      in a different container. Fixed in 2.30, to be confirmed
 
 ---
 
