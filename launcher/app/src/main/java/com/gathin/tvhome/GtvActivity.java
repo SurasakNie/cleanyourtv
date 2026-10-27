@@ -34,6 +34,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.ViewParent;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -267,7 +268,7 @@ public final class GtvActivity extends Activity {
         cols = Math.max(5, Math.min(8, cfg.columns));
         rowsBelow = Math.max(0, Math.min(3, cfg.rowsBelowDock));
         SharedPreferences effects = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
-        inputsOnHome = effects.getBoolean(PREF_INPUTS_ON_HOME, false);
+        inputsOnHome = INPUTS_ROW_READY && effects.getBoolean(PREF_INPUTS_ON_HOME, false);
         animations = cfg.animations && !cfg.reducedMotion;
         advancedEffects = animations && cfg.advancedEffects;
         focusStyle = effects.getInt(PREF_FOCUS_STYLE, FOCUS_ZOOM);
@@ -547,7 +548,7 @@ public final class GtvActivity extends Activity {
         homeGrid.getAdapter().notifyDataSetChanged();
         Toast.makeText(this, getString(inDock ? R.string.gtv_added_to_dock : R.string.gtv_removed_from_dock,
                 a.label), Toast.LENGTH_SHORT).show();
-        if (inDock) dockRow.post(() -> focusDock(dock.size() - 1));
+        focusLastDockApp();
     }
 
     /** The + tile: every app that is not in Your apps yet, in the Apps tab's order. */
@@ -573,20 +574,41 @@ public final class GtvActivity extends Activity {
         return homeInputs.getChildAt(0).requestFocus();
     }
 
-    /** Focuses a place in Your apps, which also scrolls the row to put it in the middle. */
-    private void focusDock(int index) {
-        if (dockRow == null || index < 0 || index >= dockItems.size()) return;
-        RecyclerView.ViewHolder vh = dockRow.findViewHolderForAdapterPosition(index);
-        if (vh != null) {
-            vh.itemView.requestFocus();
-            return;
-        }
-        // Not laid out yet: scroll to it, then take the focus once the row has caught up.
-        dockRow.scrollToPosition(index);
-        dockRow.post(() -> {
-            RecyclerView.ViewHolder then = dockRow.findViewHolderForAdapterPosition(index);
-            if (then != null) then.itemView.requestFocus();
+    /**
+     * Focuses the last app in Your apps - which also scrolls the row to put it in the middle - once the row has
+     * been laid out again. A dock edit rebuilds the tile that held the focus, and a runnable posted straight
+     * after notifyDataSetChanged() can run before the next layout pass, when the holder is not there yet; the
+     * choice then went to the platform, so the focus landed somewhere that looked random. This waits for a layout
+     * pass instead, scrolls to the tile if it is still missing, and tries three passes at most.
+     */
+    private void focusLastDockApp() {
+        if (dockRow == null || dock.isEmpty()) return;
+        dockRow.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            private int pass;
+
+            @Override
+            public void onGlobalLayout() {
+                int at = dock.size() - 1;
+                RecyclerView.ViewHolder vh = at >= 0 ? dockRow.findViewHolderForAdapterPosition(at) : null;
+                boolean done = vh != null || ++pass >= 3;
+                if (vh != null) {
+                    View tile = vh.itemView;
+                    tile.requestFocus();
+                    // The menu that started this edit is still closing; if the platform moves the focus once
+                    // more as the window comes back, take it again on the next frame.
+                    dockRow.postOnAnimation(() -> {
+                        if (getCurrentFocus() != tile && tile.isAttachedToWindow()) tile.requestFocus();
+                    });
+                } else if (!done) {
+                    dockRow.scrollToPosition(at);
+                }
+                if (done) {
+                    ViewTreeObserver tree = dockRow.getViewTreeObserver();
+                    if (tree.isAlive()) tree.removeOnGlobalLayoutListener(this);
+                }
+            }
         });
+        dockRow.requestLayout();   // there has to be a layout pass to wait for
     }
 
     private static String key(App a) {
@@ -649,8 +671,12 @@ public final class GtvActivity extends Activity {
             actions.add(() -> startMove(a));
         }
         if (inDock) {
-            titles.add(getString(R.string.gtv_remove_from_dock));
-            actions.add(() -> setInDock(a, false));
+            // The row never shrinks below Apps per row, so Remove is not offered at that size. setInDock still
+            // refuses to take the last app, as the final line of defence.
+            if (dock.size() > cols) {
+                titles.add(getString(R.string.gtv_remove_from_dock));
+                actions.add(() -> setInDock(a, false));
+            }
         } else {
             titles.add(getString(R.string.gtv_add_to_dock));
             actions.add(() -> setInDock(a, true));
@@ -756,6 +782,13 @@ public final class GtvActivity extends Activity {
             tabs[currentTab].requestFocus();
             return true;
         }
+        if ((code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)
+                && atRowEnd(f, code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+            // Nothing else handles Left or Right here, so at a row's end the platform's focus search picks
+            // whatever focusable it can reach - the next item in adapter order, which is the neighbouring row.
+            // Swallow the key instead: a row stops at its ends, and Up and Down are the only ways out of it.
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeInputs) {
             openAppsAt(0);
             return true;
@@ -783,6 +816,39 @@ public final class GtvActivity extends Activity {
             if (focusHomeInputs()) return true;
             openAppsAt(at % cols);
             return true;
+        }
+        return false;
+    }
+
+    /**
+     * True when this tile is the last one in its row in the direction pressed, so the key must stop here. Every
+     * lookup is guarded by the tile's parent: {@code getChildAdapterPosition} casts the layout parameters to
+     * RecyclerView's own and throws for a view from any other container (2.28).
+     */
+    private boolean atRowEnd(View f, boolean right) {
+        ViewParent parent = f.getParent();
+        if (currentTab == TAB_HOME && parent == dockRow) {
+            int at = dockRow.getChildAdapterPosition(f);
+            if (at < 0) return false;
+            return right ? at >= dockItems.size() - 1 : at == 0;
+        }
+        if (currentTab == TAB_HOME && parent == homeGrid) {
+            // Position 0 is the section header, so the Favorites start at 1.
+            int at = homeGrid.getChildAdapterPosition(f) - 1;
+            if (at < 0) return false;
+            return right ? at % cols == cols - 1 || at >= favouritesShown() - 1 : at % cols == 0;
+        }
+        if (currentTab == TAB_APPS && parent == appsGrid) {
+            int at = appsGrid.getChildAdapterPosition(f);
+            if (at < 0) return false;
+            return right ? at % cols == cols - 1 || at >= all.size() - 1 : at % cols == 0;
+        }
+        // The Inputs rows are plain LinearLayouts, so no adapter is asked: the tile's place among its siblings.
+        LinearLayout row = currentTab == TAB_HOME && parent == homeInputs ? homeInputs
+                : currentTab == TAB_INPUTS && parent == inputsRow ? inputsRow : null;
+        if (row != null) {
+            int at = row.indexOfChild(f);
+            return right ? at == row.getChildCount() - 1 : at == 0;
         }
         return false;
     }
@@ -1141,6 +1207,8 @@ public final class GtvActivity extends Activity {
      * while it is off nothing is read and no thread runs.
      */
     private void buildPerfCard(Config cfg) {
+        // Forced off at the most Favorite rows, whatever was chosen: the rows reach up to the card there.
+        if (rowsBelow >= Config.PERF_CARD_OFF_AT_ROWS) return;
         if (!getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getBoolean(Config.PERF_CARD_KEY, false)) return;
         stats = new Stats(this);
         perfCard = new LinearLayout(this);
@@ -1363,6 +1431,13 @@ public final class GtvActivity extends Activity {
     static final int BANNER_NAME = 0, BANNER_GLASS = 1, BANNER_OFF = 2, BANNER_LIVE = 3;
     /** The Inputs row under the Favorite rows, and the frosted strip behind the tabs and the clock. */
     static final String PREF_INPUTS_ON_HOME = "gtv_inputs_on_home";
+    /**
+     * The Inputs row on Home (2.24) is out of the APK, at the owner's word: on this TV (density 2.0) it stands down
+     * at two or more Favorite rows, and what is wanted in its place is a live window per input. Its code, its
+     * stored value and its row-end rule stay in the tree; flip this, and the row in Launcher settings with it, to
+     * bring it back. The Inputs tab is a different thing and is untouched.
+     */
+    static final boolean INPUTS_ROW_READY = false;
     static final String PREF_GLASS_BARS = "gtv_glass_bars";
     /** Focus style: 0 zoom (what Home has always done), 1 lift, 2 glass halo, 3 underline. */
     static final String PREF_FOCUS_STYLE = "gtv_focus_style";
@@ -1622,11 +1697,17 @@ public final class GtvActivity extends Activity {
     private void placeGlow(GlowStyle.Spot spot) {
         if (glow == null || spot == null || glowStyle == GlowStyle.RIBBON) return;
         int w = getResources().getDisplayMetrics().widthPixels, h = getResources().getDisplayMetrics().heightPixels;
+        // The ellipse is made by stretching the full-screen view about the spot, and a stretch may only ever GROW it:
+        // squashing it (a scale below 1) left its rectangle smaller than the screen, and the gradient, not yet
+        // transparent at that edge, showed as a hard dark bar along the top and bottom (2.26, Random position and
+        // shape). Wider than tall: stretch X up and shrink the radius by the same ratio, so the ellipse is the same.
+        float ratio = spot.ry / spot.rx, radius = w * 0.6f * (spot.rx / 0.78f);
         glowDrawable.setGradientCenter(spot.x, spot.y);
-        glowDrawable.setGradientRadius(w * 0.6f * (spot.rx / 0.78f));
+        glowDrawable.setGradientRadius(ratio >= 1f ? radius : radius * ratio);
         glow.setPivotX(spot.x * w);
         glow.setPivotY(spot.y * h);
-        glow.setScaleY(spot.ry / spot.rx);
+        glow.setScaleX(ratio >= 1f ? 1f : 1f / ratio);
+        glow.setScaleY(ratio >= 1f ? ratio : 1f);
         glow.invalidate();
         for (int i = 0; i < extraDrawables.length; i++) {
             GlowStyle.Spot extra = i == 0 ? GlowStyle.second(spot) : GlowStyle.random(false);

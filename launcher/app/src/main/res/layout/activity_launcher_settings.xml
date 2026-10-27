@@ -96,7 +96,7 @@
                 style="@style/SettingsRow"
                 android:layout_marginTop="10dp" />
 
-            <TextView style="@style/SettingsHint" android:text="@string/hint_inputs_home" />
+            <TextView android:id="@+id/hintInputsHome" style="@style/SettingsHint" android:text="@string/hint_inputs_home" />
 
             <TextView style="@style/SettingsSection" android:text="@string/section_look" />
 
@@ -215,6 +215,8 @@
                 android:layout_marginTop="10dp" />
 
             <TextView style="@style/SettingsHint" android:text="@string/hint_perf" />
+            <TextView android:id="@+id/hintPerfRows" style="@style/SettingsHint" android:text="@string/hint_perf_rows"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/followThemeChoice"

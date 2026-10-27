@@ -29,7 +29,7 @@
     <string name="home_settings_help">כדי להפסיק להשתמש ב־CleanYourTV כמסך הבית, יש לבחור במסך הבית המקורי. כדי לחזור, יש לבחור ב־CleanYourTV. מפעיל מסך הבית המקורי חייב להיות פעיל, והטלוויזיה צריכה לתמוך בבחירת מסך בית. אם הוא הושבת, יש להפעיל תחילה את סקריפט השחזור.</string>
     <string name="launcher_settings">הגדרות מסך הבית</string>
     <string name="columns_label">אפליקציות בשורה</string>
-    <string name="animations_state">הנפשות: %1$s</string>
+    <string name="animations_state">הנפשות מיקוד ומחוון: %1$s</string>
     <string name="advanced_effects">אפקטים מתקדמים</string>
     <string name="advanced_effects_state">אפקטים מתקדמים: %1$s</string>
     <string name="advanced_effects_warning">מוסיף אריח מוגבה, הגדלת סמלים ומעברי צבע חלקים. עשוי להגדיל את צריכת הזיכרון; ההבדל בפועל תלוי בטלוויזיה.</string>
@@ -88,7 +88,7 @@
         <item quantity="other">%1$d אפליקציות</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
-    <string name="rows_below_dock_label">שורות מתחת לעגינה</string>
+    <string name="rows_below_dock_label">שורות אפליקציות מועדפות</string>
     <string name="wallpaper_label">טפט</string>
     <string name="wallpaper_state">טפט: %1$s</string>
     <string name="wallpaper_none">ללא</string>
@@ -132,7 +132,7 @@
     <string name="hint_columns">כמה אפליקציות בשורה. פחות אפליקציות פירושן אריחים גדולים יותר.</string>
     <string name="hint_rows">כמה שורות של אפליקציות נשארות גלויות מתחת לרציף.</string>
     <string name="hint_wallpaper">תמונת רקע. התמונות מגיעות מתיקיית הטפטים של ערכת הנושא.</string>
-    <string name="hint_animations">תנועה כשמעבירים מיקוד. כבו אם מסך הבית מרגיש איטי.</string>
+    <string name="hint_animations">תנועה כשמעבירים מיקוד: הגדלת המיקוד ונקודות המחוון של האפליקציות. כבו אם מסך הבית מרגיש איטי.</string>
     <string name="hint_cinematic">הגרפיקה והצבע של אפליקציית הרציף הנבחרת ממלאים את חלקו העליון של המסך.</string>
     <string name="hint_glow">היכן מופיע הזוהר הצבעוני, עם או בלי מצב קולנועי. דורש זוהר רקע פעיל. לחצו OK לבחירה.</string>
     <string name="hint_ambient">האור הרך בצבע האפליקציה הנבחרת. כבוי וללא טפט נותן מסך בית שחור לגמרי.</string>
@@ -172,6 +172,7 @@
     <string name="unknown">לא ידוע</string>
     <string name="perf_state">כרטיס ביצועים: %1$s</string>
     <string name="hint_perf">כרטיס קטן מתחת לשעון שמראה מה הטלוויזיה עושה: מעבד, זיכרון, אחסון, טמפרטורה, קצב פריימים, רשת וזמן פעילות. נתונים שהטלוויזיה אינה חושפת פשוט לא יוצגו.</string>
+    <string name="hint_perf_rows">כבוי כאשר שורות האפליקציות המועדפות הן 3: אין מקום מתחת לשעון. הבחירה שלך נשמרת, והכרטיס חוזר כשמורידים את מספר השורות.</string>
     <string name="perf_title">ביצועים</string>
     <string name="perf_cpu">מעבד</string>
     <string name="perf_load">עומס (דקה)</string>

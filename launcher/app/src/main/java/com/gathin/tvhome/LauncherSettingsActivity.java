@@ -29,7 +29,7 @@ public final class LauncherSettingsActivity extends Activity {
     private TextView previewChoice;
     private TextView glowChoice;
     private TextView fontChoice;
-    private TextView ambientChoice, perfChoice;
+    private TextView ambientChoice, perfChoice, hintPerfRows;
     private TextView bannerSizeChoice, bannerStyleChoice, glassBarsChoice, inputsHomeChoice, liveSourceChoice;
     private TextView focusStyleChoice;
     /** The list and the choice page that takes its place; the row to focus again when the page closes. */
@@ -168,6 +168,7 @@ public final class LauncherSettingsActivity extends Activity {
             refresh();
         });
         perfChoice = findViewById(R.id.perfChoice);
+        hintPerfRows = findViewById(R.id.hintPerfRows);
         perfChoice.setOnClickListener(v -> {
             boolean on = !choices.getBoolean(Config.PERF_CARD_KEY, false);
             choices.edit().putBoolean(Config.PERF_CARD_KEY, on).apply();
@@ -498,13 +499,23 @@ public final class LauncherSettingsActivity extends Activity {
         // that set its idle time has nothing to start. Hidden, not deleted, like the rows below it.
         findViewById(R.id.clockChoice).setVisibility(android.view.View.GONE);
         findViewById(R.id.hintClock).setVisibility(android.view.View.GONE);
+        // The Inputs row on Home is out of the APK too (GtvActivity.INPUTS_ROW_READY); its setting goes with it.
+        int inputsRowRows = GtvActivity.INPUTS_ROW_READY ? android.view.View.VISIBLE : android.view.View.GONE;
+        inputsHomeChoice.setVisibility(inputsRowRows);
+        findViewById(R.id.hintInputsHome).setVisibility(inputsRowRows);
         int unread = APPLE_ROWS_READY ? android.view.View.VISIBLE : android.view.View.GONE;
         for (int id : new int[]{R.id.cinematicChoice, R.id.hintCinematic, R.id.namesChoice, R.id.hintNames}) {
             findViewById(id).setVisibility(unread);
         }
         focusStyleChoice.setText(getString(R.string.focus_style_state, getString(focusStyleLabel())));
-        perfChoice.setText(getString(R.string.perf_state,
-                getString(choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
+        // At the most Favorite rows the card is forced off: the row greys out and reads Off, the stored choice is
+        // not touched, and a line says why. Lower the rows and it is back as the owner left it.
+        boolean perfBlocked = rowsBelowDock >= Config.PERF_CARD_OFF_AT_ROWS;
+        perfChoice.setEnabled(!perfBlocked);
+        perfChoice.setAlpha(perfBlocked ? 0.5f : 1f);
+        hintPerfRows.setVisibility(perfBlocked ? android.view.View.VISIBLE : android.view.View.GONE);
+        perfChoice.setText(getString(R.string.perf_state, getString(
+                !perfBlocked && choices.getBoolean(Config.PERF_CARD_KEY, false) ? R.string.on : R.string.off)));
         fontChoice.setText(getString(R.string.font_state, getString(Fonts.nameRes(Fonts.load(this)))));
         previewChoice.setText(getString(R.string.preview_state,
                 getString(InputPreview.enabled(this) ? R.string.on : R.string.off)));
