@@ -342,6 +342,39 @@ in the row, and **which app and which place in the list** it happened with.
 
 ---
 
+## 2.32 — the live window must not flash
+
+**What changed.** With **Banner › Live input**, at Favorite apps rows 1–3 a black rectangle showed for a fraction of
+a second when an app was selected, then went. At 0 rows the HDMI picture showed. From the code (not proven on the
+TV): selecting an app showed the banner on a "fits" value that could be stale, so the banner and its window came
+up and the next fit hid them again. Now selecting an app re-measures the fit first, and the window starts only one
+step later with every condition read again. Every stop (opening an app, opening an input, leaving Home) also
+cancels a start still waiting. **On this TV the live window still works only at 0 Favorite rows** — option A,
+chosen 27 Oct.
+
+Setup: Launcher settings › Banner = **Live input**, Live input source = **HDMI 2** (the port that showed a picture).
+Run `.\adb.exe logcat -c` first.
+
+- [ ] **1.** Favorite apps rows = **0**: Down onto Your apps → the banner shows the **HDMI 2 picture**, muted (as in 2.31)
+- [ ] **1.** Still at 0: move Left/Right through Your apps ten times → the picture stays, no black frame between apps
+- [ ] **2.** Rows = **1**: select an app (Down onto Your apps, then Left/Right) → **no black rectangle at all**, not even for a moment
+- [ ] **2.** Rows = **2**: same → no black rectangle
+- [ ] **2.** Rows = **3**: same → no black rectangle
+- [ ] **2.** At rows 1–3, also Down into the Favorite rows and back up → no black rectangle
+- [ ] **3.** Back at rows 0, with the picture showing: Up to the Home pill → the banner and picture go (by design);
+      Down again → they return
+- [ ] **4.** With the picture showing: OK on an app → the app opens normally with its sound, and Home → the picture returns
+- [ ] **4.** With the picture showing: Inputs tab → OK on HDMI 2 → the TV's own full-screen picture, with sound
+      (the hand-back still works)
+- [ ] **5.** Banner = Name + glow, then Glass panel: both look as in 2.31 at rows 0 and 3
+- [ ] **6.** Launcher settings › About shows **2.32**
+- [ ] **7.** `.\adb.exe logcat -d | findstr /i "FATAL AndroidRuntime gathin"` → nothing from `com.gathin.tvhome`
+
+If rows 1–3 still flash, run `.\adb.exe logcat -d > live.txt` straight away and send it: the cause is then
+elsewhere (the banner frame itself, say), and reading the code will not find it.
+
+---
+
 ## After each build
 
 ```
