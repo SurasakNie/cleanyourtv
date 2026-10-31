@@ -373,6 +373,37 @@ Run `.\adb.exe logcat -c` first.
 If rows 1–3 still flash, run `.\adb.exe logcat -d > live.txt` straight away and send it: the cause is then
 elsewhere (the banner frame itself, say), and reading the code will not find it.
 
+**Result of the owner's run, 31 Oct (2.32 installed, `versionName=2.32` confirmed; density 320 = 2.0 confirmed; the log
+has no FATAL / AndroidRuntime).** Rows 0: **no flash**. Rows 1–3: **no window at all** (as option A intends). Item 3
+above (the picture goes when the focus is on the Home pill) is **superseded**: the owner wants the window to stay on the
+Home page — built as 2.33. The boxes above are not individually ticked; this is the owner's summary.
+
+---
+
+## 2.33 — the live window stays on Home when no app is selected
+
+**What changed.** With **Banner › Live input**, the window vanished as soon as the focus left the app tiles for the
+Home tab or the gear, because the banner showed only while an app was selected. Now the live style shows whenever
+Home is in front and the banner fits; the app **name and the page dots hide** when no app is selected (they keep their
+room, so the window does not move). The other banner styles are unchanged: they still need a selected app. Apps and
+Inputs tabs still hide the window and hand the input back. Rows 1–3 still show no window (option A).
+
+Setup: Banner = **Live input**, source = **HDMI 2**, Favorite apps rows = **0**. Run `.\adb.exe logcat -c` first.
+
+- [ ] **1.** Arrive on Home with the focus on the **Home pill** → the HDMI 2 picture is already showing, with no app name
+- [ ] **2.** Down onto Your apps → the picture stays, the app name and dots appear under it, **nothing jumps**
+- [ ] **3.** Up to the Home pill again → the picture stays; name and dots go
+- [ ] **4.** Right to the **gear** → the picture stays
+- [ ] **5.** **Apps** tab and **Inputs** tab → the picture goes
+- [ ] **6.** Back to Home → the picture returns; HDMI from the Inputs tab still shows the TV's own full-screen picture with sound
+- [ ] **7.** OK on an app, then Home → the app opens normally; on return the picture comes back
+- [ ] **8.** Rows = **1, 2, 3** → still no window and no black flash — **owner, 31 Oct: no window at 1, 2, 3; decided: the live window works at 0 rows only**
+- [ ] **9.** Banner = Name + glow, then Glass panel, then Off: unchanged from 2.32 (needs a selected app; Off shows nothing)
+- [ ] **10.** Launcher settings › About shows **2.33**
+- [ ] **11.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+
+If the picture flickers while moving between the pill, the tiles and the gear, send `.\adb.exe logcat -d | Out-File -Encoding utf8 live.txt`.
+
 ---
 
 ## After each build
