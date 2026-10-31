@@ -397,7 +397,7 @@ Setup: Banner = **Live input**, source = **HDMI 2**, Favorite apps rows = **0**.
 - [ ] **5.** **Apps** tab and **Inputs** tab → the picture goes
 - [ ] **6.** Back to Home → the picture returns; HDMI from the Inputs tab still shows the TV's own full-screen picture with sound
 - [ ] **7.** OK on an app, then Home → the app opens normally; on return the picture comes back
-- [ ] **8.** Rows = **1, 2, 3** → still no window and no black flash
+- [ ] **8.** Rows = **1, 2, 3** → still no window and no black flash — **owner, 31 Oct: no window at 1, 2, 3; decided: the live window works at 0 rows only**
 - [ ] **9.** Banner = Name + glow, then Glass panel, then Off: unchanged from 2.32 (needs a selected app; Off shows nothing)
 - [ ] **10.** Launcher settings › About shows **2.33**
 - [ ] **11.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime

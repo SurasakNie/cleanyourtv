@@ -115,6 +115,9 @@ The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work thr
 - **The old-key theme check** (2.27) — skipped for lack of a theme file.
 - The retired lines: 2.24's Inputs-row walk is gone with the row (2.31 hides it).
 
+### The `Duplicate finish request` lines in the log (read 31 Oct; no change made)
+Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` (6–7 per run, never a crash). `MainActivity` is the HOME shim: `onCreate` starts `GtvActivity` and calls `finish()` once (`MainActivity.java:50`), and the same class serves `ACTION_LAUNCHER_SETTINGS` (the remote's Settings button, **not to be touched**). From the code alone there is a single `finish()` on that path, so the system's second request probably comes from the shim being launched again while still finishing; this is **not proven** and nothing in the symptoms is user-visible. Left alone on purpose. `BufferQueueProducer: disconnect: not connected` (3 per run) is graphics noise at surface teardown, also unverified.
+
 ### Build 2.32 — the live window must not flash (owner chose option A, 27 Oct; merged and tested on the TV 31 Oct: no flash at 0 rows, no window at 1–3). Its follow-up is 2.33 (above)
 **Status 28 Oct:** steps 1–3 are in the code and the tests pass (249). Step 4's build, signer, permission and size checks are **still to do** — the container had no `/root/android-sdk` and the network policy refused `dl.google.com` (403), so Gradle could not fetch the Android plugin. Note also that the 245 below was a guess: the new file holds 5 tests, so the suite is 249.
 
@@ -128,7 +131,7 @@ The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work thr
 3. `versionCode 232` / `'2.32'`; new `tests/test_banner_live_fit.py`, **seen failing on the 2.31 code first** (245 tests expected).
 4. Verify: unit tests, release build, signer `a215696a…a603aaa436e`, three permissions, APK under 921,600 bytes. TV check: Banner › Live input at rows 0/1/2/3 — no flash at 1–3, picture at 0.
 
-**Not chosen — option B:** make the banner fit at 1–2 rows (a layout redesign of Home's height arithmetic; RSK-1). **Consequence of A that the owner should know:** the live window works only at 0 Favorite rows on this TV. If 2.32 still flashes, the cause is elsewhere (the banner text, say) and a log is needed.
+**Owner's decision, 31 Oct (after the 2.33 run): the live window works at 0 Favorite rows only; nothing is built for 1–3.** The window stays absent at 1–3 rows and option B is closed unless the owner reopens it. **Not chosen — option B:** make the banner fit at 1–2 rows (a layout redesign of Home's height arithmetic; RSK-1). **Consequence of A that the owner should know:** the live window works only at 0 Favorite rows on this TV. If 2.32 still flashes, the cause is elsewhere (the banner text, say) and a log is needed.
 
 **Before installing 2.22 on any other set:** check `settings get secure screensaver_components`. If it names `com.gathin.tvhome/.ClockDream`, point the TV at its own screensaver first, or it falls back to the system default with no warning.
 
@@ -166,7 +169,7 @@ Config.PERF_CARD_OFF_AT_ROWS` from the same `Config` value Home reads, runs afte
 `onCreate`, and no second screen or layout variant exposes the setting, so reading the code does not explain it.
 Evidence needed from the TV (see Waiting on a test).
 
-**Re-diagnosed 27 Oct, fix planned for 2.32: Live input shows a black rectangle (2.25).** The owner reports a picture from HDMI 2 at 0 Favorite rows and, at 1, 2 and 3 rows, a black rectangle for a fraction of a second after an app is selected, then nothing. So TvView and the passthrough tune work; the fault is the banner and its live window being shown and then hidden by `fitBanner()` (mechanism in *Next build*, from the code, not proven). The earlier reading — "available-but-black, embedding at fault" — is superseded; the `InputPreview` class is still identical to the original window (`6aa614e`). HDMI from the Inputs tab is unaffected — the hand-back works.
+**Closed by decision, 31 Oct — fixed in 2.32, window kept on Home in 2.33 (awaiting the owner's 0-row result for 2.33): Live input shows a black rectangle (2.25).** *Original note, 27 Oct:* The owner reports a picture from HDMI 2 at 0 Favorite rows and, at 1, 2 and 3 rows, a black rectangle for a fraction of a second after an app is selected, then nothing. So TvView and the passthrough tune work; the fault is the banner and its live window being shown and then hidden by `fitBanner()` (mechanism in *Next build*, from the code, not proven). The earlier reading — "available-but-black, embedding at fault" — is superseded; the `InputPreview` class is still identical to the original window (`6aa614e`). HDMI from the Inputs tab is unaffected — the hand-back works.
 
 **Fixed in 2.30 and confirmed on the TV (27 Oct, ten removes): after Remove, the focus in Your apps was wrong (2.23).** Hold OK → Remove from Your apps works, but the focus
 that follows does not land on the row's last app and sometimes looks random. Cause, from the code: `setInDock`
