@@ -240,11 +240,27 @@ public final class LauncherSettingsActivity extends Activity {
      * than merely covered, or the remote could still walk through it behind the page.
      */
     private void showPage(int titleRes, String[] labels, int checked, java.util.function.IntConsumer onPick) {
+        showPage(titleRes, labels, checked, onPick, -1);
+    }
+
+    /**
+     * previewKind is a ChoicePreview kind, or -1 for none: a drawing above the rows that follows the highlighted
+     * row, so an option can be seen before it is picked.
+     */
+    private void showPage(int titleRes, String[] labels, int checked, java.util.function.IntConsumer onPick,
+                          int previewKind) {
         pageOpenedBy = null;
         if (getCurrentFocus() instanceof TextView) pageOpenedBy = (TextView) getCurrentFocus();
         pageTitle.setText(titleRes);
         // Keep the title and the Back hint; drop the rows of the page shown before this one.
         while (pageList.getChildCount() > 2) pageList.removeViewAt(2);
+        final ChoicePreview preview = previewKind < 0 ? null : new ChoicePreview(this, previewKind, Math.max(0, checked));
+        if (preview != null) {
+            android.widget.LinearLayout.LayoutParams plp = new android.widget.LinearLayout.LayoutParams(-1,
+                    (int) (120 * getResources().getDisplayMetrics().density));
+            plp.topMargin = (int) (10 * getResources().getDisplayMetrics().density);
+            pageList.addView(preview, plp);
+        }
         for (int i = 0; i < labels.length; i++) {
             final int which = i;
             TextView row = new TextView(this, null, 0, R.style.SettingsRow);
@@ -257,6 +273,7 @@ public final class LauncherSettingsActivity extends Activity {
                 closePage();
                 onPick.accept(which);
             });
+            if (preview != null) row.setOnFocusChangeListener((v, has) -> { if (has) preview.setOption(which); });
             android.widget.LinearLayout.LayoutParams lp =
                     new android.widget.LinearLayout.LayoutParams(-1, (int) (48 * getResources().getDisplayMetrics().density));
             lp.topMargin = (int) (10 * getResources().getDisplayMetrics().density);
@@ -265,7 +282,7 @@ public final class LauncherSettingsActivity extends Activity {
         Fonts.apply(page);
         list.setVisibility(android.view.View.GONE);
         page.setVisibility(android.view.View.VISIBLE);
-        pageList.getChildAt(2 + Math.max(0, checked)).requestFocus();
+        pageList.getChildAt((preview != null ? 3 : 2) + Math.max(0, checked)).requestFocus();
     }
 
     private void closePage() {
@@ -336,7 +353,7 @@ public final class LauncherSettingsActivity extends Activity {
                     .remove(GtvActivity.PREF_BANNER_BORDER).remove(GtvActivity.PREF_BANNER_FILL).apply();
             setResult(RESULT_OK);
             refresh();
-        });
+        }, ChoicePreview.BANNER);
     }
 
     /** Which HDMI port the live banner shows; the first one when nothing is chosen or the choice is gone. */
@@ -533,13 +550,14 @@ public final class LauncherSettingsActivity extends Activity {
     /** How the selected app is told apart: the zoom Home has always used, a lift, a halo or an underline. */
     private void showFocusStylePage() {
         String[] labels = {getString(R.string.focus_zoom), getString(R.string.focus_lift),
-                getString(R.string.focus_halo), getString(R.string.focus_underline)};
+                getString(R.string.focus_halo), getString(R.string.focus_underline),
+                getString(R.string.focus_lift_bar)};
         int current = choices.getInt(GtvActivity.PREF_FOCUS_STYLE, GtvActivity.FOCUS_ZOOM);
         showPage(R.string.focus_style_title, labels, current, which -> {
             choices.edit().putInt(GtvActivity.PREF_FOCUS_STYLE, which).apply();
             setResult(RESULT_OK);
             refresh();
-        });
+        }, ChoicePreview.FOCUS);
     }
 
     private int focusStyleLabel() {
@@ -547,6 +565,7 @@ public final class LauncherSettingsActivity extends Activity {
             case GtvActivity.FOCUS_LIFT: return R.string.focus_lift;
             case GtvActivity.FOCUS_HALO: return R.string.focus_halo;
             case GtvActivity.FOCUS_UNDERLINE: return R.string.focus_underline;
+            case GtvActivity.FOCUS_LIFT_BAR: return R.string.focus_lift_bar;
             default: return R.string.focus_zoom;
         }
     }

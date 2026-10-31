@@ -175,6 +175,8 @@ public final class GtvActivity extends Activity {
     private App moving;
     /** False when the banner can't fit between the top bar and the rows (then only the glow shows). */
     private boolean bannerFits = true, bannerCompact;
+    /** The + was pressed: the Apps tab is open to choose the app to add to Your apps (Back cancels). */
+    private boolean pickingForDock;
     /** False when the Home rows reach up to where the performance card would sit. */
     private boolean perfFits = true;
     /** True while a tile is selected: with the selection on a tab there is no app for the banner to name. */
@@ -381,6 +383,10 @@ public final class GtvActivity extends Activity {
     /** Home is never left with Back: from the content Back goes to the tabs, from the tabs it does nothing. */
     @Override
     public void onBackPressed() {
+        if (pickingForDock) {
+            cancelDockPick();
+            return;
+        }
         View f = getCurrentFocus();
         if (f != null && !isTab(f)) tabs[currentTab].requestFocus();
     }
@@ -551,20 +557,74 @@ public final class GtvActivity extends Activity {
         focusLastDockApp();
     }
 
-    /** The + tile: every app that is not in Your apps yet, in the Apps tab's order. */
-    private void showDockChooser(View anchor) {
-        List<String> titles = new ArrayList<>();
-        List<Runnable> actions = new ArrayList<>();
-        for (App a : all) {
-            if (dock.contains(a)) continue;
-            titles.add(a.label);
-            actions.add(() -> setInDock(a, true));
+    /**
+     * The + tile: opens the Apps tab to choose from, on the first app that is not in Your apps yet. The ones that
+     * are already in it stay on screen but dimmed, and OK on one says so. OK on any other adds it and returns to
+     * Home with the new app focused; Back or any other tab cancels.
+     */
+    private void startDockPick() {
+        int first = -1;
+        for (int i = 0; i < all.size(); i++) {
+            if (!dock.contains(all.get(i))) { first = i; break; }
         }
-        if (titles.isEmpty()) {
+        if (first < 0) {
             Toast.makeText(this, R.string.gtv_dock_has_everything, Toast.LENGTH_SHORT).show();
             return;
         }
-        showMenu(anchor, getString(R.string.gtv_add_to_dock), titles, actions);
+        // Focus the Apps pill first (its listener switches the page), as openAppsAt() does.
+        tabs[TAB_APPS].requestFocus();
+        if (currentTab != TAB_APPS) showTab(TAB_APPS);
+        styleTabs();
+        pickingForDock = true;
+        appsGrid.getAdapter().notifyDataSetChanged();   // rebinds the tiles, dimming the ones already in Your apps
+        final int pos = first;
+        appsGrid.scrollToPosition(pos);
+        appsGrid.post(() -> {
+            RecyclerView.ViewHolder vh = appsGrid.findViewHolderForAdapterPosition(pos);
+            if (vh != null) vh.itemView.requestFocus();
+            else focusFirst(appsGrid);
+        });
+        Toast.makeText(this, R.string.gtv_pick_to_add, Toast.LENGTH_LONG).show();
+    }
+
+    /** OK on an app while choosing: add it and go back to Home, or say it is already there. */
+    private void pickForDock(App a) {
+        if (dock.contains(a)) {
+            Toast.makeText(this, getString(R.string.gtv_pick_already, a.label), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        endDockPick();
+        tabs[TAB_HOME].requestFocus();
+        if (currentTab != TAB_HOME) showTab(TAB_HOME);
+        styleTabs();
+        setInDock(a, true);   // rebuilds the row and focuses its last app, the one just added
+    }
+
+    /** Back while choosing: Home again, on the + tile where it started. */
+    private void cancelDockPick() {
+        endDockPick();
+        tabs[TAB_HOME].requestFocus();
+        if (currentTab != TAB_HOME) showTab(TAB_HOME);
+        styleTabs();
+        final int at = dockItems.size() - 1;
+        dockRow.scrollToPosition(at);
+        dockRow.post(() -> {
+            RecyclerView.ViewHolder vh = dockRow.findViewHolderForAdapterPosition(at);
+            if (vh != null) vh.itemView.requestFocus();
+            else focusHomeFirst();
+        });
+    }
+
+    private void endDockPick() {
+        if (!pickingForDock) return;
+        pickingForDock = false;
+        if (appsGrid != null && appsGrid.getAdapter() != null) appsGrid.getAdapter().notifyDataSetChanged();
+    }
+
+    /** While choosing, an app that is already in Your apps reads as unavailable. */
+    private float pickDim(View v) {
+        Object tag = v.getTag();
+        return pickingForDock && tag instanceof App && dock.contains((App) tag) ? 0.35f : 1f;
     }
 
     /** Focuses the first input on Home, when that row is on and the TV has any ports. True when it took focus. */
@@ -1153,6 +1213,7 @@ public final class GtvActivity extends Activity {
             }
             t.setOnFocusChangeListener((v, has) -> {
                 if (has) {
+                    if (tab != TAB_APPS) endDockPick();   // going anywhere but the Apps tab drops the choosing
                     clearSelectedApp();
                     showTab(tab);
                 }
@@ -1443,7 +1504,7 @@ public final class GtvActivity extends Activity {
     static final String PREF_GLASS_BARS = "gtv_glass_bars";
     /** Focus style: 0 zoom (what Home has always done), 1 lift, 2 glass halo, 3 underline. */
     static final String PREF_FOCUS_STYLE = "gtv_focus_style";
-    static final int FOCUS_ZOOM = 0, FOCUS_LIFT = 1, FOCUS_HALO = 2, FOCUS_UNDERLINE = 3;
+    static final int FOCUS_ZOOM = 0, FOCUS_LIFT = 1, FOCUS_HALO = 2, FOCUS_UNDERLINE = 3, FOCUS_LIFT_BAR = 4;
     /** The bar an underlined tile shows; looked up by tag, since tiles, inputs and the + tile differ. */
     private static final String TAG_FOCUS_BAR = "focusBar";
 
@@ -2054,7 +2115,7 @@ public final class GtvActivity extends Activity {
                 plus.setScaleX(1f);
                 plus.setScaleY(1f);
                 plus.setAlpha(moving != null ? DIM_MOVING : 1f);
-                plus.setOnClickListener(v -> showDockChooser(v));
+                plus.setOnClickListener(v -> startDockPick());
                 plus.setOnFocusChangeListener((v, has) -> {
                     focusTile(v, has);
                     if (has) clearSelectedApp();   // the + names no app, so the banner steps aside
@@ -2082,13 +2143,17 @@ public final class GtvActivity extends Activity {
             float scale = focused ? (carrying ? 1.15f : focusScale()) : 1f;
             card.setScaleX(scale);
             card.setScaleY(scale);
-            card.setTranslationY(focused && !carrying && focusStyle == FOCUS_LIFT ? -10 * dp : 0f);
+            card.setTranslationY(focused && !carrying && liftsTile() ? -10 * dp : 0f);
             card.setTranslationZ(focused ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0);
-            card.setAlpha(focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f));
-            showFocusBar(card, focused && !carrying && focusStyle == FOCUS_UNDERLINE);
+            card.setAlpha((focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f)) * pickDim(card));
+            showFocusBar(card, focused && !carrying && showsBar());
             haloTile(card, focused && !carrying && focusStyle == FOCUS_HALO);
-            card.setOnClickListener(v -> open(a));
-            card.setOnLongClickListener(v -> { menu(a, v); return true; });
+            card.setTag(a);
+            card.setOnClickListener(v -> { if (pickingForDock) pickForDock(a); else open(a); });
+            card.setOnLongClickListener(v -> {
+                if (!pickingForDock) menu(a, v);   // choosing an app to add: no menu
+                return true;
+            });
             card.setOnFocusChangeListener((v, has) -> {
                 focusTile(v, has);
                 if (has) showApp(a, v);
@@ -2109,9 +2174,9 @@ public final class GtvActivity extends Activity {
     private void focusTile(View v, boolean has) {
         boolean carrying = moving != null;
         float scale = has ? (carrying ? 1.15f : focusScale()) : 1f;
-        float lift = has && !carrying && focusStyle == FOCUS_LIFT ? -10 * dp : 0f;
+        float lift = has && !carrying && liftsTile() ? -10 * dp : 0f;
         float z = has ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0;
-        float alpha = has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f);
+        float alpha = (has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f)) * pickDim(v);
         if (animations) {
             v.animate().scaleX(scale).scaleY(scale).translationY(lift).translationZ(z).alpha(alpha)
                     .setDuration(140).start();
@@ -2124,14 +2189,25 @@ public final class GtvActivity extends Activity {
             v.setTranslationZ(z);
             v.setAlpha(alpha);
         }
-        showFocusBar(v, has && !carrying && focusStyle == FOCUS_UNDERLINE);
+        showFocusBar(v, has && !carrying && showsBar());
         haloTile(v, has && !carrying && focusStyle == FOCUS_HALO);
         if (has && carrying) dimOthers(v);
     }
 
-    /** Underline leaves the tile its own size; every other style zooms it, as Home always has. */
+    /** Underline and Lift + bar leave the tile its own size; Lift zooms a little; every other style zooms it, as Home always has. */
     private float focusScale() {
-        return focusStyle == FOCUS_UNDERLINE ? 1f : focusStyle == FOCUS_LIFT ? 1.06f : 1.1f;
+        return focusStyle == FOCUS_UNDERLINE || focusStyle == FOCUS_LIFT_BAR ? 1f
+                : focusStyle == FOCUS_LIFT ? 1.06f : 1.1f;
+    }
+
+    /** Lift, and Lift + bar, raise the selected tile a little. */
+    private boolean liftsTile() {
+        return focusStyle == FOCUS_LIFT || focusStyle == FOCUS_LIFT_BAR;
+    }
+
+    /** Underline, and Lift + bar, draw the app's colour as a bar along the tile's bottom edge. */
+    private boolean showsBar() {
+        return focusStyle == FOCUS_UNDERLINE || focusStyle == FOCUS_LIFT_BAR;
     }
 
     /** The bar under an underlined tile, in the app's own colour. */

@@ -67,7 +67,7 @@ class DockStoreTest(unittest.TestCase):
 
     def test_a_dock_edit_takes_the_focus_after_a_layout_pass_on_add_and_on_remove(self):
         home = (SRC / "GtvActivity.java").read_text(encoding="utf-8")
-        edit = home[home.index("private void setInDock"):home.index("private void showDockChooser")]
+        edit = home[home.index("private void setInDock"):home.index("private void startDockPick")]
         self.assertIn("focusLastDockApp();", edit)
         self.assertNotIn("if (inDock) dockRow.post", edit, "removing must take the focus too, not only adding")
         start = home.index("private void focusLastDockApp()")
