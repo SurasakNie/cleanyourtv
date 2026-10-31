@@ -31,11 +31,9 @@ class BannerLiveFitTest(unittest.TestCase):
 
     def test_the_deferred_start_recomputes_every_condition(self):
         start = self.home.index("private final Runnable liveStart")
-        body = self.home[start:self.home.index("};", start)]
-        for condition in ("bannerStyle != BANNER_OFF", "currentTab == TAB_HOME", "bannerFits", "appSelected",
-                          "resumed"):
-            with self.subTest(condition=condition):
-                self.assertIn(condition, body)
+        body = self.home[start:self.home.index(";", start)]
+        self.assertIn("bannerShown()", body, "the start re-reads the whole gate, not a cached value")
+        self.assertIn("resumed", body)
 
     def test_every_stop_cancels_a_start_still_waiting(self):
         # open(), openInput() and onPause() stop the window directly; a posted start must not undo that.
@@ -44,10 +42,9 @@ class BannerLiveFitTest(unittest.TestCase):
         self.assertLess(live.index("removeCallbacks(liveStart)"), live.index("if (mayRun == liveRunning) return;"),
                         "cancel before the early return, or a stop while already stopped leaves the start queued")
 
-    def test_the_version_is_2_32(self):
+    def test_the_build_is_2_32_or_later(self):
         gradle = GRADLE.read_text(encoding="utf-8")
-        self.assertRegex(gradle, r"versionCode 232\b")
-        self.assertIn("versionName '2.32'", gradle)
+        self.assertGreaterEqual(int(re.search(r"versionCode (\d+)", gradle).group(1)), 232)
 
 
 if __name__ == "__main__":

@@ -1746,10 +1746,22 @@ public final class GtvActivity extends Activity {
         }
     }
 
-    /** The banner names the selected app, so it shows only on Home, only when it fits, and only with a selection. */
+    /**
+     * Whether the banner is on screen: only on Home, only when it fits, and only with a selection -- except the live
+     * input window, which belongs to the Home page rather than to an app and stays while the focus is on a tab or the gear.
+     */
+    private boolean bannerShown() {
+        return bannerStyle != BANNER_OFF && currentTab == TAB_HOME && bannerFits
+                && (appSelected || bannerStyle == BANNER_LIVE);
+    }
+
     private void updateBanner() {
-        boolean show = bannerStyle != BANNER_OFF && currentTab == TAB_HOME && bannerFits && appSelected;
+        boolean show = bannerShown();
         banner.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
+        // With no app selected the window stays but the name and dots go; INVISIBLE, not GONE, so the banner keeps its
+        // height and the window does not move. showApp() -> showDot() brings the dots back.
+        title.setVisibility(appSelected ? View.VISIBLE : View.INVISIBLE);
+        if (!appSelected && dots.getVisibility() == View.VISIBLE) dots.setVisibility(View.INVISIBLE);
         if (!(show && resumed)) {
             updateLivePreview(false);
             return;
@@ -1760,8 +1772,7 @@ public final class GtvActivity extends Activity {
         banner.post(liveStart);
     }
 
-    private final Runnable liveStart = () -> updateLivePreview(bannerStyle != BANNER_OFF && currentTab == TAB_HOME
-            && bannerFits && appSelected && resumed);
+    private final Runnable liveStart = () -> updateLivePreview(bannerShown() && resumed);
 
     /** The selection left the tiles (a tab or the gear): there is no app to name. */
     private void clearSelectedApp() {
