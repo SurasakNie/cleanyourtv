@@ -1384,6 +1384,8 @@ public final class GtvActivity extends Activity {
      * tuned behind an app.
      */
     private void updateLivePreview(boolean mayRun) {
+        // open(), openInput(), onPause(): a start still queued must not undo the stop.
+        if (!mayRun && banner != null) banner.removeCallbacks(liveStart);
         if (livePreview == null) return;
         if (mayRun == liveRunning) return;
         liveRunning = mayRun;
@@ -1513,6 +1515,7 @@ public final class GtvActivity extends Activity {
     /** The tile is passed in for Glow: Follow, which sits the glow above the tile that has just taken focus. */
     private void showApp(App a, View tile) {
         appSelected = true;
+        fitBanner();   // bannerFits may be stale; decide on a fresh fit, or the banner shows for an instant and goes
         updateBanner();
         showDot(dock.indexOf(a));
         title.setText(a.label);
@@ -1747,8 +1750,18 @@ public final class GtvActivity extends Activity {
     private void updateBanner() {
         boolean show = bannerStyle != BANNER_OFF && currentTab == TAB_HOME && bannerFits && appSelected;
         banner.setVisibility(show ? View.VISIBLE : View.INVISIBLE);
-        updateLivePreview(show && resumed);
+        if (!(show && resumed)) {
+            updateLivePreview(false);
+            return;
+        }
+        // Start only after one more pass, with every condition read again: a fit that follows this one may still
+        // hide the banner, and a window started in between flashes black.
+        banner.removeCallbacks(liveStart);
+        banner.post(liveStart);
     }
+
+    private final Runnable liveStart = () -> updateLivePreview(bannerStyle != BANNER_OFF && currentTab == TAB_HOME
+            && bannerFits && appSelected && resumed);
 
     /** The selection left the tiles (a tab or the gear): there is no app to name. */
     private void clearSelectedApp() {
