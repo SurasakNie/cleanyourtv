@@ -480,3 +480,27 @@ Setup: `.\adb.exe logcat -c` first.
 - [ ] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
 
 Not checked here: how any drawing looks on the TV; they were never rendered off-device.
+
+---
+
+## 2.36 — previews in the Font and Wallpaper pages
+
+**What changed.** The two choice pages that had no drawing now have one, in the same fixed slot above the rows as the
+Focus style, Banner and Glow pages. **Font**: the banner's lines ("App name", "Last opened…", the tab names) set in the
+highlighted font, Outfit or CMU Sans. **Wallpaper**: the highlighted picture, centre-cropped to a 16:9 screen with a
+faint copy of Home's tiles over it; decoded small, off the main thread. The "None" row and the "Theme default" row have no
+picture, so they say what they mean in a line of text. Nothing else changed.
+
+Setup: `.\adb.exe logcat -c` first. Wallpaper needs at least one picture in the theme folder (`wallpapers/` or `wallpaper.jpg`).
+
+- [ ] **1.** Launcher settings › Font: the page shows a **preview** above two rows; moving between Outfit and CMU Sans changes the lettering
+- [ ] **2.** Choose CMU Sans → the panel redraws in it (as before); open the page again → the preview matches the font in use
+- [ ] **3.** Launcher settings › Wallpaper: the page shows a preview; moving the highlight over each picture shows **that picture**, cropped to a 16:9 frame
+- [ ] **4.** A large picture: moving onto it never freezes the remote (the picture may appear a moment later)
+- [ ] **5.** "None" and "Theme default": a line of text instead of a picture
+- [ ] **6.** Pick a wallpaper → Home shows the same picture as the preview
+- [ ] **7.** All five previewed pages (Focus style, Banner, Glow, Font, Wallpaper) still show their drawing fixed at the top while the rows scroll
+- [ ] **8.** Launcher settings › About shows **2.36**
+- [ ] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+
+Not checked here: how any drawing looks on the TV; and no picture was available to try the Wallpaper decoding.

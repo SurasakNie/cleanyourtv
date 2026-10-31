@@ -1,14 +1,22 @@
 package com.gathin.tvhome;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.graphics.Shader;
 import android.view.View;
+
+import java.io.File;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A small drawing at the top of a choice page that shows what the highlighted option looks like, so a choice can be
@@ -17,7 +25,7 @@ import android.view.View;
  * the banner and GlowStyle's own for the glow.
  */
 final class ChoicePreview extends View {
-    static final int FOCUS = 0, BANNER = 1, GLOW = 2;
+    static final int FOCUS = 0, BANNER = 1, GLOW = 2, FONT = 3, WALLPAPER = 4;
 
     private static final int PANEL = 0xFF10131A, TILE_A = 0xFF3B5BA9, TILE_B = 0xFFC0392B, TILE_C = 0xFF2E8B57;
 
@@ -43,6 +51,106 @@ final class ChoicePreview extends View {
         invalidate();
     }
 
+    // ---- Wallpaper --------------------------------------------------------------------------------
+
+    private List<File> images;
+    private final Map<Integer, Bitmap> pictures = new HashMap<>();
+    private int loading = -1;
+
+    /** The pictures the Wallpaper page lists, in row order; the two rows after them are "none" and the theme's own. */
+    void setImages(List<File> images) {
+        this.images = images;
+        invalidate();
+    }
+
+    /**
+     * Decodes one picture small, off the main thread: a theme's wallpaper can be a full-size JPEG, and decoding it in
+     * onDraw on this TV's processor would stall the remote.
+     */
+    private void load(int index) {
+        if (images == null || index < 0 || index >= images.size() || pictures.containsKey(index) || loading == index) return;
+        loading = index;
+        final File file = images.get(index);
+        new Thread(() -> {
+            Bitmap decoded = null;
+            try {
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeFile(file.getPath(), bounds);
+                int sample = 1;
+                while (bounds.outWidth / (sample * 2) >= 640) sample *= 2;
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inSampleSize = sample;
+                decoded = BitmapFactory.decodeFile(file.getPath(), o);
+            } catch (RuntimeException | OutOfMemoryError e) {
+                decoded = null;
+            }
+            final Bitmap result = decoded;
+            post(() -> {
+                if (result != null) pictures.put(index, result);
+                if (loading == index) loading = -1;
+                invalidate();
+            });
+        }).start();
+    }
+
+    /** The picture behind a small copy of Home's tiles, or a line saying what the row means. */
+    private void drawWallpaper(Canvas c, float w, float h) {
+        float sh = h - 16 * dp, sw = sh * 16 / 9, left = (w - sw) / 2, top = 8 * dp;
+        rect.set(left, top, left + sw, top + sh);
+        c.save();
+        c.clipRect(rect);
+        paint.setShader(null);
+        paint.setColor(0xFF0A0C11);
+        c.drawRect(rect, paint);
+        int count = images == null ? 0 : images.size();
+        if (option < count) {
+            load(option);
+            Bitmap b = pictures.get(option);
+            if (b != null) {
+                // Centre-crop to the screen's shape, as the launcher fills its wallpaper.
+                float scale = Math.max(sw / b.getWidth(), sh / b.getHeight());
+                float dw = b.getWidth() * scale, dh = b.getHeight() * scale;
+                RectF dst = new RectF(left + (sw - dw) / 2, top + (sh - dh) / 2, left + (sw + dw) / 2, top + (sh + dh) / 2);
+                c.drawBitmap(b, null, dst, paint);
+            }
+        }
+        paint.setColor(0xCC1B2029);
+        float tw = sw * 0.16f, th = sh * 0.2f, ty = top + sh - th - 6 * dp;
+        for (int i = 0; i < 4; i++) {
+            float x = left + sw * 0.08f + i * (tw + sw * 0.03f);
+            RectF t = new RectF(x, ty, x + tw, ty + th);
+            c.drawRoundRect(t, 4 * dp, 4 * dp, paint);
+        }
+        if (option >= count) {
+            // "No wallpaper" and "the theme's own" have no picture of their own to show.
+            paint.setColor(0xFFC3CAD4);
+            paint.setTextSize(Math.max(12 * dp, sh * 0.12f));
+            paint.setTextAlign(Paint.Align.CENTER);
+            c.drawText(getContext().getString(option == count ? R.string.wallpaper_none : R.string.wallpaper_theme_default),
+                    left + sw / 2, top + sh * 0.4f, paint);
+            paint.setTextAlign(Paint.Align.LEFT);
+        }
+        c.restore();
+    }
+
+    // ---- Font -------------------------------------------------------------------------------------
+
+    /** The banner's own lines set in the highlighted font: 0 is Outfit, 1 is CMU Sans (Fonts.OUTFIT, Fonts.CMU_SANS). */
+    private void drawFont(Canvas c, float w, float h) {
+        Typeface face = getResources().getFont(option == 1 ? R.font.cmu_sans : R.font.outfit_medium);
+        paint.setShader(null);
+        paint.setTypeface(face);
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(h * 0.3f);
+        c.drawText("App name", 20 * dp, h * 0.38f, paint);
+        paint.setColor(0xFFC3CAD4);
+        paint.setTextSize(h * 0.15f);
+        c.drawText("Last opened 2 days ago", 20 * dp, h * 0.6f, paint);
+        c.drawText("Home   Apps   Inputs   0123456789", 20 * dp, h * 0.84f, paint);
+        paint.setTypeface(Typeface.DEFAULT);
+    }
+
     @Override
     protected void onDraw(Canvas c) {
         float w = getWidth(), h = getHeight();
@@ -53,6 +161,8 @@ final class ChoicePreview extends View {
         c.drawRoundRect(rect, 12 * dp, 12 * dp, paint);
         if (kind == FOCUS) drawFocus(c, w, h);
         else if (kind == GLOW) drawGlow(c, w, h);
+        else if (kind == FONT) drawFont(c, w, h);
+        else if (kind == WALLPAPER) drawWallpaper(c, w, h);
         else drawBanner(c, w, h);
     }
 

@@ -107,7 +107,8 @@ class PreviewTest(unittest.TestCase):
 
     def test_the_drawing_follows_the_highlighted_row_and_adds_no_image(self):
         self.assertIn("preview.setOption(which)", self.settings)
-        self.assertNotRegex(self.preview, r"R\.drawable|BitmapFactory|decodeResource")
+        # The owner's own wallpaper files are decoded for the Wallpaper page; no picture ships in the APK for any of it.
+        self.assertNotRegex(self.preview, r"R\.drawable|R\.mipmap|decodeResource")
 
     def test_the_preview_sits_above_the_scrolling_rows_not_among_them(self):
         self.assertIn("pagePreview.addView(preview", self.settings)
@@ -146,10 +147,45 @@ class GlowPreviewTest(unittest.TestCase):
                 self.assertIn(source, self.preview)
 
 
+class FontAndWallpaperPreviewTest(unittest.TestCase):
+    def setUp(self):
+        self.preview = (SRC / "ChoicePreview.java").read_text(encoding="utf-8")
+        self.settings = (SRC / "LauncherSettingsActivity.java").read_text(encoding="utf-8")
+
+    def test_both_pages_open_with_a_preview(self):
+        self.assertIn("}, ChoicePreview.FONT);", self.settings)
+        self.assertIn("}, ChoicePreview.WALLPAPER);", self.settings)
+
+    def test_the_font_drawing_uses_the_two_real_typefaces_in_the_pages_order(self):
+        font = method(self.preview, "private void drawFont(Canvas c, float w, float h)")
+        self.assertIn("option == 1 ? R.font.cmu_sans : R.font.outfit_medium", font)
+        picker = method(self.settings, "private void showFontPicker()")
+        self.assertRegex(picker, r"values = \{Fonts\.OUTFIT, Fonts\.CMU_SANS\}", "row 0 is Outfit and row 1 is CMU Sans")
+        self.assertIn("Typeface.DEFAULT", font, "the shared paint goes back to the default face for the other drawings")
+
+    def test_the_wallpaper_picture_is_decoded_small_and_off_the_main_thread(self):
+        load = method(self.preview, "private void load(int index)")
+        self.assertIn("new Thread(", load)
+        self.assertIn("inSampleSize", load)
+        self.assertIn("inJustDecodeBounds", load)
+        self.assertIn("catch (RuntimeException | OutOfMemoryError e)", load)
+        draw = method(self.preview, "private void drawWallpaper(Canvas c, float w, float h)")
+        self.assertNotIn("decodeFile", draw, "decoding in onDraw would stall the remote")
+
+    def test_the_two_rows_after_the_pictures_have_no_picture(self):
+        draw = method(self.preview, "private void drawWallpaper(Canvas c, float w, float h)")
+        self.assertIn("R.string.wallpaper_none", draw)
+        self.assertIn("R.string.wallpaper_theme_default", draw)
+
+    def test_the_wallpaper_page_hands_its_pictures_to_the_preview(self):
+        picker = method(self.settings, "private void showWallpaperPicker()")
+        self.assertIn(".setImages(images)", picker)
+
+
 class VersionTest(unittest.TestCase):
-    def test_the_build_is_2_35_or_later(self):
+    def test_the_build_is_2_36_or_later(self):
         gradle = (ROOT / "launcher/app/build.gradle").read_text(encoding="utf-8")
-        self.assertGreaterEqual(int(re.search(r"versionCode (\d+)", gradle).group(1)), 235)
+        self.assertGreaterEqual(int(re.search(r"versionCode (\d+)", gradle).group(1)), 236)
 
 
 if __name__ == "__main__":
