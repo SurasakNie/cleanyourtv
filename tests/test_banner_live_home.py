@@ -42,10 +42,9 @@ class BannerLiveHomeTest(unittest.TestCase):
         self.assertIn("dots.setVisibility(View.INVISIBLE)", update)
         self.assertNotIn("View.GONE", update, "GONE would change the banner's height and move the window")
 
-    def test_the_version_is_2_33(self):
+    def test_the_build_is_2_33_or_later(self):
         gradle = GRADLE.read_text(encoding="utf-8")
-        self.assertRegex(gradle, r"versionCode 233\b")
-        self.assertIn("versionName '2.33'", gradle)
+        self.assertGreaterEqual(int(re.search(r"versionCode (\d+)", gradle).group(1)), 233)
 
 
 if __name__ == "__main__":

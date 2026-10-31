@@ -424,3 +424,35 @@ reach the TV's own home picker without it, or to go back to a build that worked:
 .\adb.exe shell am start -a android.settings.HOME_SETTINGS
 .\adb.exe install -r tvhome-2.22.apk
 ```
+
+---
+
+## 2.34 — the + picks from the Apps tab, Lift + bar, and previews in two choice pages
+
+**What changed.** (1) **The + in Your apps** no longer opens a list: it opens the **Apps tab in a choosing mode**, on the
+first app that is not in Your apps yet. Apps already in the row stay on screen, **dimmed**. OK on a free app adds it
+and returns to Home with that app focused; OK on a dimmed one says it is already there; **Back** (or any other tab)
+cancels and returns to the +. No hold-OK menu while choosing. (2) **Focus style › Lift + bar**: the tile rises a little
+(no zoom) and the app's colour shows as a bar along the tile's **bottom edge** — inside the tile, not below it (the tile
+clips its children). (3) **Focus style** and **Banner** choice pages now show a **small drawing** above the rows that
+follows the highlighted row. Drawn in code; no image added.
+
+Setup: `.\adb.exe logcat -c` first. Favorite apps rows = 0 is fine for all of it.
+
+- [ ] **1.** Home › Your apps › move to the **+** › OK → the **Apps tab** opens, a toast says to choose an app, the focus is on an app that is **not** in Your apps
+- [ ] **2.** Apps already in Your apps look **dimmed** (also when focused); OK on one → toast "… is already in Your apps", you stay in the Apps tab
+- [ ] **3.** OK on a free app → back on **Home**, the app is the **last tile** of Your apps and has the focus; toast "added"
+- [ ] **4.** Repeat ten times with different apps → the right app is added every time (this is the open "wrong app from +" fault)
+- [ ] **5.** + › OK, then **Back** → Home, focus on the **+**; nothing added
+- [ ] **6.** + › OK, then Up to a tab and the **Home** or **Inputs** tab → the choosing ends; go back to Apps → no dimming
+- [ ] **7.** + › OK, hold OK on an app → **no menu** opens
+- [ ] **8.** When every app is already in Your apps → + › OK shows "Every app is already in Your apps" and stays on Home
+- [ ] **9.** Hold OK on an app in Home or the Apps tab (not choosing) → the menu still opens as before
+- [ ] **10.** Launcher settings › Focus style: the page has a **preview** above five rows (Zoom, Lift, Glass halo, Underline, Lift + bar); moving the highlight changes the drawing; it looks like the real style
+- [ ] **11.** Choose **Lift + bar** → on Home the selected tile rises a little with a bar along its bottom edge; no zoom; the white ring does not return
+- [ ] **12.** Launcher settings › Banner: the page has a preview above four rows (Name + glow, Glass panel, Off, Live input) that follows the highlight
+- [ ] **13.** The other four Focus styles still look as in 2.33
+- [ ] **14.** Launcher settings › About shows **2.34**
+- [ ] **15.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+
+Not checked here: how the drawings look on the TV (they were never rendered off-device), and the Hebrew texts.

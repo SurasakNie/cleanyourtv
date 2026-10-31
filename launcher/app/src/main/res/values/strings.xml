@@ -216,6 +216,8 @@
     <string name="gtv_dock_not_saved">Couldn\'t save Your apps</string>
     <string name="gtv_dock_last_app">Your apps keeps at least one app</string>
     <string name="gtv_dock_has_everything">Every app is already in Your apps</string>
+    <string name="gtv_pick_to_add">Choose an app to add to Your apps. Back cancels.</string>
+    <string name="gtv_pick_already">%1$s is already in Your apps</string>
     <string name="inputs_home_state">Inputs on Home: %1$s</string>
     <string name="hint_inputs_home">A row of HDMI, AV and Live TV under your apps.</string>
     <string name="banner_style_state">Banner: %1$s</string>
@@ -238,5 +240,6 @@
     <string name="focus_lift">Lift</string>
     <string name="focus_halo">Glass halo</string>
     <string name="focus_underline">Underline</string>
+    <string name="focus_lift_bar">Lift + bar</string>
     <string name="hint_focus_style">How the selected app is told apart.</string>
 </resources>

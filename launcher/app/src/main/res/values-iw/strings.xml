@@ -205,6 +205,8 @@
     <string name="hint_banner_fill">לוח זכוכית כהה מאחורי הטקסט, שעוזר מעל תמונה בהירה.</string>
     <string name="banner_size_title">גודל כותרת הבאנר</string>
     <string name="gtv_add_to_dock">הוספה ל"האפליקציות שלך"</string>
+    <string name="gtv_pick_to_add">בחרו אפליקציה להוספה ל"האפליקציות שלך". חזרה מבטלת.</string>
+    <string name="gtv_pick_already">%1$s כבר ב"האפליקציות שלך"</string>
     <string name="gtv_remove_from_dock">הסרה מ"האפליקציות שלך"</string>
     <string name="gtv_added_to_dock">%1$s נוספה ל"האפליקציות שלך"</string>
     <string name="gtv_removed_from_dock">%1$s הוסרה מ"האפליקציות שלך"</string>
@@ -234,5 +236,6 @@
     <string name="focus_lift">הרמה</string>
     <string name="focus_halo">הילת זכוכית</string>
     <string name="focus_underline">קו תחתון</string>
+    <string name="focus_lift_bar">הרמה + פס</string>
     <string name="hint_focus_style">איך האפליקציה הנבחרת נבדלת משאר הלוח.</string>
 </resources>
