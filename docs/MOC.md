@@ -114,8 +114,10 @@ articles and bookmarks. The cost is real and the gain is cosmetic, so please do 
 | Path | What it is |
 |---|---|
 | [`HANDOFF.md`](HANDOFF.md) | Current state, open work, how the owner tests |
+| [`HISTORY.md`](HISTORY.md) | Every build since 2.05, fixed bugs and closed investigations, moved out of the handoff |
 | `MOC.md` | This map |
-| [`TESTING.md`](TESTING.md) | What to check on the TV, build by build |
+| [`TESTING.md`](TESTING.md) | What to check on the TV for the builds still waiting for a test |
+| [`TESTING-history.md`](TESTING-history.md) | The finished checklists (2.18–2.32) with their results |
 | [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) | When something goes wrong on a TV |
 | [`REMOTE.md`](REMOTE.md) | Remote keys and the accessibility services |
 | [`app-library.md`](app-library.md) | The optional app library |
