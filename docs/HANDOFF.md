@@ -92,6 +92,7 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 - **Standing layout rule:** before sending any APK, check both layouts for text or panels overlapping the top bar
   or the rows, at Rows below dock 0–3 and 5–8 apps per row. Ask the owner for 4 photos
   (Apple and Google TV × rows 0 and 3).
+- **APK file name (owner's rule, 31 Oct):** every APK sent to the owner is named `tvhome-A.BB.apk` after the version, e.g. `tvhome-2.31.apk`, `tvhome-2.32.apk` — not `app-release.apk`.
 - Every reply to the owner ends with a status block (🟢 READY / 🟡 INPUT NEEDED / 🔴 BLOCKED).
 
 ---
