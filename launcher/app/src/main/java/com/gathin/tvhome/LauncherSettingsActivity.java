@@ -35,6 +35,7 @@ public final class LauncherSettingsActivity extends Activity {
     /** The list and the choice page that takes its place; the row to focus again when the page closes. */
     private android.view.View list, page;
     private android.widget.LinearLayout pageList;
+    private android.widget.FrameLayout pagePreview;
     private TextView pageTitle;
     private TextView pageOpenedBy;
     /**
@@ -65,6 +66,7 @@ public final class LauncherSettingsActivity extends Activity {
         list = findViewById(R.id.panel);
         page = findViewById(R.id.page);
         pageList = findViewById(R.id.pageList);
+        pagePreview = findViewById(R.id.pagePreview);
         pageTitle = findViewById(R.id.pageTitle);
         fillAbout();
         Config config = Config.load(this);
@@ -254,13 +256,14 @@ public final class LauncherSettingsActivity extends Activity {
         pageTitle.setText(titleRes);
         // Keep the title and the Back hint; drop the rows of the page shown before this one.
         while (pageList.getChildCount() > 2) pageList.removeViewAt(2);
+        // The drawing lives above the scrolling rows, so it stays in view whichever row is highlighted.
+        pagePreview.removeAllViews();
         final ChoicePreview preview = previewKind < 0 ? null : new ChoicePreview(this, previewKind, Math.max(0, checked));
         if (preview != null) {
-            android.widget.LinearLayout.LayoutParams plp = new android.widget.LinearLayout.LayoutParams(-1,
-                    (int) (120 * getResources().getDisplayMetrics().density));
-            plp.topMargin = (int) (10 * getResources().getDisplayMetrics().density);
-            pageList.addView(preview, plp);
+            pagePreview.addView(preview, new android.widget.FrameLayout.LayoutParams(-1,
+                    (int) (120 * getResources().getDisplayMetrics().density)));
         }
+        pagePreview.setVisibility(preview != null ? android.view.View.VISIBLE : android.view.View.GONE);
         for (int i = 0; i < labels.length; i++) {
             final int which = i;
             TextView row = new TextView(this, null, 0, R.style.SettingsRow);
@@ -282,7 +285,7 @@ public final class LauncherSettingsActivity extends Activity {
         Fonts.apply(page);
         list.setVisibility(android.view.View.GONE);
         page.setVisibility(android.view.View.VISIBLE);
-        pageList.getChildAt((preview != null ? 3 : 2) + Math.max(0, checked)).requestFocus();
+        pageList.getChildAt(2 + Math.max(0, checked)).requestFocus();
     }
 
     private void closePage() {
@@ -389,7 +392,7 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().putInt(GlowStyle.PREF, which).apply();
             setResult(RESULT_OK);
             refresh();
-        });
+        }, ChoicePreview.GLOW);
     }
 
     private void showWallpaperPicker() {

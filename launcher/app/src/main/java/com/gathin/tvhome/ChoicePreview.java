@@ -13,10 +13,11 @@ import android.view.View;
 /**
  * A small drawing at the top of a choice page that shows what the highlighted option looks like, so a choice can be
  * judged before it is picked. Drawn in code from the same few shapes the launcher itself uses, so it adds no image
- * to the APK. The option numbers are the ones GtvActivity stores: FOCUS_* for the focus style, BANNER_* for the banner.
+ * to the APK. The option numbers are the ones that are stored: GtvActivity.FOCUS_* for the focus style, BANNER_* for
+ * the banner and GlowStyle's own for the glow.
  */
 final class ChoicePreview extends View {
-    static final int FOCUS = 0, BANNER = 1;
+    static final int FOCUS = 0, BANNER = 1, GLOW = 2;
 
     private static final int PANEL = 0xFF10131A, TILE_A = 0xFF3B5BA9, TILE_B = 0xFFC0392B, TILE_C = 0xFF2E8B57;
 
@@ -51,6 +52,7 @@ final class ChoicePreview extends View {
         rect.set(0, 0, w, h);
         c.drawRoundRect(rect, 12 * dp, 12 * dp, paint);
         if (kind == FOCUS) drawFocus(c, w, h);
+        else if (kind == GLOW) drawGlow(c, w, h);
         else drawBanner(c, w, h);
     }
 
@@ -100,6 +102,95 @@ final class ChoicePreview extends View {
                 c.restore();
             }
         }
+    }
+
+    /**
+     * The glow on a small 16:9 screen, placed with GlowStyle's own spots so the drawing and the launcher agree. A style
+     * that moves (Random, Slow drift) shows where it can go as faint marks; Random shape uses ellipses.
+     */
+    private void drawGlow(Canvas c, float w, float h) {
+        float sh = h - 16 * dp, sw = sh * 16 / 9, left = (w - sw) / 2, top = 8 * dp;
+        c.save();
+        rect.set(left, top, left + sw, top + sh);
+        c.clipRect(rect);
+        paint.setShader(null);
+        paint.setColor(0xFF0A0C11);
+        c.drawRect(rect, paint);
+        // The row of tiles the glow sits behind.
+        paint.setColor(0xFF1B2029);
+        float tw = sw * 0.16f, th = sh * 0.2f, ty = top + sh - th - 6 * dp;
+        for (int i = 0; i < 4; i++) {
+            float x = left + sw * 0.08f + i * (tw + sw * 0.03f);
+            RectF t = new RectF(x, ty, x + tw, ty + th);
+            c.drawRoundRect(t, 4 * dp, 4 * dp, paint);
+        }
+        int colour = TILE_B;
+        switch (option) {
+            case GlowStyle.RANDOM:
+            case GlowStyle.RANDOM_2:
+            case GlowStyle.RANDOM_3:
+                // Anywhere in the top two thirds: three faint places stand for it.
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.2f, 0.2f, 0.78f, 0.78f), colour, 0.35f);
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.55f, 0.4f, 0.78f, 0.78f), colour, 0.35f);
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.82f, 0.12f, 0.78f, 0.78f), colour, 0.35f);
+                if (option != GlowStyle.RANDOM) {
+                    spot(c, left, top, sw, sh, new GlowStyle.Spot(0.7f, 0.5f, 0.55f, 0.55f), GlowStyle.shifted(colour), 0.45f);
+                }
+                if (option == GlowStyle.RANDOM_3) {
+                    spot(c, left, top, sw, sh, new GlowStyle.Spot(0.3f, 0.55f, 0.55f, 0.55f), GlowStyle.shifted(colour, 90f), 0.45f);
+                }
+                break;
+            case GlowStyle.PER_APP:
+                spot(c, left, top, sw, sh, GlowStyle.perApp("com.example.app"), colour, 1f);
+                break;
+            case GlowStyle.DRIFT:
+                // The loop it follows, faint, with one spot on it.
+                for (int t = 0; t < 60; t += 6) {
+                    spot(c, left, top, sw, sh, GlowStyle.drift(t), colour, 0.18f);
+                }
+                spot(c, left, top, sw, sh, GlowStyle.drift(20), colour, 0.7f);
+                break;
+            case GlowStyle.FOLLOW:
+                spot(c, left, top, sw, sh, GlowStyle.follow(0.4f), colour, 1f);
+                break;
+            case GlowStyle.RANDOM_SHAPE:
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.35f, 0.25f, 0.95f, 0.5f), colour, 0.6f);
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.72f, 0.3f, 0.5f, 0.9f), colour, 0.5f);
+                break;
+            case GlowStyle.TWO_GLOWS: {
+                GlowStyle.Spot first = GlowStyle.classic(false);
+                spot(c, left, top, sw, sh, first, colour, 1f);
+                spot(c, left, top, sw, sh, GlowStyle.second(first), GlowStyle.shifted(colour), 0.8f);
+                break;
+            }
+            case GlowStyle.RIBBON: {
+                // A diagonal band across the screen instead of a spot.
+                paint.setShader(new LinearGradient(left, top + sh * 0.9f, left + sw, top + sh * 0.1f,
+                        new int[]{0x00000000, (colour & 0x00FFFFFF) | 0x99000000, 0x00000000},
+                        new float[]{0.2f, 0.5f, 0.8f}, Shader.TileMode.CLAMP));
+                c.drawRect(rect, paint);
+                paint.setShader(null);
+                break;
+            }
+            default:   // Classic
+                spot(c, left, top, sw, sh, GlowStyle.classic(false), colour, 1f);
+        }
+        c.restore();
+    }
+
+    /** One glow: a radial fade from the colour to nothing, stretched to the spot's two radii like the launcher does. */
+    private void spot(Canvas c, float left, float top, float sw, float sh, GlowStyle.Spot s, int colour, float strength) {
+        float cx = left + s.x * sw, cy = top + s.y * sh;
+        float radius = sw * 0.6f * (s.rx / 0.78f);
+        int alpha = Math.round(0x99 * strength);
+        c.save();
+        c.translate(cx, cy);
+        c.scale(1f, s.ry / s.rx);
+        paint.setShader(new RadialGradient(0, 0, radius, (colour & 0x00FFFFFF) | (alpha << 24), colour & 0x00FFFFFF,
+                Shader.TileMode.CLAMP));
+        c.drawCircle(0, 0, radius, paint);
+        paint.setShader(null);
+        c.restore();
     }
 
     /** The banner above a faint row of tiles: glow and name, glass panel, nothing, or a window of the input. */

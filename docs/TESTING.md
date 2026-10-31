@@ -456,3 +456,27 @@ Setup: `.\adb.exe logcat -c` first. Favorite apps rows = 0 is fine for all of it
 - [ ] **15.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
 
 Not checked here: how the drawings look on the TV (they were never rendered off-device), and the Hebrew texts.
+
+---
+
+## 2.35 — a preview in the Glow page, and previews that stay in view
+
+**What changed.** The **Glow** choice page (ten styles) now shows a small 16:9 screen above the rows with the highlighted
+style drawn on it, placed with the launcher's own `GlowStyle` positions; styles that move (Random, Random ×2/×3, Slow
+drift) show where the glow can go as faint marks; Random shape uses ellipses; Ribbon is a diagonal band. Also, the
+drawing of **every** previewed page (Focus style, Banner, Glow) now sits in a fixed slot **above** the scrolling rows,
+so it stays in view while the longer lists scroll. Nothing else changed.
+
+Setup: `.\adb.exe logcat -c` first.
+
+- [ ] **1.** Launcher settings › Glow (turn **Ambient glow** on first if the row is greyed): the page shows a **preview** above ten rows
+- [ ] **2.** Move down all ten rows → the drawing **changes with each row** and stays at the top while the list scrolls
+- [ ] **3.** Classic, Per app, Follow, Two glows, Ribbon: each looks like what the real Home shows for that style (a spot top-right, a fixed place, above the tile, two spots, a diagonal band)
+- [ ] **4.** Random / Random ×2 / Random ×3 / Random shape / Slow drift: the faint marks read as "moves around"; nothing flickers
+- [ ] **5.** Pick a style, back out, open Home → the picked glow is the one in use (the choice itself is unchanged)
+- [ ] **6.** Focus style and Banner pages: preview still shows, now fixed at the top; the Back hint and the title scroll under it
+- [ ] **7.** A page without a preview (Font, Wallpaper, Banner title size, Live input source) → no empty gap at the top
+- [ ] **8.** Launcher settings › About shows **2.35**
+- [ ] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+
+Not checked here: how any drawing looks on the TV; they were never rendered off-device.

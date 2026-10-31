@@ -109,14 +109,47 @@ class PreviewTest(unittest.TestCase):
         self.assertIn("preview.setOption(which)", self.settings)
         self.assertNotRegex(self.preview, r"R\.drawable|BitmapFactory|decodeResource")
 
-    def test_the_rows_start_after_the_preview(self):
-        self.assertIn("(preview != null ? 3 : 2)", self.settings)
+    def test_the_preview_sits_above_the_scrolling_rows_not_among_them(self):
+        self.assertIn("pagePreview.addView(preview", self.settings)
+        self.assertIn("pageList.getChildAt(2 + Math.max(0, checked)).requestFocus();", self.settings,
+                      "rows still start after the title and the Back hint")
+        layout = (RES / "layout/activity_launcher_settings.xml").read_text(encoding="utf-8")
+        slot = layout.index('android:id="@+id/pagePreview"')
+        scroll = layout.index("<ScrollView", layout.index('android:id="@+id/page"'))
+        self.assertLess(slot, scroll, "the slot is outside the ScrollView, or a long list scrolls the drawing away")
+
+
+class GlowPreviewTest(unittest.TestCase):
+    def setUp(self):
+        self.preview = (SRC / "ChoicePreview.java").read_text(encoding="utf-8")
+        self.settings = (SRC / "LauncherSettingsActivity.java").read_text(encoding="utf-8")
+        self.glow = (SRC / "GlowStyle.java").read_text(encoding="utf-8")
+
+    def test_the_glow_page_opens_with_its_preview(self):
+        self.assertIn("}, ChoicePreview.GLOW);", self.settings)
+
+    def test_every_glow_style_has_a_drawing(self):
+        styles = re.search(r"static final int CLASSIC = 0,([^;]*);", self.glow).group(0)
+        names = re.findall(r"([A-Z_0-9]+) = \d+", styles)
+        self.assertEqual(len(names), 10)
+        for name in names:
+            if name == "CLASSIC":
+                continue   # the default branch
+            with self.subTest(style=name):
+                self.assertIn(f"GlowStyle.{name}", self.preview)
+        self.assertIn("default:   // Classic", self.preview)
+
+    def test_the_drawing_uses_the_launchers_own_spots(self):
+        for source in ("GlowStyle.classic(", "GlowStyle.perApp(", "GlowStyle.drift(", "GlowStyle.follow(",
+                       "GlowStyle.second(", "GlowStyle.shifted("):
+            with self.subTest(source=source):
+                self.assertIn(source, self.preview)
 
 
 class VersionTest(unittest.TestCase):
-    def test_the_build_is_2_34_or_later(self):
+    def test_the_build_is_2_35_or_later(self):
         gradle = (ROOT / "launcher/app/build.gradle").read_text(encoding="utf-8")
-        self.assertGreaterEqual(int(re.search(r"versionCode (\d+)", gradle).group(1)), 234)
+        self.assertGreaterEqual(int(re.search(r"versionCode (\d+)", gradle).group(1)), 235)
 
 
 if __name__ == "__main__":
