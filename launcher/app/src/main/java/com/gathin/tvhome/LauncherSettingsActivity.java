@@ -314,7 +314,7 @@ public final class LauncherSettingsActivity extends Activity {
             choices.edit().putString(Fonts.PREF, values[which]).apply();
             setResult(RESULT_OK);
             recreate();
-        });
+        }, ChoicePreview.FONT);
     }
 
     /** Banner title size: the three sizes the banner's own text can take. */
@@ -424,7 +424,9 @@ public final class LauncherSettingsActivity extends Activity {
             setResult(RESULT_OK);
             Toast.makeText(this, R.string.wallpaper_applied, Toast.LENGTH_SHORT).show();
             refresh();
-        });
+        }, ChoicePreview.WALLPAPER);
+        // The page has built its drawing; tell it which pictures the rows stand for.
+        if (pagePreview.getChildCount() > 0) ((ChoicePreview) pagePreview.getChildAt(0)).setImages(images);
     }
 
     private static int indexOf(List<File> images, String name) {
