@@ -288,6 +288,32 @@ Notes for whoever picks this up:
 - **Never** disable a streaming app, the Play Store or Play services to save memory. That breaks updates.
 - Clearing an app's **cache** is safe; clearing its **data** logs you out.
 
+**2 November 2026: Youku black screen and lag again — this time the Sony DLNA renderer, not memory.** After more
+than a day in standby (standby does not restart Android), Youku showed a black screen and series played with lag. A
+**full restart** (power off and on, not standby) fixed it; the owner confirmed. What the numbers say, from the owner's
+local-session report:
+- In the two minutes the fault was seen, `com.sony.huey.dlna.module:dmr` and its parent used about **210% of the
+  400% CPU** (four cores), mostly in the kernel; `dmr` had run up **5 h 36 min** of CPU since 04:04 that night. After
+  the restart they used 12 s in 56 minutes. What woke them at 04:04 is unknown.
+- **Memory was not the trigger this time:** before the restart MemAvailable was 848 MB and Cached 896 MB (not the
+  zero-cached red flag above); after it MemAvailable was lower (736 MB, then 495 MB) and low-memory kills came faster.
+  Swap (100 MB) is full within a minute of every boot — that is structural, not a sign of trouble on its own.
+- **Load average is no guide on this set.** It sits at 30–35 all the time because about 30 Sony/MediaTek driver
+  threads wait in the uninterruptible (D) state, which Linux counts as load. Use `top`'s idle figure or
+  `dumpsys cpuinfo` instead.
+- The launcher used 0% CPU throughout. A `com.android.systemui` crash at boot (`InfoBoard.startUpdateClockTimer`,
+  `Task already scheduled or cancelled`) is Sony's own and was restarted by the system.
+
+This is an inference from which numbers changed, not a proof. To check it next time the TV feels slow after standby:
+```powershell
+.\adb.exe shell ps -A -o PID,STIME,TIME,NAME | Select-String dlna   # TIME in hours for dmr = this fault again
+.\adb.exe shell netstat -tn                                          # while it is busy: which device on the LAN is talking to it
+.\adb.exe shell dumpsys cpuinfo | Select-Object -First 15
+```
+The fix that worked is a full restart. A renderer on/off setting may exist on this set (the package
+`com.sony.huey.dlna.renderersettings` is installed), but it has not been looked for, and turning it off could stop
+casting to the TV from phones — check before changing it.
+
 ## 4. Map of the repository
 
 A short version. The full one, with every launcher class grouped by job and every test explained, is
