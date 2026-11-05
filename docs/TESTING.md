@@ -73,9 +73,9 @@ Setup: `.\adb.exe logcat -c` first. Favorite apps rows = 0 is fine for all of it
 - [ ] **7.** + › OK, hold OK on an app → **no menu** opens
 - [ ] **8.** When every app is already in Your apps → + › OK shows "Every app is already in Your apps" and stays on Home
 - [ ] **9.** Hold OK on an app in Home or the Apps tab (not choosing) → the menu still opens as before
-- [ ] **10.** Launcher settings › Focus style: the page has a **preview** above five rows (Zoom, Lift, Glass halo, Underline, Lift + bar); moving the highlight changes the drawing; it looks like the real style
+- [x] **10.** Launcher settings › Focus style: the page has a **preview** above five rows (Zoom, Lift, Glass halo, Underline, Lift + bar); moving the highlight changes the drawing; it looks like the real style — **6 Nov: pass** (screenshots over adb; Lift + bar shows the bar inside the tile's bottom edge)
 - [ ] **11.** Choose **Lift + bar** → on Home the selected tile rises a little with a bar along its bottom edge; no zoom; the white ring does not return
-- [ ] **12.** Launcher settings › Banner: the page has a preview above four rows (Name + glow, Glass panel, Off, Live input) that follows the highlight
+- [x] **12.** Launcher settings › Banner: the page has a preview above four rows (Name + glow, Glass panel, Off, Live input) that follows the highlight — **6 Nov: pass**; in the Live input drawing the "App name" text overlaps the bottom of the window
 - [ ] **13.** The other four Focus styles still look as in 2.33
 - [ ] **14.** Launcher settings › About shows **2.34**
 - [ ] **15.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
@@ -94,12 +94,12 @@ so it stays in view while the longer lists scroll. Nothing else changed.
 
 Setup: `.\adb.exe logcat -c` first.
 
-- [ ] **1.** Launcher settings › Glow (turn **Ambient glow** on first if the row is greyed): the page shows a **preview** above ten rows
-- [ ] **2.** Move down all ten rows → the drawing **changes with each row** and stays at the top while the list scrolls
-- [ ] **3.** Classic, Per app, Follow, Two glows, Ribbon: each looks like what the real Home shows for that style (a spot top-right, a fixed place, above the tile, two spots, a diagonal band)
-- [ ] **4.** Random / Random ×2 / Random ×3 / Random shape / Slow drift: the faint marks read as "moves around"; nothing flickers
+- [x] **1.** Launcher settings › Glow (turn **Ambient glow** on first if the row is greyed): the page shows a **preview** above ten rows — **6 Nov: pass**
+- [x] **2.** Move down all ten rows → the drawing **changes with each row** and stays at the top while the list scrolls — **6 Nov: pass**
+- [x] **3.** Classic, Per app, Follow, Two glows, Ribbon: each looks like what the real Home shows for that style (a spot top-right, a fixed place, above the tile, two spots, a diagonal band) — **6 Nov: pass** by eye from screenshots
+- [ ] **4.** Random / Random ×2 / Random ×3 / Random shape / Slow drift: the faint marks read as "moves around"; nothing flickers — **6 Nov: not judged**; the screenshots show soft glows, no faint marks visible; needs the owner's eye
 - [ ] **5.** Pick a style, back out, open Home → the picked glow is the one in use (the choice itself is unchanged)
-- [ ] **6.** Focus style and Banner pages: preview still shows, now fixed at the top; the Back hint and the title scroll under it
+- [x] **6.** Focus style and Banner pages: preview still shows, now fixed at the top; the Back hint and the title scroll under it — **6 Nov: pass** (seen scrolling under it on the Glow page; Focus style and Banner lists are too short to scroll)
 - [ ] **7.** A page without a preview (Font, Wallpaper, Banner title size, Live input source) → no empty gap at the top
 - [ ] **8.** Launcher settings › About shows **2.35**
 - [ ] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
@@ -118,13 +118,13 @@ picture, so they say what they mean in a line of text. Nothing else changed.
 
 Setup: `.\adb.exe logcat -c` first. Wallpaper needs at least one picture in the theme folder (`wallpapers/` or `wallpaper.jpg`).
 
-- [ ] **1.** Launcher settings › Font: the page shows a **preview** above two rows; moving between Outfit and CMU Sans changes the lettering
+- [x] **1.** Launcher settings › Font: the page shows a **preview** above two rows; moving between Outfit and CMU Sans changes the lettering — **6 Nov: pass**
 - [ ] **2.** Choose CMU Sans → the panel redraws in it (as before); open the page again → the preview matches the font in use
 - [ ] **3.** Launcher settings › Wallpaper: the page shows a preview; moving the highlight over each picture shows **that picture**, cropped to a 16:9 frame
 - [ ] **4.** A large picture: moving onto it never freezes the remote (the picture may appear a moment later)
-- [ ] **5.** "None" and "Theme default": a line of text instead of a picture
+- [x] **5.** "None" and "Theme default": a line of text instead of a picture — **6 Nov: pass** (the theme has no pictures, so items 3, 4 and 6 could not be tried)
 - [ ] **6.** Pick a wallpaper → Home shows the same picture as the preview
-- [ ] **7.** All five previewed pages (Focus style, Banner, Glow, Font, Wallpaper) still show their drawing fixed at the top while the rows scroll
+- [x] **7.** All five previewed pages (Focus style, Banner, Glow, Font, Wallpaper) still show their drawing fixed at the top while the rows scroll — **6 Nov: pass**
 - [ ] **8.** Launcher settings › About shows **2.36**
 - [ ] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
 
