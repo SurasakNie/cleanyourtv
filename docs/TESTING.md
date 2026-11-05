@@ -64,10 +64,10 @@ follows the highlighted row. Drawn in code; no image added.
 
 Setup: `.\adb.exe logcat -c` first. Favorite apps rows = 0 is fine for all of it.
 
-- [ ] **1.** Home › Your apps › move to the **+** › OK → the **Apps tab** opens, a toast says to choose an app, the focus is on an app that is **not** in Your apps
-- [ ] **2.** Apps already in Your apps look **dimmed** (also when focused); OK on one → toast "… is already in Your apps", you stay in the Apps tab
-- [ ] **3.** OK on a free app → back on **Home**, the app is the **last tile** of Your apps and has the focus; toast "added"
-- [ ] **4.** Repeat ten times with different apps → the right app is added every time (this is the open "wrong app from +" fault)
+- [x] **1.** Home › Your apps › move to the **+** › OK → the **Apps tab** opens, a toast says to choose an app, the focus is on an app that is **not** in Your apps — **6 Nov: pass** (toast "Choose an app to add to Your apps. Back cancels.", focus on Aberto Sonorus)
+- [ ] **2.** Apps already in Your apps look **dimmed** (also when focused); OK on one → toast "… is already in Your apps", you stay in the Apps tab — **6 Nov: toast and stay pass; dimming fails** (follows the tile, not the app: see HANDOFF *Known bugs*)
+- [x] **3.** OK on a free app → back on **Home**, the app is the **last tile** of Your apps and has the focus; toast "added" — **6 Nov: pass** twice (AIS PLAY, Crunchyroll)
+- [ ] **4.** Repeat ten times with different apps → the right app is added every time (this is the open "wrong app from +" fault) — **6 Nov: 2 of 10, both right; stopped** because Down from the Home pill does not reach the row after an add (HANDOFF *Known bugs*)
 - [ ] **5.** + › OK, then **Back** → Home, focus on the **+**; nothing added
 - [ ] **6.** + › OK, then Up to a tab and the **Home** or **Inputs** tab → the choosing ends; go back to Apps → no dimming
 - [ ] **7.** + › OK, hold OK on an app → **no menu** opens

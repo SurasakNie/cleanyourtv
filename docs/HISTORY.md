@@ -84,6 +84,20 @@ The build-by-build checklist is **[`docs/TESTING.md`](TESTING.md)** — work thr
 
 ### Known bugs, fixed or closed
 
+**Closed on 6 Nov (2.36, not reproduced): the Performance-card row in the panel ignored Favorite apps rows = 3.** The
+owner set rows = 3 and left the panel open on the row: it read "Performance card: Off", greyed, with the hint "Off
+while Favorite apps rows is 3: there is no room under the clock…", and Home behind it showed three Favorite rows.
+`dumpsys activity top`: `rows3` selected (`S`), `perfChoice` disabled (no `E`), `hintPerfRows` visible; the UI dump
+gives the row `enabled=false`. The likeliest reading stands: the panel was at 2 when the fault was first seen. The
+entry as it stood:
+
+> **Open: the Performance-card row in the panel ignores Favorite apps rows = 3 (2.30, cause not found).** At rows = 3 the
+> row is not greyed, still toggles, reads On and shows no explanation, while the card **is** gone from Home — so Home's
+> rule works and the panel's does not. `LauncherSettingsActivity.refresh()` computes `rowsBelowDock >=
+> Config.PERF_CARD_OFF_AT_ROWS` from the same `Config` value Home reads, runs after every click and at the end of
+> `onCreate`, and no second screen or layout variant exposes the setting, so reading the code does not explain it.
+> Evidence needed from the TV (see Waiting on a test).
+
 **Fixed in 2.28, and confirmed on the TV: the Inputs tab killed the launcher.** With **Focus style = Glass halo**, pressing Down from the
 Inputs pill or the gear crashed `GtvActivity` with `ClassCastException` in `haloColour`, every time — the screen
 went black and Home came back because the process had died and been restarted. The log also showed Android

@@ -1,4 +1,4 @@
-# Handoff — CleanYourTV, updated 31 October 2026
+# Handoff — CleanYourTV, updated 6 November 2026
 
 Where the work stands, what is still open, and where everything lives. Finished history (every build, fixed bugs,
 closed investigations) is in [`HISTORY.md`](HISTORY.md); finished test checklists are in [`TESTING-history.md`](TESTING-history.md). Read the three sections in order:
@@ -12,7 +12,7 @@ closed investigations) is in [`HISTORY.md`](HISTORY.md); finished test checklist
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
-| On the TV now | **2.36** (`versionCode` 236), installed 31 Oct by the owner's local session (`versionName=2.36` confirmed, logcat cleared). **Nothing from 2.33–2.36 has been reported on screen yet** — see § 2 *Waiting on a test* |
+| On the TV now | **2.36** (`versionCode` 236), installed 31 Oct by the owner's local session (`versionName=2.36` confirmed, logcat cleared). **6 Nov, first on-screen run:** § 2.34 items 1–3 pass, item 2's dimming is wrong, and two new faults were found (§ 2 *Known bugs*); the Performance-card row at rows = 3 is greyed, so that bug is closed. Everything else in 2.33–2.36 is still unseen — see § 2 *Waiting on a test* |
 | Last builds with TV results | **2.32** (31 Oct): no flash at 0 Favorite rows, no window at 1–3; density 320 (= 2.0) confirmed; log clean. **2.33** installed earlier: log clean, no window at 1–3 rows; its 0-row behaviour was never reported. **2.31** (27 Oct): glow bars gone, Inputs-on-Home hidden, animations rename works — reported, not ticked. Older results: [`TESTING-history.md`](TESTING-history.md) |
 | `main` | Every build through **2.36** is merged (PR #14, `c8d8df4`). Four builds — 2.33, 2.34, 2.35, 2.36 — went in **before any TV test**, at the owner's word; each is one revert PR away |
 | Branch | `claude/zen-euler-0mir9r`, restarted from `main` after each merge; no unmerged code |
@@ -74,11 +74,11 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ### Waiting on a test
 The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in [`TESTING-history.md`](TESTING-history.md).
 
-- **2.33–2.36 on screen** (2.36 is installed): work through [`TESTING.md`](TESTING.md) § 2.33, § 2.34, § 2.35 and § 2.36 in one pass. Then the local session runs its step 3 (log), and step 5 for screenshots of the five choice pages with previews (Focus style, Banner, Glow, Font, Wallpaper) — none of the drawings has ever been seen.
-- **Performance card at Favorite apps rows = 3** (2.30, failed; still open) — with the panel open at rows = 3: `adb shell dumpsys activity top | Select-String -Pattern "perfChoice|hintPerfRows|rows3"` and a screenshot. The code says the row must grey out at 3, so the likeliest explanation is that the panel was at 2 when it was seen; the screenshot decides it.
+- **2.33–2.36 on screen** (2.36 is installed): work through [`TESTING.md`](TESTING.md) § 2.33, § 2.34, § 2.35 and § 2.36 in one pass. Then the local session runs its step 3 (log), and step 5 for screenshots of the five choice pages with previews (Focus style, Banner, Glow, Font, Wallpaper) — none of the drawings has ever been seen. **Done on 6 Nov:** § 2.34 items 1–3 (results in `TESTING.md`). Item 4 stopped at 2 of 10 adds because of the new Down-after-add fault below.
+- **Long presses need the owner's remote on this set.** `input keyevent --longpress` arrives as a short press (it opened the app), and `sendevent` to `/dev/input/event0`–`event3` is denied: the shell user is not in the `input` group here, so the `CONTRIBUTING.md` workaround does not apply. Anything that needs hold-OK (removing from Your apps, § 2.34 items 7 and 9) is done with the remote.
 - **2.31's checklist** — results reported 27 Oct; tick [`TESTING-history.md`](TESTING-history.md) § 2.31 once the owner says so.
 - **The dock black flash** — still not reproduced; capture `black.txt` and `dumpsys meminfo` the moment it is seen.
-- **The intermittent "wrong app from the +"** — 2.34 replaced the list with a pick from the Apps tab; [`TESTING.md`](TESTING.md) § 2.34 item 4 is the check.
+- **The intermittent "wrong app from the +"** — 2.34 replaced the list with a pick from the Apps tab; [`TESTING.md`](TESTING.md) § 2.34 item 4 is the check. 6 Nov: 2 of 2 adds correct (AIS PLAY, Crunchyroll); the ten-add run needs the Down-after-add fault fixed first, or the owner removing each added app before the next add (removing it restores Down).
 - **The old-key theme check** (2.27) — skipped for lack of a theme file.
 
 **Before installing 2.22 or later on any other set:** check `settings get secure screensaver_components`. If it names `com.gathin.tvhome/.ClockDream`, point the TV at its own screensaver first, or it falls back to the system default with no warning.
@@ -89,12 +89,23 @@ Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` 
 ### Known bugs
 Only the open ones; fixed and closed entries are kept word for word in [`HISTORY.md`](HISTORY.md#known-bugs-fixed-or-closed).
 
-**Open: the Performance-card row in the panel ignores Favorite apps rows = 3 (2.30, cause not found).** At rows = 3 the
-row is not greyed, still toggles, reads On and shows no explanation, while the card **is** gone from Home — so Home's
-rule works and the panel's does not. `LauncherSettingsActivity.refresh()` computes `rowsBelowDock >=
-Config.PERF_CARD_OFF_AT_ROWS` from the same `Config` value Home reads, runs after every click and at the end of
-`onCreate`, and no second screen or layout variant exposes the setting, so reading the code does not explain it.
-Evidence needed from the TV (see Waiting on a test).
+**Open: after an add from the +, Down from the Home pill no longer enters Your apps (found 6 Nov on 2.36).**
+Add an app through the + (Home comes back with the new app as the last tile, focused, toast shown), press Home, then
+Down: the focus stays on the Home pill, every time. Back and switching to the Apps tab and back do not help.
+Reproduced twice, the second time **with the owner's remote**, so it is not an adb artefact. Removing the added app
+(hold OK › Remove) makes Down work again. Without an add it does not happen: from the end of the row, Up › Down and
+Home › Down both return to the row (the row scrolls back to its start), with adb and with the remote. No crash, no
+`FATAL` in the log. It fits the suspect named under the next entry — `setInDock` → `notifyDataSetChanged()` and a
+posted `focusDock` that can run before the layout pass — leaving the row's remembered focus pointing at a holder
+that is not there; **unproven**.
+
+**Open: in the + choosing mode, the dimming follows the tile, not the app (found 6 Nov on 2.36).** On first
+opening no tile is dimmed (Netflix, in Your apps, measured as bright as Google Play, which is not). After the focus
+has moved along the first row, only bilibili and Disney+ are dimmed; HBO Max, iQIYI, Netflix, Prime Video, WeTV,
+YOUKU and YouTube are not. In the next choosing session **Apple TV and BRAVIA notifications were dimmed although
+they are not in Your apps**, and Disney+ was not. So the dimmed state stays with a recycled view holder instead of
+being set on every bind. The toast is right either way ("Disney+ is already in Your apps"), so only the look is
+wrong. Not proven to be related to the wrong-app fault below, though both point at holder state.
 
 **Open: sometimes the app picked from the + is not the one that appears (2.23, cause unknown).** **Ruled out by the
 code:** a package with several launcher activities entering twice — `loadApps` keeps one app per package
@@ -310,9 +321,25 @@ This is an inference from which numbers changed, not a proof. To check it next t
 .\adb.exe shell netstat -tn                                          # while it is busy: which device on the LAN is talking to it
 .\adb.exe shell dumpsys cpuinfo | Select-Object -First 15
 ```
-The fix that worked is a full restart. A renderer on/off setting may exist on this set (the package
-`com.sony.huey.dlna.renderersettings` is installed), but it has not been looked for, and turning it off could stop
-casting to the TV from phones — check before changing it.
+**6 November 2026: the renderer looped again, and turning it off fixed it — a restart alone does not.** The set had
+been restarted on 4 Nov about 19:05. On 6 Nov at 00:02 the two DLNA processes were using **184% and 92%** of the 400%
+(CPU idle only 60–66%, almost all of it kernel time) with Home on screen and nobody watching. Inside `dmr`, two
+threads (`Thread-13`, `Thread-16`) each spun at about 90% of a core — a busy loop; the other 25 threads were idle.
+From their CPU time the loop began about 16:30–16:45 on 5 Nov, roughly 21 hours after boot (an estimate).
+`netstat -tun` showed **no DLNA client at all**: the LAN connections to the TV were Google Cast (ports 8008/8009)
+and adb. So nothing was casting; the renderer loops on its own.
+
+The setting is in Sony's Home network screen, `com.sony.dtv.homenetwork/.HomeNetworkSettingsActivity` (the
+`renderersettings` package has no screen of its own). It can be opened with
+`.\adb.exe shell am start -n com.sony.dtv.homenetwork/.HomeNetworkSettingsActivity`; the owner then turned
+**Renderer** off with the remote. Within seconds the two processes' CPU time stopped rising and CPU idle went back to
+359–362%, **without a restart**. Two minutes later, when iQIYI needed memory, the low-memory killer removed both
+processes (`lowmemorykiller: Kill 'com.sony.huey.dlna.module:dmr'`), and they did not come back. iQIYI and then Youku
+played with no black screen and no lag, 250–330% CPU idle, no crash. Google Cast is a separate service on 8008/8009
+and is not affected by the Renderer switch.
+
+Still open: confirm after a day or more that the renderer stays off and idle, and whether the TV's own software update
+fixes the loop.
 
 ## 4. Map of the repository
 
