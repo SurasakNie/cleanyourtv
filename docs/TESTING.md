@@ -115,7 +115,7 @@ Setup: `.\adb.exe logcat -c` first.
 - [ ] **4.** Random / Random ×2 / Random ×3 / Random shape / Slow drift: the faint marks read as "moves around"; nothing flickers — **6 Nov: not judged**; the screenshots show soft glows, no faint marks visible; needs the owner's eye
 - [ ] **5.** Pick a style, back out, open Home → the picked glow is the one in use (the choice itself is unchanged)
 - [x] **6.** Focus style and Banner pages: preview still shows, now fixed at the top; the Back hint and the title scroll under it — **6 Nov: pass** (seen scrolling under it on the Glow page; Focus style and Banner lists are too short to scroll)
-- [ ] **7.** A page without a preview (Font, Wallpaper, Banner title size, Live input source) → no empty gap at the top
+- [x] **7.** A page without a preview (Font, Wallpaper, Banner title size, Live input source) → no empty gap at the top — **6 Nov: pass** for Banner title size and Live input source (title at the top, y = 60; Font and Wallpaper have previews since 2.36). Banner title size can only be focused when Banner is not Off, and Live input source is only listed with Banner = Live input
 - [ ] **8.** Launcher settings › About shows **2.35**
 - [ ] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
 

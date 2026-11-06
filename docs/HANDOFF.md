@@ -74,10 +74,10 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ### Waiting on a test
 The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in [`TESTING-history.md`](TESTING-history.md).
 
-- **2.33–2.36 on screen** (2.36 is installed): work through [`TESTING.md`](TESTING.md) § 2.33, § 2.34, § 2.35 and § 2.36 in one pass. Then the local session runs its step 3 (log), and step 5 for screenshots of the five choice pages with previews (Focus style, Banner, Glow, Font, Wallpaper) — none of the drawings has ever been seen. **Done on 6 Nov:** § 2.34 items 1–3 (results in `TESTING.md`). Item 4 stopped at 2 of 10 adds because of the new Down-after-add fault below. **The previews have now been seen** (screenshots over adb, nothing picked): all five pages draw, follow the highlight and keep the drawing fixed at the top (§ 2.34 #10 and #12, § 2.35 #1–3 and #6, § 2.36 #1, #5 and #7 ticked). Still open from them: the Live input drawing puts "App name" over the bottom of the window; the moving glow styles' faint marks were not visible (§ 2.35 #4); no theme pictures to try the Wallpaper decoding (§ 2.36 #3, #4, #6); § 2.35 #7 not reached because Banner title size cannot be focused while Banner is Off.
+- **2.33–2.36 on screen** (2.36 is installed): work through [`TESTING.md`](TESTING.md) § 2.33, § 2.34, § 2.35 and § 2.36 in one pass. Then the local session runs its step 3 (log), and step 5 for screenshots of the five choice pages with previews (Focus style, Banner, Glow, Font, Wallpaper) — none of the drawings has ever been seen. **Done on 6 Nov:** § 2.34 items 1–3 (results in `TESTING.md`). Item 4 stopped at 2 of 10 adds because of the new Down-after-add fault below. **The previews have now been seen** (screenshots over adb, nothing picked): all five pages draw, follow the highlight and keep the drawing fixed at the top (§ 2.34 #10 and #12, § 2.35 #1–3 and #6, § 2.36 #1, #5 and #7 ticked). Still open from them: the Live input drawing puts "App name" over the bottom of the window; the moving glow styles' faint marks were not visible (§ 2.35 #4); no theme pictures to try the Wallpaper decoding (§ 2.36 #3, #4, #6); § 2.35 #7 passed later the same night with Banner switched on for the test and back to Off.
 - **Long presses need the owner's remote on this set.** `input keyevent --longpress` arrives as a short press (it opened the app), and `sendevent` to `/dev/input/event0`–`event3` is denied: the shell user is not in the `input` group here, so the `CONTRIBUTING.md` workaround does not apply. Anything that needs hold-OK (removing from Your apps, § 2.34 items 7 and 9) is done with the remote.
 - **2.31's checklist** — results reported 27 Oct; tick [`TESTING-history.md`](TESTING-history.md) § 2.31 once the owner says so.
-- **The dock black flash** — still not reproduced; capture `black.txt` and `dumpsys meminfo` the moment it is seen.
+- **The dock black flash** — still not reproduced, now also with **Animations off** (6 Nov, see *Known bugs*); capture `black.txt` and `dumpsys meminfo` the moment it is seen.
 - **The intermittent "wrong app from the +"** — 2.34 replaced the list with a pick from the Apps tab; [`TESTING.md`](TESTING.md) § 2.34 item 4 is the check. 6 Nov: 2 of 2 adds correct (AIS PLAY, Crunchyroll); the ten-add run needs the Down-after-add fault fixed first, or the owner removing each added app before the next add (removing it restores Down).
 - **The old-key theme check** (2.27) — skipped for lack of a theme file.
 
@@ -133,6 +133,15 @@ can never reach the centre, so `to` is never 0 and a scroll is requested on *eve
 fires them continuously. Testing it means turning **Animations off** and sweeping again. Treat the zero with
 suspicion too: no `Skipped` line from *any* app in the whole device is itself odd, so a positive control is
 needed before that measurement is trusted again.
+
+*Tried on 6 Nov with Animations off, and it did not reproduce:* 15 sweeps from the first tile past the + and back,
+each run one `input keyevent` call with 14 presses (as fast as a held key), screen recorded. `dumpsys gfxinfo
+com.gathin.tvhome`, reset just before, counted **281 frames, 0 janky**, 50th/99th percentile 5/9 ms, no missed
+Vsync and no slow UI thread — that counter is the positive control: it sees frames, and none were slow.
+`Choreographer … Skipped` was again zero device-wide; no `FATAL`. The video (`sweep-anim-off.mp4`, owner's local
+copy) could not be checked frame by frame here. So the `CentreManager` hypothesis did not show as dropped frames
+with Animations off; it is not ruled out for a held key on the real remote, and memory was healthy (about 840 MB
+available), which leaves the next paragraph's explanation standing.
 
 *Most likely on today's evidence:* it needs memory pressure. The set had just been cleared and restarted, and
 `dumpsys meminfo` straight after the test read `status normal`, 486 MB free, 117 MB cached — unusually healthy
