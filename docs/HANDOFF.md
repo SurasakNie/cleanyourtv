@@ -74,7 +74,7 @@ Clear the log *before* testing, not after — checking straight after `logcat -c
 ### Waiting on a test
 The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in [`TESTING-history.md`](TESTING-history.md).
 
-- **2.33–2.36 on screen** (2.36 is installed): work through [`TESTING.md`](TESTING.md) § 2.33, § 2.34, § 2.35 and § 2.36 in one pass. Then the local session runs its step 3 (log), and step 5 for screenshots of the five choice pages with previews (Focus style, Banner, Glow, Font, Wallpaper) — none of the drawings has ever been seen. **Done on 6 Nov:** § 2.34 items 1–3 (results in `TESTING.md`). Item 4 stopped at 2 of 10 adds because of the new Down-after-add fault below. **The previews have now been seen** (screenshots over adb, nothing picked): all five pages draw, follow the highlight and keep the drawing fixed at the top (§ 2.34 #10 and #12, § 2.35 #1–3 and #6, § 2.36 #1, #5 and #7 ticked). Still open from them: the Live input drawing puts "App name" over the bottom of the window; the moving glow styles' faint marks were not visible (§ 2.35 #4); no theme pictures to try the Wallpaper decoding (§ 2.36 #3, #4, #6); § 2.35 #7 passed later the same night with Banner switched on for the test and back to Off.
+- **2.33–2.36 on screen** (2.36 is installed): work through [`TESTING.md`](TESTING.md) § 2.33, § 2.34, § 2.35 and § 2.36 in one pass. Then the local session runs its step 3 (log), and step 5 for screenshots of the five choice pages with previews (Focus style, Banner, Glow, Font, Wallpaper) — none of the drawings has ever been seen. **Still open after the 6–7 Nov run:** § 2.33 #4 (as written), § 2.34 #2 (dimming bug), #4 (8 adds left), #8 (needs every app in Your apps), § 2.35 #4 and #5 (owner's eye), § 2.36 #3, #4, #6 (no theme pictures); everything else in 2.33–2.36 is ticked in `TESTING.md`. **Done on 6 Nov:** § 2.33 items 1–3, 5–7, 9–11 pass; item 4 fails as written (the gear is reached only through the Apps and Inputs tabs, which hide the window). § 2.34 items 1–3 (results in `TESTING.md`). Item 4 stopped at 2 of 10 adds because of the new Down-after-add fault below. **The previews have now been seen** (screenshots over adb, nothing picked): all five pages draw, follow the highlight and keep the drawing fixed at the top (§ 2.34 #10 and #12, § 2.35 #1–3 and #6, § 2.36 #1, #5 and #7 ticked). Still open from them: the Live input drawing puts "App name" over the bottom of the window; the moving glow styles' faint marks do not read as movement (§ 2.35 #4: the owner was not sure they saw any, no flicker); no theme pictures to try the Wallpaper decoding (§ 2.36 #3, #4, #6); § 2.35 #7 passed later the same night with Banner switched on for the test and back to Off.
 - **Long presses need the owner's remote on this set.** `input keyevent --longpress` arrives as a short press (it opened the app), and `sendevent` to `/dev/input/event0`–`event3` is denied: the shell user is not in the `input` group here, so the `CONTRIBUTING.md` workaround does not apply. Anything that needs hold-OK (removing from Your apps, § 2.34 items 7 and 9) is done with the remote.
 - **2.31's checklist** — results reported 27 Oct; tick [`TESTING-history.md`](TESTING-history.md) § 2.31 once the owner says so.
 - **The dock black flash** — still not reproduced, now also with **Animations off** (6 Nov, see *Known bugs*); capture `black.txt` and `dumpsys meminfo` the moment it is seen.
@@ -347,8 +347,15 @@ processes (`lowmemorykiller: Kill 'com.sony.huey.dlna.module:dmr'`), and they di
 played with no black screen and no lag, 250–330% CPU idle, no crash. Google Cast is a separate service on 8008/8009
 and is not affected by the Renderer switch.
 
-Still open: confirm after a day or more that the renderer stays off and idle, and whether the TV's own software update
-fixes the loop.
+Checked again at 22:48 the same day, 21 h after a restart (the point where the loop began last time): `dmr` not
+running, CPU idle 321%. Still open: a check past 24 h, and whether the TV's own software update fixes the loop.
+
+**6 Nov 23:31: one more Youku black screen, not the renderer.** During § 2.33 item 7 (Banner = Live input), Youku
+opened from Home and stayed black while loading. It was a cold start (process started 23:31:35), Youku logged its
+launch as done at 23:31:40 and then sat idle; CPU idle 343%, memory status normal (825 MB available), `dmr` not
+running, and the launcher's live window had been released with no TV-input session left (`dumpsys tv_input`:
+`mainSessionToken: null`). Opening Youku again — with the live window still on — worked. This matches the older note
+above (black on a cold first open, fine the second time); the live window is not implicated on this evidence.
 
 ## 4. Map of the repository
 
