@@ -11,13 +11,13 @@ closed investigations) is in [`HISTORY.md`](HISTORY.md); finished test checklist
 
 | | |
 |---|---|
-| TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.3:5555` |
+| TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.19:5555` since 6 Nov (was `192.168.1.3`). **The address changes when the TV restarts — check it before every session** ([`TESTING.md`](TESTING.md#before-you-start)) |
 | On the TV now | **2.36** (`versionCode` 236), installed 31 Oct by the owner's local session (`versionName=2.36` confirmed, logcat cleared). **6 Nov, first on-screen run:** § 2.34 items 1–3 pass, item 2's dimming is wrong, and two new faults were found (§ 2 *Known bugs*); the Performance-card row at rows = 3 is greyed, so that bug is closed. Everything else in 2.33–2.36 is still unseen — see § 2 *Waiting on a test* |
 | Last builds with TV results | **2.32** (31 Oct): no flash at 0 Favorite rows, no window at 1–3; density 320 (= 2.0) confirmed; log clean. **2.33** installed earlier: log clean, no window at 1–3 rows; its 0-row behaviour was never reported. **2.31** (27 Oct): glow bars gone, Inputs-on-Home hidden, animations rename works — reported, not ticked. Older results: [`TESTING-history.md`](TESTING-history.md) |
 | `main` | Every build through **2.36** is merged (PR #14, `c8d8df4`). Four builds — 2.33, 2.34, 2.35, 2.36 — went in **before any TV test**, at the owner's word; each is one revert PR away |
 | Branch | `claude/zen-euler-0mir9r`, restarted from `main` after each merge; no unmerged code |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. PR #6 (2ea447f): 2.22–2.27. **PR #7 (ddac328): 2.28. **PR #8 (93bdc1a): 2.29–2.31**. **PR #9 (0f232ed): 2.32 and the 2.31 handoff**. **PR #10 (2b21a8e): 2.33**. **PR #11 (9bf7b88): 2.34**. **PR #12 (65d9fd5): 2.35**. **PR #14 (c8d8df4): 2.36** |
-| Network | **wired Ethernet** (`eth0`, 192.168.1.3). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
+| Network | **wired Ethernet** (`eth0`, 192.168.1.19 since 6 Nov; given by the router, and it changed on that restart). No Wi-Fi address at all, which is why the card's Wi-Fi rows stay blank |
 | Signing key | debug keystore, SHA-256 `a215696a…436e`. The owner holds `cleanyourtv-debug.keystore` (alias `androiddebugkey`, password `android`). **Never commit it.** Every build must keep this key, or the TV refuses the update. |
 | Screensaver | the TV's own (Google Backdrop). The launcher never changed it; its Clock screensaver stays off. |
 

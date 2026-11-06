@@ -14,8 +14,23 @@ with their results, are kept word for word in [`TESTING-history.md`](TESTING-his
 
 ## Before you start
 
+**Check the TV's IP address first, every time (owner's rule, 6 Nov).** The address comes from the router and changes
+when the TV restarts: it was `192.168.1.3` until 6 Nov and `192.168.1.19` after the restart that night, and another
+device then answered at `.3`. Read it on the TV (Settings › Network & Internet, or About › Status), or confirm a
+candidate from the PC — the TV answers on the adb port and on Google Cast's two ports:
+
 ```
-.\adb.exe connect 192.168.1.3:5555
+Test-NetConnection 192.168.1.19 -Port 5555
+Test-NetConnection 192.168.1.19 -Port 8009
+```
+
+Both `TcpTestSucceeded : True` means it is the TV. A new address also asks for **Allow USB debugging** on the TV
+again: allow it only when the dialog is on the Sony itself. A DHCP reservation in the router would keep the address
+fixed.
+
+```
+.\adb.exe connect 192.168.1.19:5555
+.\adb.exe shell ip -4 addr show eth0
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
 .\adb.exe install -r tvhome-2.36.apk
 ```
