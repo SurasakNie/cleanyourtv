@@ -82,7 +82,7 @@ Setup: `.\adb.exe logcat -c` first. Favorite apps rows = 0 is fine for all of it
 - [x] **1.** Home › Your apps › move to the **+** › OK → the **Apps tab** opens, a toast says to choose an app, the focus is on an app that is **not** in Your apps — **6 Nov: pass** (toast "Choose an app to add to Your apps. Back cancels.", focus on Aberto Sonorus)
 - [ ] **2.** Apps already in Your apps look **dimmed** (also when focused); OK on one → toast "… is already in Your apps", you stay in the Apps tab — **6 Nov: toast and stay pass; dimming fails** (follows the tile, not the app: see HANDOFF *Known bugs*)
 - [x] **3.** OK on a free app → back on **Home**, the app is the **last tile** of Your apps and has the focus; toast "added" — **6 Nov: pass** twice (AIS PLAY, Crunchyroll)
-- [ ] **4.** Repeat ten times with different apps → the right app is added every time (this is the open "wrong app from +" fault) — **6 Nov: 2 of 10, both right; stopped** because Down from the Home pill does not reach the row after an add (HANDOFF *Known bugs*)
+- [x] **4.** Repeat ten times with different apps → the right app is added every time (this is the open "wrong app from +" fault) — **7 Nov: pass, 10 of 10** (AIS PLAY, Crunchyroll on 6 Nov; FLIXER, GeForce NOW, MangoTV/MGTV, Music, Spotify, Timers & Clock, Viki, VLC on 7 Nov, each the last tile, focused, with its own toast). The last eight went Right from the new tile to the + without the Home pill, which avoids the Down-after-add fault
 - [x] **5.** + › OK, then **Back** → Home, focus on the **+**; nothing added — **6 Nov: pass** (and Up › Down still reaches the row afterwards)
 - [x] **6.** + › OK, then Up to a tab and the **Home** or **Inputs** tab → the choosing ends; go back to Apps → no dimming — **6 Nov: pass** (via Inputs)
 - [x] **7.** + › OK, hold OK on an app → **no menu** opens — **6 Nov: pass** (owner's remote; after leaving through the Home tab, hold OK in Apps opens the menu again, as item 9 expects)
@@ -113,7 +113,7 @@ Setup: `.\adb.exe logcat -c` first.
 - [x] **2.** Move down all ten rows → the drawing **changes with each row** and stays at the top while the list scrolls — **6 Nov: pass**
 - [x] **3.** Classic, Per app, Follow, Two glows, Ribbon: each looks like what the real Home shows for that style (a spot top-right, a fixed place, above the tile, two spots, a diagonal band) — **6 Nov: pass** by eye from screenshots
 - [ ] **4.** Random / Random ×2 / Random ×3 / Random shape / Slow drift: the faint marks read as "moves around"; nothing flickers — **6 Nov: no flicker (owner); the marks do not read as movement** — the owner was not sure they saw any, and the screenshots show none, so the marks are too faint on this TV
-- [ ] **5.** Pick a style, back out, open Home → the picked glow is the one in use (the choice itself is unchanged) — **6 Nov: not confirmed.** After picking Ribbon, Home with an app focused showed a broad, still glow in the app's colour running diagonally from the top centre down to the left; the preview's band runs from top left to bottom right. Needs the owner's eye. Set back to Random position and shape
+- [x] **5.** Pick a style, back out, open Home → the picked glow is the one in use (the choice itself is unchanged) — **7 Nov: pass** (owner: Ribbon shows a diagonal band in the selected app's colour and follows the app); set back to Random position and shape
 - [x] **6.** Focus style and Banner pages: preview still shows, now fixed at the top; the Back hint and the title scroll under it — **6 Nov: pass** (seen scrolling under it on the Glow page; Focus style and Banner lists are too short to scroll)
 - [x] **7.** A page without a preview (Font, Wallpaper, Banner title size, Live input source) → no empty gap at the top — **6 Nov: pass** for Banner title size and Live input source (title at the top, y = 60; Font and Wallpaper have previews since 2.36). Banner title size can only be focused when Banner is not Off, and Live input source is only listed with Banner = Live input
 - [x] **8.** Launcher settings › About shows **2.35**
@@ -135,10 +135,10 @@ Setup: `.\adb.exe logcat -c` first. Wallpaper needs at least one picture in the 
 
 - [x] **1.** Launcher settings › Font: the page shows a **preview** above two rows; moving between Outfit and CMU Sans changes the lettering — **6 Nov: pass**
 - [x] **2.** Choose CMU Sans → the panel redraws in it (as before); open the page again → the preview matches the font in use — **6 Nov: pass**; set back to Outfit
-- [ ] **3.** Launcher settings › Wallpaper: the page shows a preview; moving the highlight over each picture shows **that picture**, cropped to a 16:9 frame
-- [ ] **4.** A large picture: moving onto it never freezes the remote (the picture may appear a moment later)
+- [x] **3.** Launcher settings › Wallpaper: the page shows a preview; moving the highlight over each picture shows **that picture**, cropped to a 16:9 frame — **7 Nov: pass** with three test pictures pushed to `wallpapers/` (1920×1080, 1080×1920 portrait shown as its centre 16:9 band, 7680×4320)
+- [x] **4.** A large picture: moving onto it never freezes the remote (the picture may appear a moment later) — **7 Nov: pass** for 7680×4320: the next Down moved the focus as fast as on the small pictures; `gfxinfo` 0 janky frames, 0 slow UI thread
 - [x] **5.** "None" and "Theme default": a line of text instead of a picture — **6 Nov: pass** (the theme has no pictures, so items 3, 4 and 6 could not be tried)
-- [ ] **6.** Pick a wallpaper → Home shows the same picture as the preview
+- [x] **6.** Pick a wallpaper → Home shows the same picture as the preview — **7 Nov: pass**; set back to Theme default (Home plain again)
 - [x] **7.** All five previewed pages (Focus style, Banner, Glow, Font, Wallpaper) still show their drawing fixed at the top while the rows scroll — **6 Nov: pass**
 - [x] **8.** Launcher settings › About shows **2.36** — **6 Nov: pass**
 - [x] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime — **6 Nov: pass** (one log, 23:18–00:08 across the 2.33–2.36 run: 0 `FATAL EXCEPTION`, 0 `E AndroidRuntime`, no launcher warning beyond the known noise)
