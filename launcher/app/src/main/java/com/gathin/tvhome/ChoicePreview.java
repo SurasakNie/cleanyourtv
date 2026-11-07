@@ -10,6 +10,7 @@ import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.graphics.Shader;
 import android.view.View;
 
@@ -40,15 +41,92 @@ final class ChoicePreview extends View {
         this.kind = kind;
         this.option = option;
         this.dp = context.getResources().getDisplayMetrics().density;
-        setLayerType(LAYER_TYPE_SOFTWARE, null);   // shadow layers (the halo) need it
+        // Shadow layers (the halo) need a software layer; the other drawings, the moving glow above all, are
+        // cheaper on the default hardware path.
+        if (kind == FOCUS) setLayerType(LAYER_TYPE_SOFTWARE, null);
         setFocusable(false);
     }
 
     /** The option the highlighted row stands for; redraws only when it changes. */
     void setOption(int option) {
         if (option == this.option) return;
+        removeCallbacks(tick);
         this.option = option;
+        restartGlow();
         invalidate();
+    }
+
+    // ---- The moving glow styles ------------------------------------------------------------------------
+
+    /** The five glow styles that move on Home; the preview moves them too, the same way. */
+    static boolean moves(int style) {
+        return style == GlowStyle.RANDOM || style == GlowStyle.RANDOM_2 || style == GlowStyle.RANDOM_3
+                || style == GlowStyle.RANDOM_SHAPE || style == GlowStyle.DRIFT;
+    }
+
+    private GlowStyle.Spot glowNow;
+    private GlowStyle.Spot[] glowExtras = new GlowStyle.Spot[0];
+    private long glowStart;
+
+    /**
+     * Moves the glow while this drawing is on screen with a moving style highlighted, and stops by itself the moment
+     * either is no longer true. Slow drift follows GlowStyle.drift() at Home's own pace and tick (120 ms); the Random
+     * styles jump to a new GlowStyle.random() spot every 1.6 s, as Home does each time a new app is selected. One
+     * redraw per tick and nothing in between, which is light enough for a 1 GB TV and leaves nothing to flicker.
+     */
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            if (kind != GLOW || !moves(option) || !isShown()) return;
+            if (option == GlowStyle.DRIFT) {
+                glowNow = GlowStyle.drift((SystemClock.elapsedRealtime() - glowStart) / 1000.0);
+                invalidate();
+                postDelayed(this, 120);
+            } else {
+                glowNow = GlowStyle.random(option == GlowStyle.RANDOM_SHAPE);
+                glowExtras = new GlowStyle.Spot[GlowStyle.extraCount(option)];
+                for (int i = 0; i < glowExtras.length; i++) {
+                    glowExtras[i] = i == 0 ? GlowStyle.second(glowNow) : GlowStyle.random(false);
+                }
+                invalidate();
+                postDelayed(this, 1600);
+            }
+        }
+    };
+
+    private void restartGlow() {
+        removeCallbacks(tick);
+        glowNow = null;
+        glowExtras = new GlowStyle.Spot[0];
+        if (kind != GLOW || !moves(option) || !isShown()) return;
+        glowStart = SystemClock.elapsedRealtime();
+        post(tick);
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        restartGlow();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        removeCallbacks(tick);
+        super.onDetachedFromWindow();
+    }
+
+    /** The page closing (GONE) or opening again reaches here through the parents; so does the panel being covered. */
+    @Override
+    protected void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        if (isShown()) restartGlow();
+        else removeCallbacks(tick);
+    }
+
+    @Override
+    protected void onWindowVisibilityChanged(int visibility) {
+        super.onWindowVisibilityChanged(visibility);
+        if (visibility == VISIBLE && isShown()) restartGlow();
+        else removeCallbacks(tick);
     }
 
     // ---- Wallpaper --------------------------------------------------------------------------------
@@ -211,8 +289,8 @@ final class ChoicePreview extends View {
     }
 
     /**
-     * The glow on a small 16:9 screen, placed with GlowStyle's own spots so the drawing and the launcher agree. A style
-     * that moves (Random, Slow drift) shows where it can go as faint marks; Random shape uses ellipses.
+     * The glow on a small 16:9 screen, placed with GlowStyle's own spots so the drawing and the launcher agree. The
+     * five styles that move on Home move here too (the ticker above); 2.37's white outline marks are gone (owner, 7 Nov).
      */
     private void drawGlow(Canvas c, float w, float h) {
         float sh = h - 16 * dp, sw = sh * 16 / 9, left = (w - sw) / 2, top = 8 * dp;
@@ -235,39 +313,25 @@ final class ChoicePreview extends View {
             case GlowStyle.RANDOM:
             case GlowStyle.RANDOM_2:
             case GlowStyle.RANDOM_3:
-                // Anywhere in the top two thirds: one glow where it is now, and clear rings at other places it can
-                // move to. Faint glows were tried for this in 2.35 and could not be seen on the TV.
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.55f, 0.4f, 0.78f, 0.78f), colour, 1f);
-                mark(c, left + 0.2f * sw, top + 0.2f * sh, 5 * dp, 5 * dp);
-                mark(c, left + 0.82f * sw, top + 0.12f * sh, 5 * dp, 5 * dp);
-                mark(c, left + 0.4f * sw, top + 0.08f * sh, 5 * dp, 5 * dp);
-                if (option != GlowStyle.RANDOM) {
-                    spot(c, left, top, sw, sh, new GlowStyle.Spot(0.7f, 0.5f, 0.55f, 0.55f), GlowStyle.shifted(colour), 0.45f);
-                }
-                if (option == GlowStyle.RANDOM_3) {
-                    spot(c, left, top, sw, sh, new GlowStyle.Spot(0.3f, 0.55f, 0.55f, 0.55f), GlowStyle.shifted(colour, 90f), 0.45f);
-                }
-                break;
-            case GlowStyle.PER_APP:
-                spot(c, left, top, sw, sh, GlowStyle.perApp("com.example.app"), colour, 1f);
-                break;
-            case GlowStyle.DRIFT: {
-                // One glow, and the loop it drifts along drawn as a dotted line of clear dots.
-                spot(c, left, top, sw, sh, GlowStyle.drift(20), colour, 1f);
-                for (int t = 0; t < 90; t += 3) {
-                    GlowStyle.Spot on = GlowStyle.drift(t);
-                    mark(c, left + on.x * sw, top + on.y * sh, 1.5f * dp, 1.5f * dp);
+            case GlowStyle.RANDOM_SHAPE: {
+                // Where the ticker put it last; before its first tick, a fixed spot so the page never opens empty.
+                GlowStyle.Spot main = glowNow != null ? glowNow : new GlowStyle.Spot(0.55f, 0.3f, 0.78f, 0.78f);
+                spot(c, left, top, sw, sh, main, colour, 1f);
+                for (int i = 0; i < glowExtras.length; i++) {
+                    if (glowExtras[i] != null) {
+                        spot(c, left, top, sw, sh, glowExtras[i], GlowStyle.shifted(colour, 45f * (i + 1)), 0.8f);
+                    }
                 }
                 break;
             }
+            case GlowStyle.PER_APP:
+                spot(c, left, top, sw, sh, GlowStyle.perApp("com.example.app"), colour, 1f);
+                break;
+            case GlowStyle.DRIFT:
+                spot(c, left, top, sw, sh, glowNow != null ? glowNow : GlowStyle.drift(0), colour, 1f);
+                break;
             case GlowStyle.FOLLOW:
                 spot(c, left, top, sw, sh, GlowStyle.follow(0.4f), colour, 1f);
-                break;
-            case GlowStyle.RANDOM_SHAPE:
-                // One glow, and outlines of other places and shapes it can take: wide and tall ellipses.
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.35f, 0.25f, 0.95f, 0.5f), colour, 1f);
-                mark(c, left + 0.75f * sw, top + 0.18f * sh, 0.1f * sw, 0.06f * sh);
-                mark(c, left + 0.62f * sw, top + 0.45f * sh, 0.04f * sw, 0.14f * sh);
                 break;
             case GlowStyle.TWO_GLOWS: {
                 GlowStyle.Spot first = GlowStyle.classic(false);
@@ -288,16 +352,6 @@ final class ChoicePreview extends View {
                 spot(c, left, top, sw, sh, GlowStyle.classic(false), colour, 1f);
         }
         c.restore();
-    }
-
-    /** A clear outline (a ring, a dot or an ellipse) marking another place a moving glow can go. Drawn once: no animation. */
-    private void mark(Canvas c, float cx, float cy, float rx, float ry) {
-        paint.setShader(null);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(1.5f * dp);
-        paint.setColor(0xCCFFFFFF);
-        c.drawOval(new RectF(cx - rx, cy - ry, cx + rx, cy + ry), paint);
-        paint.setStyle(Paint.Style.FILL);
     }
 
     /** One glow: a radial fade from the colour to nothing, stretched to the spot's two radii like the launcher does. */

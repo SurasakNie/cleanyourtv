@@ -762,15 +762,6 @@ public final class GtvActivity extends Activity {
         refocusMoving();
     }
 
-    /** Puts the carried tile's lift and ghost on, or takes them off and gives the ring back. */
-    private void styleCarried(View v, boolean carried) {
-        v.animate().cancel();
-        v.animate().scaleX(carried ? 1.15f : 1.1f).scaleY(carried ? 1.15f : 1.1f)
-                .translationZ((carried ? 16 : 8) * dp)
-                .alpha(carried ? GHOST : 1f)
-                .setDuration(140).start();
-    }
-
     /**
      * Move mode: arrows move the tile through Your apps and the Favorite rows as one list (Left/Right one place,
      * Up/Down one row); OK or Back puts it down and saves. Otherwise: Up from a page's top row goes to that page's
@@ -842,12 +833,13 @@ public final class GtvActivity extends Activity {
             tabs[currentTab].requestFocus();
             return true;
         }
-        if ((code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)
-                && atRowEnd(f, code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
-            // Nothing else handles Left or Right here, so at a row's end the platform's focus search picks
-            // whatever focusable it can reach - the next item in adapter order, which is the neighbouring row.
-            // Swallow the key instead: a row stops at its ends, and Up and Down are the only ways out of it.
-            return true;
+        if (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            boolean right = code == KeyEvent.KEYCODE_DPAD_RIGHT;
+            // In the Favorite rows and the Apps tab, a row's end leads on to the next app in reading order (2.38).
+            if (wrapRow(f, right)) return true;
+            // Everywhere else, and at the very first and last app, the row stops: left alone, the platform's focus
+            // search would pick whatever focusable it could reach, which is not a rule anyone can predict.
+            if (atRowEnd(f, right)) return true;
         }
         if (code == KeyEvent.KEYCODE_DPAD_DOWN && currentTab == TAB_HOME && f.getParent() == homeInputs) {
             openAppsAt(0);
@@ -913,6 +905,53 @@ public final class GtvActivity extends Activity {
         return false;
     }
 
+    /**
+     * Left on the first app of a row goes to the last app of the row above, and Right on the last app of a row to the
+     * first app of the row below — in the Favorite rows and the Apps tab grid, at the owner's wish (7 Nov), which
+     * reverses 2.30's stop. Only at a row's ends: mid-row Left and Right stay with the platform. Not past the first or
+     * the last app, and never out of the grid, so the Favorite rows do not lead into Your apps. False when nothing
+     * wrapped, so atRowEnd() can stop the key.
+     */
+    private boolean wrapRow(View f, boolean right) {
+        ViewParent parent = f.getParent();
+        RecyclerView grid;
+        int at, count, first;
+        if (currentTab == TAB_HOME && parent == homeGrid) {
+            grid = homeGrid;
+            first = 1;   // position 0 is the section header
+            at = homeGrid.getChildAdapterPosition(f) - first;
+            count = favouritesShown();
+        } else if (currentTab == TAB_APPS && parent == appsGrid) {
+            grid = appsGrid;
+            first = 0;
+            at = appsGrid.getChildAdapterPosition(f);
+            count = all.size();
+        } else {
+            return false;
+        }
+        if (at < 0 || at >= count) return false;
+        boolean end = right ? at % cols == cols - 1 : at % cols == 0;
+        if (!end) return false;
+        int target = right ? at + 1 : at - 1;
+        if (target < 0 || target >= count) return false;
+        focusGridAt(grid, target + first);
+        return true;
+    }
+
+    /** Focuses a grid's tile, scrolling to it first when it is off screen and has no view yet. */
+    private static void focusGridAt(RecyclerView r, int pos) {
+        RecyclerView.ViewHolder vh = r.findViewHolderForAdapterPosition(pos);
+        if (vh != null) {
+            vh.itemView.requestFocus();
+            return;
+        }
+        r.scrollToPosition(pos);
+        r.post(() -> {
+            RecyclerView.ViewHolder later = r.findViewHolderForAdapterPosition(pos);
+            if (later != null) later.itemView.requestFocus();
+        });
+    }
+
     /** Down from Home's lowest row: the Apps tab, on the app in the same column of its top row. */
     private void openAppsAt(int column) {
         // Focus the Apps pill first (its listener switches the page): hiding Home while it holds the focus would
@@ -947,7 +986,7 @@ public final class GtvActivity extends Activity {
             RecyclerView.ViewHolder vh = holderOf(a);
             if (vh == null) return;
             vh.itemView.requestFocus();
-            styleCarried(vh.itemView, false);   // put down: back to an ordinary selection
+            focusTile(vh.itemView, true);   // put down: the same look, and the others undimmed
             dimOthers(vh.itemView);
         });
     }
@@ -957,8 +996,7 @@ public final class GtvActivity extends Activity {
         RecyclerView.ViewHolder vh = holderOf(moving);
         if (vh == null) return;
         vh.itemView.requestFocus();
-        styleCarried(vh.itemView, true);
-        dimOthers(vh.itemView);
+        focusTile(vh.itemView, true);   // picked up: the chosen focus style, with every other tile dimmed
     }
 
     /** The tile showing this app, wherever it is: Your apps, or the Favorite rows. */
@@ -2151,18 +2189,19 @@ public final class GtvActivity extends Activity {
                 img.setImageDrawable(null);
                 name.setText(a.label);
             }
-            // A recycled card may still carry the zoom or dimness of the tile it showed before.
-            boolean focused = card.isFocused(), carried = a == moving;
+            // A recycled card may still carry the zoom or dimness of the tile it showed before. A carried tile
+            // (Move) looks like any focused one in the chosen style; the others dim, which marks it as held.
+            boolean focused = card.isFocused();
             card.animate().cancel();
             boolean carrying = moving != null;
-            float scale = focused ? (carrying ? 1.15f : focusScale()) : 1f;
+            float scale = focused ? focusScale() : 1f;
             card.setScaleX(scale);
             card.setScaleY(scale);
-            card.setTranslationY(focused && !carrying && liftsTile() ? -10 * dp : 0f);
-            card.setTranslationZ(focused ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0);
+            card.setTranslationY(focused && liftsTile() ? -10 * dp : 0f);
+            card.setTranslationZ(focused ? (focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0);
             card.setTag(a);   // before pickDim(card), which reads it: a recycled card still carried its last app
-            card.setAlpha((focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f)) * pickDim(card));
-            haloTile(card, focused && !carrying && focusStyle == FOCUS_HALO);
+            card.setAlpha((focused ? 1f : (carrying ? DIM_MOVING : 1f)) * pickDim(card));
+            haloTile(card, focused && focusStyle == FOCUS_HALO);
             card.setOnClickListener(v -> { if (pickingForDock) pickForDock(a); else open(a); });
             card.setOnLongClickListener(v -> {
                 if (!pickingForDock) menu(a, v);   // choosing an app to add: no menu
@@ -2177,20 +2216,20 @@ public final class GtvActivity extends Activity {
         @Override public int getItemCount() { return items.size(); }
     }
 
-    /** While a tile is carried: how far the others step back, and how see-through the carried one goes. */
-    private static final float DIM_MOVING = 0.4f, GHOST = 0.75f;
+    /** While a tile is carried: how far the others step back. */
+    private static final float DIM_MOVING = 0.4f;
 
     /**
-     * An ordinary selection: the tile simply zooms and lifts — no frame, which told you nothing on white artwork
-     * anyway. Carrying one (hold OK, Move) lifts it further, makes it see-through and fades every other tile, so
-     * it reads as held.
+     * A selection in the chosen focus style: Zoom, Lift, Glass halo, Underline or Lift + bar — no frame, which told
+     * you nothing on white artwork anyway. A carried tile (hold OK, Move) keeps that same look since 2.38, at the
+     * owner's wish; what marks it as held is that every other tile fades.
      */
     private void focusTile(View v, boolean has) {
         boolean carrying = moving != null;
-        float scale = has ? (carrying ? 1.15f : focusScale()) : 1f;
-        float lift = has && !carrying && liftsTile() ? -10 * dp : 0f;
-        float z = has ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0;
-        float alpha = (has ? (carrying ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f)) * pickDim(v);
+        float scale = has ? focusScale() : 1f;
+        float lift = has && liftsTile() ? -10 * dp : 0f;
+        float z = has ? (focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0;
+        float alpha = (has ? 1f : (carrying ? DIM_MOVING : 1f)) * pickDim(v);
         if (animations) {
             v.animate().scaleX(scale).scaleY(scale).translationY(lift).translationZ(z).alpha(alpha)
                     .setDuration(140).start();
@@ -2205,7 +2244,7 @@ public final class GtvActivity extends Activity {
         }
         // The bar is drawn by the row (FocusBar), not by the tile: redraw the row so it follows the focus.
         if (v.getParent() instanceof RecyclerView) ((View) v.getParent()).invalidate();
-        haloTile(v, has && !carrying && focusStyle == FOCUS_HALO);
+        haloTile(v, has && focusStyle == FOCUS_HALO);
         if (has && carrying) dimOthers(v);
     }
 
@@ -2263,7 +2302,7 @@ public final class GtvActivity extends Activity {
         @Override
         public void onDrawOver(@NonNull android.graphics.Canvas c, @NonNull RecyclerView parent,
                                @NonNull RecyclerView.State state) {
-            if (!showsBar() || moving != null) return;
+            if (!showsBar()) return;   // a carried tile shows its bar too (2.38)
             for (int i = 0; i < parent.getChildCount(); i++) {
                 View child = parent.getChildAt(i);
                 if (!child.isFocused() || !(child.getTag() instanceof App)) continue;
