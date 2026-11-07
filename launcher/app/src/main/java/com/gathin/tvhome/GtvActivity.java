@@ -1506,7 +1506,6 @@ public final class GtvActivity extends Activity {
     static final String PREF_FOCUS_STYLE = "gtv_focus_style";
     static final int FOCUS_ZOOM = 0, FOCUS_LIFT = 1, FOCUS_HALO = 2, FOCUS_UNDERLINE = 3, FOCUS_LIFT_BAR = 4;
     /** The bar an underlined tile shows; looked up by tag, since tiles, inputs and the + tile differ. */
-    private static final String TAG_FOCUS_BAR = "focusBar";
 
     /**
      * The style the banner draws in, with 2.21's two switches folded in: an owner who turned either of them on
@@ -1691,6 +1690,7 @@ public final class GtvActivity extends Activity {
         r.setClipChildren(false);
         r.setItemAnimator(null);
         r.setHorizontalScrollBarEnabled(false);
+        r.addItemDecoration(focusBar);
         return r;
     }
 
@@ -1898,6 +1898,7 @@ public final class GtvActivity extends Activity {
         r.setClipToPadding(false);
         r.setClipChildren(false);
         r.setItemAnimator(null);
+        r.addItemDecoration(focusBar);
         return r;
     }
 
@@ -2000,11 +2001,33 @@ public final class GtvActivity extends Activity {
         }
     }
 
-    /** Home's first app (Your apps, first place), or the + tile when the dock is empty. */
+    /**
+     * Home's first app (Your apps, first place), or the + tile when the dock is empty. After an add the row is left
+     * scrolled to its end, and when it holds more apps than fit, the first tile has no view holder: Down from a tab
+     * then did nothing at all (found on 2.36). Scroll back to the start and focus it once the row has been laid out.
+     */
     private void focusHomeFirst() {
         if (dockRow == null) return;
         RecyclerView.ViewHolder vh = dockRow.findViewHolderForAdapterPosition(0);
-        if (vh != null) vh.itemView.requestFocus();
+        if (vh != null) {
+            vh.itemView.requestFocus();
+            return;
+        }
+        dockRow.scrollToPosition(0);
+        dockRow.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            private int pass;
+
+            @Override
+            public void onGlobalLayout() {
+                RecyclerView.ViewHolder first = dockRow.findViewHolderForAdapterPosition(0);
+                if (first != null) first.itemView.requestFocus();
+                if (first != null || ++pass >= 3) {
+                    ViewTreeObserver tree = dockRow.getViewTreeObserver();
+                    if (tree.isAlive()) tree.removeOnGlobalLayoutListener(this);
+                }
+            }
+        });
+        dockRow.requestLayout();   // there has to be a layout pass to wait for
     }
 
     private void focusContent() {
@@ -2092,12 +2115,6 @@ public final class GtvActivity extends Activity {
             name.setGravity(Gravity.CENTER);
             name.setPadding((int) (8 * dp), 0, (int) (8 * dp), 0);
             card.addView(name, new FrameLayout.LayoutParams(-1, -1));
-            // The underline focus style's bar: along the tile's bottom edge, hidden until that style selects it.
-            View bar = new View(GtvActivity.this);
-            bar.setTag(TAG_FOCUS_BAR);
-            bar.setVisibility(View.GONE);
-            FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(-1, (int) (4 * dp), Gravity.BOTTOM);
-            card.addView(bar, blp);
             Fonts.apply(card);
             return new RecyclerView.ViewHolder(card) { };
         }
@@ -2126,8 +2143,6 @@ public final class GtvActivity extends Activity {
             FrameLayout card = (FrameLayout) h.itemView;
             ImageView img = (ImageView) card.getChildAt(0);
             TextView name = (TextView) card.getChildAt(1);
-            View focusBar = card.findViewWithTag(TAG_FOCUS_BAR);
-            if (focusBar != null) focusBar.setBackgroundColor((a.color & 0x00FFFFFF) | 0xFF000000);
             card.setBackground(tileBackground(a.banner != null ? 0xFF1B2029 : darker(a.color)));
             if (a.banner != null) {
                 img.setImageDrawable(a.banner);
@@ -2145,10 +2160,9 @@ public final class GtvActivity extends Activity {
             card.setScaleY(scale);
             card.setTranslationY(focused && !carrying && liftsTile() ? -10 * dp : 0f);
             card.setTranslationZ(focused ? (carrying ? 16 : focusStyle == FOCUS_ZOOM ? 8 : 16) * dp : 0);
+            card.setTag(a);   // before pickDim(card), which reads it: a recycled card still carried its last app
             card.setAlpha((focused ? (carried ? GHOST : 1f) : (carrying ? DIM_MOVING : 1f)) * pickDim(card));
-            showFocusBar(card, focused && !carrying && showsBar());
             haloTile(card, focused && !carrying && focusStyle == FOCUS_HALO);
-            card.setTag(a);
             card.setOnClickListener(v -> { if (pickingForDock) pickForDock(a); else open(a); });
             card.setOnLongClickListener(v -> {
                 if (!pickingForDock) menu(a, v);   // choosing an app to add: no menu
@@ -2189,7 +2203,8 @@ public final class GtvActivity extends Activity {
             v.setTranslationZ(z);
             v.setAlpha(alpha);
         }
-        showFocusBar(v, has && !carrying && showsBar());
+        // The bar is drawn by the row (FocusBar), not by the tile: redraw the row so it follows the focus.
+        if (v.getParent() instanceof RecyclerView) ((View) v.getParent()).invalidate();
         haloTile(v, has && !carrying && focusStyle == FOCUS_HALO);
         if (has && carrying) dimOthers(v);
     }
@@ -2205,18 +2220,61 @@ public final class GtvActivity extends Activity {
         return focusStyle == FOCUS_LIFT || focusStyle == FOCUS_LIFT_BAR;
     }
 
-    /** Underline, and Lift + bar, draw the app's colour as a bar along the tile's bottom edge. */
+    /** Underline, and Lift + bar, draw the app's colour as a bar just below the tile (FocusBar). */
     private boolean showsBar() {
         return focusStyle == FOCUS_UNDERLINE || focusStyle == FOCUS_LIFT_BAR;
     }
 
-    /** The bar under an underlined tile, in the app's own colour. */
-    private void showFocusBar(View v, boolean on) {
-        if (!(v instanceof ViewGroup)) return;
-        View bar = v.findViewWithTag(TAG_FOCUS_BAR);
-        if (bar == null) return;
-        bar.setVisibility(on ? View.VISIBLE : View.GONE);
+    /** Home's background where the bar is drawn: the bar's colour is judged against this. */
+    private static final int BAR_BACKDROP = 0xFF10131A;
+
+    /**
+     * The bar's colour: the app's own, unless it is too dark to see against Home's background (HBO Max, say), when
+     * it is white. 3:1 is the contrast WCAG asks of a UI component against its surroundings.
+     */
+    static int barColour(int appColour) {
+        int opaque = appColour | 0xFF000000;
+        return contrast(opaque, BAR_BACKDROP) < 3.0f ? 0xFFFFFFFF : opaque;
     }
+
+    private static float contrast(int a, int b) {
+        float la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05f) / (Math.min(la, lb) + 0.05f);
+    }
+
+    private static float luminance(int c) {
+        return 0.2126f * channel(Color.red(c)) + 0.7152f * channel(Color.green(c)) + 0.0722f * channel(Color.blue(c));
+    }
+
+    private static float channel(int v) {
+        float x = v / 255f;
+        return x <= 0.03928f ? x / 12.92f : (float) Math.pow((x + 0.055f) / 1.055f, 2.4f);
+    }
+
+    /**
+     * Underline and Lift + bar: a bar in the app's colour just below the focused tile, at its full width. It cannot
+     * be a child of the tile, which clips to its rounded outline, so the row draws it in the 18 dp gap under the
+     * tile. It hangs from the tile's layout bottom: touching it for Underline, and leaving the lift as a gap when
+     * Lift + bar raises the tile.
+     */
+    private final class FocusBar extends RecyclerView.ItemDecoration {
+        private final android.graphics.Paint paint = new android.graphics.Paint();
+
+        @Override
+        public void onDrawOver(@NonNull android.graphics.Canvas c, @NonNull RecyclerView parent,
+                               @NonNull RecyclerView.State state) {
+            if (!showsBar() || moving != null) return;
+            for (int i = 0; i < parent.getChildCount(); i++) {
+                View child = parent.getChildAt(i);
+                if (!child.isFocused() || !(child.getTag() instanceof App)) continue;
+                paint.setColor(barColour(((App) child.getTag()).color));
+                float top = child.getBottom();
+                c.drawRect(child.getLeft(), top, child.getRight(), top + 4 * dp, paint);
+            }
+        }
+    }
+
+    private final FocusBar focusBar = new FocusBar();
 
     /**
      * Glass halo: the tile's shadow is painted in its own colour, so the light around it looks like the app's.
