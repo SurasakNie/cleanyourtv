@@ -94,6 +94,18 @@ Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` 
   shows. The owner wants the carried tile to show the selected style's effect while it moves — Zoom, Lift, Glass
   halo, Underline or Lift + bar — so it is still clear which tile is being moved. Change the code and rewrite the
   Move clause in the next build's checklist.
+- **Glow page preview: no white rings — show the movement instead (owner, 7 Nov).** 2.37 marks where a moving glow
+  can go with white outlines (rings, ellipses, the Slow drift dotted loop). The owner chose to drop them and let the
+  preview **move the glow** the way Home does for Random position, Random ×2, Random ×3, Random position and shape and
+  Slow drift. Keep it light for a 1 GB TV: animate only while the page is open and the row is highlighted, stop on
+  leaving, and check for flicker (2.35 #4's "nothing flickers" still applies).
+- **Left/Right wrap to the neighbouring row in the Apps tab and the Favorite rows (owner, 7 Nov).** Checked on 2.37
+  today: Left on the first app of a row and Right on the last app both do nothing. The owner wants Left on a row's
+  first app to go to the **last app of the row above**, and Right on a row's last app to go to the **first app of the
+  row below**, in both the Apps tab grid and Home's Favorite rows. This **reverses the 2.30 fix** that stopped the
+  Favorite rows jumping rows on Left/Right (HISTORY *Known bugs, fixed or closed*); the difference now is that it is
+  wanted and deterministic: only at a row's ends, never mid-row. Your apps is one row, so it is unaffected; Move must
+  still not cross between Your apps and the Favorite rows.
 
 ### The 2.37 batch (owner's decisions, 7 Nov) — built as 2.37, passed on the TV 7 Nov
 **All eight items below are in 2.37** (see [`HISTORY.md`](HISTORY.md#what-each-build-after-the-merge-added) for how each was done); the TV check is [`TESTING.md`](TESTING.md) § 2.37.
