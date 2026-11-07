@@ -32,7 +32,7 @@ fixed.
 .\adb.exe connect 192.168.1.19:5555
 .\adb.exe shell ip -4 addr show eth0
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.36.apk
+.\adb.exe install -r tvhome-2.37.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -44,17 +44,19 @@ and the ⌄⌄ arrow each step aside rather than sit on top of one another. Chec
 ## 2.33 — the live window stays on Home when no app is selected
 
 **What changed.** With **Banner › Live input**, the window vanished as soon as the focus left the app tiles for the
-Home tab or the gear, because the banner showed only while an app was selected. Now the live style shows whenever
+Home tab, because the banner showed only while an app was selected. Now the live style shows whenever
 Home is in front and the banner fits; the app **name and the page dots hide** when no app is selected (they keep their
 room, so the window does not move). The other banner styles are unchanged: they still need a selected app. Apps and
-Inputs tabs still hide the window and hand the input back. Rows 1–3 still show no window (option A).
+Inputs tabs still hide the window and hand the input back. Rows 1–3 still show no window (option A). **The gear is
+reached only through the Apps and Inputs tabs**, which switch the page as they take the focus, so the window goes on the
+way to the gear — accepted by the owner on 7 Nov (option A; no code change).
 
 Setup: Banner = **Live input**, source = **HDMI 2**, Favorite apps rows = **0**. Run `.\adb.exe logcat -c` first.
 
 - [x] **1.** Arrive on Home with the focus on the **Home pill** → the HDMI 2 picture is already showing, with no app name — **6 Nov: pass**
 - [x] **2.** Down onto Your apps → the picture stays, the app name and dots appear under it, **nothing jumps** — **6 Nov: pass**
 - [x] **3.** Up to the Home pill again → the picture stays; name and dots go — **6 Nov: pass**
-- [ ] **4.** Right to the **gear** → the picture stays — **6 Nov: fails as written.** Right from the Home pill passes the Apps and Inputs tabs first; the window goes when the Apps tab takes the focus and returns on Home, no flicker. The gear cannot be reached with the picture up, so this item needs another path or a layout decision
+- [ ] **4.** Right from the Home pill towards the **gear** → the window goes when the focus reaches the **Apps tab**, and comes back on Home, no flicker (reworded 7 Nov: owner's option A) — **6 Nov, under the old wording:** Right from the Home pill passes the Apps and Inputs tabs first; the window goes when the Apps tab takes the focus and returns on Home, no flicker. The gear cannot be reached with the picture up, so this item needs another path or a layout decision
 - [x] **5.** **Apps** tab and **Inputs** tab → the picture goes — **6 Nov: pass**
 - [x] **6.** Back to Home → the picture returns; HDMI from the Inputs tab still shows the TV's own full-screen picture with sound — **6 Nov: pass**
 - [x] **7.** OK on an app, then Home → the app opens normally; on return the picture comes back — **6 Nov: pass** on the second try; the first Youku open was a black cold start that the evidence does not tie to the live window (HANDOFF § 3)
@@ -144,6 +146,43 @@ Setup: `.\adb.exe logcat -c` first. Wallpaper needs at least one picture in the 
 - [x] **9.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime — **6 Nov: pass** (one log, 23:18–00:08 across the 2.33–2.36 run: 0 `FATAL EXCEPTION`, 0 `E AndroidRuntime`, no launcher warning beyond the known noise)
 
 Not checked here: how any drawing looks on the TV; and no picture was available to try the Wallpaper decoding.
+
+---
+
+## 2.37 — the fix batch from the 6–7 Nov run
+
+**What changed.** (1) **Down from the Home pill after an add**: the row was left scrolled to its end, and with more
+apps than fit, its first tile had no view to focus, so Down did nothing; now it scrolls back and focuses the first app.
+(2) **The + choosing mode dims by app**: the dim read the tile's previous app; it now reads the app on every bind.
+(3) **Underline**: the bar is **just below** the tile, touching it, at full tile width, in the app's colour — white
+when that colour is too dark to see on Home's background (contrast under 3:1, e.g. HBO Max). (4) **Lift + bar**: the
+tile rises and the same bar stays below, so the lift shows as a **gap**. (5) The **Focus style** preview draws both that
+way. (6) The **Banner** preview's Live input row puts "App name" **under** the window. (7) The **Glow** preview's moving
+styles show one glow plus **clear white outlines** where it can go (rings, a dotted loop for Slow drift, ellipses for
+Random shape); nothing animates. (8) § 2.33 item 4 is reworded (no code).
+
+Setup: check the TV's IP first (Before you start), install `tvhome-2.37.apk`, then `.\adb.exe logcat -c`.
+
+- [x] **1.** Your apps holds more apps than fit on screen. Add one through the **+** → Home, the new app focused. Press **Home**, then **Down** → the focus lands on the **first** app of Your apps (the row scrolls back to its start) — **7 Nov: pass** (13 apps at the start; Home › Down lands on YOUKU, the first app) (local session over adb, owner by remote)
+- [x] **2.** Repeat item 1 for § 2.34 #3–4: add apps one by one, with **Home › Down** between adds → Down works every time, and each add is the app picked — **7 Nov: pass** (Crunchyroll and Viki added, each the app picked; Down worked after both)
+- [x] **3.** + › OK: apps already in Your apps are dimmed, **only** those, and the dimming stays right after moving along the rows and in a second choosing session (§ 2.34 #2) — **7 Nov: pass** (exactly the 15 apps in Your apps dimmed, the same after moving along the rows and in a second session)
+- [x] **4.** Focus style **Underline**: a bar just **below** the focused tile, touching it, as wide as the tile, in the app's colour; on iQIYI, Prime Video, bilibili the bar is clearly visible; on HBO Max it is **white** — **7 Nov: pass** (clear on iQIYI, Prime Video, bilibili; HBO Max's bar reads light grey — its own colour, which passes the 3:1 rule, so not switched to white)
+- [x] **5.** Focus style **Lift + bar**: the tile rises; the bar stays below with a visible **gap**; no zoom — **7 Nov: pass**
+- [x] **6.** Both bar styles: the bar follows the focus through Your apps, the Favorite rows and the Apps tab, and leaves nothing behind when the focus moves on or the row scrolls; Move (hold OK › Move) shows no bar — **7 Nov: pass in Your apps and the Apps tab; not run:** the Favorite rows (set to 0) and Move (needs hold-OK on the remote)
+- [x] **7.** Zoom, Lift and Glass halo look as in 2.36 — **7 Nov: pass**
+- [x] **8.** Settings › Focus style preview: Underline and Lift + bar drawn with the bar below the tile (and the gap for Lift + bar) — **7 Nov: pass**
+- [x] **9.** Settings › Banner preview, Live input row: "App name" **under** the window, not over it, and above the tiles — **7 Nov: pass**
+- [x] **10.** Settings › Glow preview: Random position, Random ×2, Random ×3, Random position and shape and Slow drift each show **clearly visible** white marks; nothing flickers — **7 Nov: pass** (rings, ellipses and the Slow drift dotted loop all clear)
+- [x] **11.** Launcher settings › About shows **2.37** — **7 Nov: pass** (2.37, 237)
+- [x] **12.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime — **7 Nov: pass** (531 lines: no FATAL, no AndroidRuntime; known noise only — Duplicate finish request 22, toast 6, BufferQueueProducer 1)
+
+Not checked here: anything on screen. The bar colour rule was checked as arithmetic against Home's background colour
+(`0xFF10131A`); over a bright wallpaper or glow the bar may read differently.
+
+**7 Nov result:** items 1–12 pass, no crash, no new fault. 28 screenshots are on the owner's PC in `platform-tools`
+(not attached to the cloud session; the readings above are the local session's). Still to do with the remote: item 6 in
+the Favorite rows and during Move. **Crunchyroll and Viki were added to Your apps by this test** — the owner removes them
+(hold OK › Remove).
 
 ---
 

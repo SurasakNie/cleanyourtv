@@ -189,6 +189,7 @@ final class ChoicePreview extends View {
                 }
             }
             float cy = h * 0.5f + dy, sw = tw * scale, sh = th * scale;
+            float restBottom = h * 0.5f + th / 2;   // where the tile's foot is before any lift
             rect.set(cx[i] - sw / 2, cy - sh / 2, cx[i] + sw / 2, cy + sh / 2);
             paint.setShader(null);
             paint.setStyle(Paint.Style.FILL);
@@ -201,15 +202,10 @@ final class ChoicePreview extends View {
             c.drawRoundRect(rect, corner, corner, paint);
             paint.clearShadowLayer();
             if (bar) {
-                // Along the bottom edge, clipped to the tile's own corners like the real bar.
-                c.save();
-                RectF clip = new RectF(rect);
-                android.graphics.Path path = new android.graphics.Path();
-                path.addRoundRect(clip, corner, corner, android.graphics.Path.Direction.CW);
-                c.clipPath(path);
-                paint.setColor(Color.WHITE);
-                c.drawRect(rect.left, rect.bottom - 4 * dp, rect.right, rect.bottom, paint);
-                c.restore();
+                // Just below the tile at its full width, in the app's colour, as the row draws it (GtvActivity.FocusBar):
+                // touching it for Underline; for Lift + bar the tile has risen and the lift shows as a gap.
+                paint.setColor(GtvActivity.barColour(colours[i]));
+                c.drawRect(rect.left, restBottom, rect.right, restBottom + 4 * dp, paint);
             }
         }
     }
@@ -239,10 +235,12 @@ final class ChoicePreview extends View {
             case GlowStyle.RANDOM:
             case GlowStyle.RANDOM_2:
             case GlowStyle.RANDOM_3:
-                // Anywhere in the top two thirds: three faint places stand for it.
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.2f, 0.2f, 0.78f, 0.78f), colour, 0.35f);
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.55f, 0.4f, 0.78f, 0.78f), colour, 0.35f);
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.82f, 0.12f, 0.78f, 0.78f), colour, 0.35f);
+                // Anywhere in the top two thirds: one glow where it is now, and clear rings at other places it can
+                // move to. Faint glows were tried for this in 2.35 and could not be seen on the TV.
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.55f, 0.4f, 0.78f, 0.78f), colour, 1f);
+                mark(c, left + 0.2f * sw, top + 0.2f * sh, 5 * dp, 5 * dp);
+                mark(c, left + 0.82f * sw, top + 0.12f * sh, 5 * dp, 5 * dp);
+                mark(c, left + 0.4f * sw, top + 0.08f * sh, 5 * dp, 5 * dp);
                 if (option != GlowStyle.RANDOM) {
                     spot(c, left, top, sw, sh, new GlowStyle.Spot(0.7f, 0.5f, 0.55f, 0.55f), GlowStyle.shifted(colour), 0.45f);
                 }
@@ -253,19 +251,23 @@ final class ChoicePreview extends View {
             case GlowStyle.PER_APP:
                 spot(c, left, top, sw, sh, GlowStyle.perApp("com.example.app"), colour, 1f);
                 break;
-            case GlowStyle.DRIFT:
-                // The loop it follows, faint, with one spot on it.
-                for (int t = 0; t < 60; t += 6) {
-                    spot(c, left, top, sw, sh, GlowStyle.drift(t), colour, 0.18f);
+            case GlowStyle.DRIFT: {
+                // One glow, and the loop it drifts along drawn as a dotted line of clear dots.
+                spot(c, left, top, sw, sh, GlowStyle.drift(20), colour, 1f);
+                for (int t = 0; t < 90; t += 3) {
+                    GlowStyle.Spot on = GlowStyle.drift(t);
+                    mark(c, left + on.x * sw, top + on.y * sh, 1.5f * dp, 1.5f * dp);
                 }
-                spot(c, left, top, sw, sh, GlowStyle.drift(20), colour, 0.7f);
                 break;
+            }
             case GlowStyle.FOLLOW:
                 spot(c, left, top, sw, sh, GlowStyle.follow(0.4f), colour, 1f);
                 break;
             case GlowStyle.RANDOM_SHAPE:
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.35f, 0.25f, 0.95f, 0.5f), colour, 0.6f);
-                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.72f, 0.3f, 0.5f, 0.9f), colour, 0.5f);
+                // One glow, and outlines of other places and shapes it can take: wide and tall ellipses.
+                spot(c, left, top, sw, sh, new GlowStyle.Spot(0.35f, 0.25f, 0.95f, 0.5f), colour, 1f);
+                mark(c, left + 0.75f * sw, top + 0.18f * sh, 0.1f * sw, 0.06f * sh);
+                mark(c, left + 0.62f * sw, top + 0.45f * sh, 0.04f * sw, 0.14f * sh);
                 break;
             case GlowStyle.TWO_GLOWS: {
                 GlowStyle.Spot first = GlowStyle.classic(false);
@@ -286,6 +288,16 @@ final class ChoicePreview extends View {
                 spot(c, left, top, sw, sh, GlowStyle.classic(false), colour, 1f);
         }
         c.restore();
+    }
+
+    /** A clear outline (a ring, a dot or an ellipse) marking another place a moving glow can go. Drawn once: no animation. */
+    private void mark(Canvas c, float cx, float cy, float rx, float ry) {
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(1.5f * dp);
+        paint.setColor(0xCCFFFFFF);
+        c.drawOval(new RectF(cx - rx, cy - ry, cx + rx, cy + ry), paint);
+        paint.setStyle(Paint.Style.FILL);
     }
 
     /** One glow: a radial fade from the colour to nothing, stretched to the spot's two radii like the launcher does. */
@@ -330,19 +342,22 @@ final class ChoicePreview extends View {
             c.drawRoundRect(rect, 10 * dp, 10 * dp, paint);
             paint.setStyle(Paint.Style.FILL);
         }
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(Math.max(12 * dp, h * 0.16f));
         float titleBase = ty - 16 * dp;
         if (option == GtvActivity.BANNER_LIVE) {
-            // A 16:9 window of the picture, with the name under it.
-            float ww = w * 0.3f, wh = ww * 9 / 16, top = 8 * dp;
+            // A 16:9 window of the picture with the name under it, as on Home (2.33): the window is sized so that
+            // it, a small gap and the name all fit above the tiles, and the name starts below the window's foot.
+            float textHeight = paint.descent() - paint.ascent(), top = 8 * dp, gap = 6 * dp;
+            float wh = Math.min(w * 0.3f * 9 / 16, ty - top - gap - textHeight - 4 * dp), ww = wh * 16 / 9;
             rect.set(left, top, left + ww, top + wh);
             paint.setShader(new LinearGradient(rect.left, rect.top, rect.right, rect.bottom, 0xFF3B5BA9, 0xFF2E8B57,
                     Shader.TileMode.CLAMP));
             c.drawRoundRect(rect, 6 * dp, 6 * dp, paint);
             paint.setShader(null);
-            titleBase = Math.min(titleBase, top + wh + 16 * dp);
+            paint.setColor(Color.WHITE);
+            titleBase = top + wh + gap - paint.ascent();
         }
-        paint.setColor(Color.WHITE);
-        paint.setTextSize(Math.max(12 * dp, h * 0.16f));
         c.drawText("App name", left, titleBase, paint);
     }
 }
