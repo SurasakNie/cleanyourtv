@@ -87,7 +87,15 @@ The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in 
 ### The `Duplicate finish request` lines in the log (read 31 Oct; no change made)
 Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` (6–7 per run, never a crash). `MainActivity` is the HOME shim: `onCreate` starts `GtvActivity` and calls `finish()` once (`MainActivity.java:50`), and the same class serves `ACTION_LAUNCHER_SETTINGS` (the remote's Settings button, **not to be touched**). From the code alone there is a single `finish()` on that path, so the system's second request probably comes from the shim being launched again while still finishing; this is **not proven** and nothing in the symptoms is user-visible. Left alone on purpose. `BufferQueueProducer: disconnect: not connected` (3 per run) is graphics noise at surface teardown, also unverified.
 
-### For the next fix batch (owner's decisions, 7 Nov) — built as 2.37, passed on the TV 7 Nov
+### For the next fix batch (opened 7 Nov, after 2.37)
+- **Move shows the chosen Focus style (owner, 7 Nov).** Today hold OK › Move gives the carried tile its own look
+  whatever the style: a fixed 1.15 zoom and the ghost alpha, with the lift and the halo off (`!carrying`,
+  `GtvActivity.java` ~2158–2165 and ~2190–2208) and no bar (`moving != null`, ~2266); 2.37 § 6 checks that no bar
+  shows. The owner wants the carried tile to show the selected style's effect while it moves — Zoom, Lift, Glass
+  halo, Underline or Lift + bar — so it is still clear which tile is being moved. Change the code and rewrite the
+  Move clause in the next build's checklist.
+
+### The 2.37 batch (owner's decisions, 7 Nov) — built as 2.37, passed on the TV 7 Nov
 **All eight items below are in 2.37** (see [`HISTORY.md`](HISTORY.md#what-each-build-after-the-merge-added) for how each was done); the TV check is [`TESTING.md`](TESTING.md) § 2.37.
 
 **Focus styles Underline and Lift + bar: move the bar out of the tile.** Today both draw a 4 dp bar in the app's
