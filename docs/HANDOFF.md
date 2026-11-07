@@ -100,6 +100,25 @@ The tile clips its children, so the bar has to be drawn outside it (by the row o
 the card. Other options weighed and not chosen: an automatic contrast colour inside the tile, an outlined bar, a short
 centred bar.
 
+**Also in this batch (owner, 7 Nov):**
+- **Bug — after an add from the +, Down from the Home pill no longer enters Your apps** (*Known bugs* below). Fix,
+  then re-run § 2.34 #3–4 with Home › Down between adds.
+- **Bug — the + choosing mode dims by recycled tile, not by app** (*Known bugs* below, § 2.34 #2). Set or clear the
+  dim on every bind.
+- **F — Banner page preview, Live input row:** the drawn "App name" overlaps the bottom of the window; on Home (2.33)
+  the name sits under the window. Move the label below the window in the drawing.
+- **G — Glow page preview, moving styles** (Random position, Random ×2, Random ×3, Random position and shape, Slow
+  drift): the faint marks showing where the glow can go are not visible on this TV (owner unsure, screenshots show
+  none; § 2.35 #4). Make them clearly visible without flicker.
+- **2.33 item 4 — checklist only, no code (owner chose option A).** From the Home pill the gear is reached only through
+  the Apps and Inputs tabs, which switch the page on focus and so hide the live window; Up from the end of Your apps
+  goes to the Home pill, not the gear. Accept that: reword 2.33's "What changed" (it says the window should stay with
+  the focus on the gear) and item 4 to "the window goes when the focus reaches the Apps tab on the way to the gear".
+  Options not chosen: Up from the + to the gear, tabs switching on OK, the gear before the tabs, a dwell delay.
+
+After the batch: a new build for the owner to install, then § 2.34 #2–4, the Focus style items (§ 2.34 #10–13) and
+§ 2.35 #4 again on the TV.
+
 ### Known bugs
 Only the open ones; fixed and closed entries are kept word for word in [`HISTORY.md`](HISTORY.md#known-bugs-fixed-or-closed).
 
