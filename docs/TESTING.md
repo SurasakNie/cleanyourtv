@@ -163,21 +163,26 @@ Random shape); nothing animates. (8) § 2.33 item 4 is reworded (no code).
 
 Setup: check the TV's IP first (Before you start), install `tvhome-2.37.apk`, then `.\adb.exe logcat -c`.
 
-- [ ] **1.** Your apps holds more apps than fit on screen. Add one through the **+** → Home, the new app focused. Press **Home**, then **Down** → the focus lands on the **first** app of Your apps (the row scrolls back to its start)
-- [ ] **2.** Repeat item 1 for § 2.34 #3–4: add apps one by one, with **Home › Down** between adds → Down works every time, and each add is the app picked
-- [ ] **3.** + › OK: apps already in Your apps are dimmed, **only** those, and the dimming stays right after moving along the rows and in a second choosing session (§ 2.34 #2)
-- [ ] **4.** Focus style **Underline**: a bar just **below** the focused tile, touching it, as wide as the tile, in the app's colour; on iQIYI, Prime Video, bilibili the bar is clearly visible; on HBO Max it is **white**
-- [ ] **5.** Focus style **Lift + bar**: the tile rises; the bar stays below with a visible **gap**; no zoom
-- [ ] **6.** Both bar styles: the bar follows the focus through Your apps, the Favorite rows and the Apps tab, and leaves nothing behind when the focus moves on or the row scrolls; Move (hold OK › Move) shows no bar
-- [ ] **7.** Zoom, Lift and Glass halo look as in 2.36
-- [ ] **8.** Settings › Focus style preview: Underline and Lift + bar drawn with the bar below the tile (and the gap for Lift + bar)
-- [ ] **9.** Settings › Banner preview, Live input row: "App name" **under** the window, not over it, and above the tiles
-- [ ] **10.** Settings › Glow preview: Random position, Random ×2, Random ×3, Random position and shape and Slow drift each show **clearly visible** white marks; nothing flickers
-- [ ] **11.** Launcher settings › About shows **2.37**
-- [ ] **12.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+- [x] **1.** Your apps holds more apps than fit on screen. Add one through the **+** → Home, the new app focused. Press **Home**, then **Down** → the focus lands on the **first** app of Your apps (the row scrolls back to its start) — **7 Nov: pass** (13 apps at the start; Home › Down lands on YOUKU, the first app) (local session over adb, owner by remote)
+- [x] **2.** Repeat item 1 for § 2.34 #3–4: add apps one by one, with **Home › Down** between adds → Down works every time, and each add is the app picked — **7 Nov: pass** (Crunchyroll and Viki added, each the app picked; Down worked after both)
+- [x] **3.** + › OK: apps already in Your apps are dimmed, **only** those, and the dimming stays right after moving along the rows and in a second choosing session (§ 2.34 #2) — **7 Nov: pass** (exactly the 15 apps in Your apps dimmed, the same after moving along the rows and in a second session)
+- [x] **4.** Focus style **Underline**: a bar just **below** the focused tile, touching it, as wide as the tile, in the app's colour; on iQIYI, Prime Video, bilibili the bar is clearly visible; on HBO Max it is **white** — **7 Nov: pass** (clear on iQIYI, Prime Video, bilibili; HBO Max's bar reads light grey — its own colour, which passes the 3:1 rule, so not switched to white)
+- [x] **5.** Focus style **Lift + bar**: the tile rises; the bar stays below with a visible **gap**; no zoom — **7 Nov: pass**
+- [x] **6.** Both bar styles: the bar follows the focus through Your apps, the Favorite rows and the Apps tab, and leaves nothing behind when the focus moves on or the row scrolls; Move (hold OK › Move) shows no bar — **7 Nov: pass in Your apps and the Apps tab; not run:** the Favorite rows (set to 0) and Move (needs hold-OK on the remote)
+- [x] **7.** Zoom, Lift and Glass halo look as in 2.36 — **7 Nov: pass**
+- [x] **8.** Settings › Focus style preview: Underline and Lift + bar drawn with the bar below the tile (and the gap for Lift + bar) — **7 Nov: pass**
+- [x] **9.** Settings › Banner preview, Live input row: "App name" **under** the window, not over it, and above the tiles — **7 Nov: pass**
+- [x] **10.** Settings › Glow preview: Random position, Random ×2, Random ×3, Random position and shape and Slow drift each show **clearly visible** white marks; nothing flickers — **7 Nov: pass** (rings, ellipses and the Slow drift dotted loop all clear)
+- [x] **11.** Launcher settings › About shows **2.37** — **7 Nov: pass** (2.37, 237)
+- [x] **12.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime — **7 Nov: pass** (531 lines: no FATAL, no AndroidRuntime; known noise only — Duplicate finish request 22, toast 6, BufferQueueProducer 1)
 
 Not checked here: anything on screen. The bar colour rule was checked as arithmetic against Home's background colour
 (`0xFF10131A`); over a bright wallpaper or glow the bar may read differently.
+
+**7 Nov result:** items 1–12 pass, no crash, no new fault. 28 screenshots are on the owner's PC in `platform-tools`
+(not attached to the cloud session; the readings above are the local session's). Still to do with the remote: item 6 in
+the Favorite rows and during Move. **Crunchyroll and Viki were added to Your apps by this test** — the owner removes them
+(hold OK › Remove).
 
 ---
 

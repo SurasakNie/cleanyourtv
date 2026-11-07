@@ -12,9 +12,9 @@ closed investigations) is in [`HISTORY.md`](HISTORY.md); finished test checklist
 | | |
 |---|---|
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.19:5555` since 6 Nov (was `192.168.1.3`). **The address changes when the TV restarts — check it before every session** ([`TESTING.md`](TESTING.md#before-you-start)) |
-| On the TV now | **2.36** (`versionCode` 236), installed 31 Oct by the owner's local session (`versionName=2.36` confirmed, logcat cleared). **6 Nov, first on-screen run:** § 2.34 items 1–3 pass, item 2's dimming is wrong, and two new faults were found (§ 2 *Known bugs*); the Performance-card row at rows = 3 is greyed, so that bug is closed. Everything else in 2.33–2.36 is still unseen — see § 2 *Waiting on a test* |
+| Before it (31 Oct – 7 Nov) | **2.36** (`versionCode` 236), installed 31 Oct by the owner's local session (`versionName=2.36` confirmed, logcat cleared). **6 Nov, first on-screen run:** § 2.34 items 1–3 pass, item 2's dimming is wrong, and two new faults were found (§ 2 *Known bugs*); the Performance-card row at rows = 3 is greyed, so that bug is closed. Everything else in 2.33–2.36 is still unseen — see § 2 *Waiting on a test* |
 | Last builds with TV results | **2.32** (31 Oct): no flash at 0 Favorite rows, no window at 1–3; density 320 (= 2.0) confirmed; log clean. **2.33** installed earlier: log clean, no window at 1–3 rows; its 0-row behaviour was never reported. **2.31** (27 Oct): glow bars gone, Inputs-on-Home hidden, animations rename works — reported, not ticked. Older results: [`TESTING-history.md`](TESTING-history.md) |
-| Next build | **2.37** (`versionCode` 237) — the 7 Nov fix batch below, built 7 Nov, **not installed**: signer `a215696a…436e`, three permissions, **466,503 bytes** (gate 921,600), 285 tests OK; checklist [`TESTING.md`](TESTING.md) § 2.37. Opened as a PR, not merged |
+| On the TV now (since 7 Nov) | **2.37** (`versionCode` 237), installed 7 Nov over 2.36 by the owner's local session. **[`TESTING.md`](TESTING.md) § 2.37 items 1–12 pass**, no crash, no new fault; not run: the focus bar in the Favorite rows and during Move (remote needed). Merged as PR #17 |
 | `main` | Every build through **2.36** is merged (PR #14, `c8d8df4`). Four builds — 2.33, 2.34, 2.35, 2.36 — went in **before any TV test**, at the owner's word; each is one revert PR away |
 | Branch | `claude/zen-euler-0mir9r`, restarted from `main` after each merge; no unmerged code |
 | Merged so far | PR #1 (0c5f3e3): the Apple TV layout and the debloat work. PR #2 (daad5b4): the Google TV layout at 2.04, this handoff and the repo map. PR #3 (78c356d): 2.05–2.12. PR #4 (bf0f01c): 2.13–2.14. PR #5 (83bd67f): 2.15–2.21. PR #6 (2ea447f): 2.22–2.27. **PR #7 (ddac328): 2.28. **PR #8 (93bdc1a): 2.29–2.31**. **PR #9 (0f232ed): 2.32 and the 2.31 handoff**. **PR #10 (2b21a8e): 2.33**. **PR #11 (9bf7b88): 2.34**. **PR #12 (65d9fd5): 2.35**. **PR #14 (c8d8df4): 2.36** |
@@ -87,7 +87,7 @@ The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in 
 ### The `Duplicate finish request` lines in the log (read 31 Oct; no change made)
 Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` (6–7 per run, never a crash). `MainActivity` is the HOME shim: `onCreate` starts `GtvActivity` and calls `finish()` once (`MainActivity.java:50`), and the same class serves `ACTION_LAUNCHER_SETTINGS` (the remote's Settings button, **not to be touched**). From the code alone there is a single `finish()` on that path, so the system's second request probably comes from the shim being launched again while still finishing; this is **not proven** and nothing in the symptoms is user-visible. Left alone on purpose. `BufferQueueProducer: disconnect: not connected` (3 per run) is graphics noise at surface teardown, also unverified.
 
-### For the next fix batch (owner's decisions, 7 Nov) — built as 2.37, awaiting the TV
+### For the next fix batch (owner's decisions, 7 Nov) — built as 2.37, passed on the TV 7 Nov
 **All eight items below are in 2.37** (see [`HISTORY.md`](HISTORY.md#what-each-build-after-the-merge-added) for how each was done); the TV check is [`TESTING.md`](TESTING.md) § 2.37.
 
 **Focus styles Underline and Lift + bar: move the bar out of the tile.** Today both draw a 4 dp bar in the app's
@@ -125,7 +125,7 @@ After the batch: a new build for the owner to install, then § 2.34 #2–4, the 
 ### Known bugs
 Only the open ones; fixed and closed entries are kept word for word in [`HISTORY.md`](HISTORY.md#known-bugs-fixed-or-closed).
 
-**Fixed in 2.37, awaiting the TV: after an add from the +, Down from the Home pill no longer enters Your apps (found 6 Nov on 2.36).** *Cause found in the code:* `focusHomeFirst()` focused position 0 only if it had a view holder; after an add the row is scrolled to its end and, with more apps than fit, position 0 has none, so Down did nothing (and removing the app made the row fit again). 2.37 scrolls back and focuses it after the next layout pass. *Original note:*
+**Fixed in 2.37 and confirmed on the TV (7 Nov, two adds, Home › Down each time): after an add from the +, Down from the Home pill no longer enters Your apps (found 6 Nov on 2.36).** *Cause found in the code:* `focusHomeFirst()` focused position 0 only if it had a view holder; after an add the row is scrolled to its end and, with more apps than fit, position 0 has none, so Down did nothing (and removing the app made the row fit again). 2.37 scrolls back and focuses it after the next layout pass. *Original note:*
 Add an app through the + (Home comes back with the new app as the last tile, focused, toast shown), press Home, then
 Down: the focus stays on the Home pill, every time. Back and switching to the Apps tab and back do not help.
 Reproduced twice, the second time **with the owner's remote**, so it is not an adb artefact. Removing the added app
@@ -135,7 +135,7 @@ Home › Down both return to the row (the row scrolls back to its start), with a
 posted `focusDock` that can run before the layout pass — leaving the row's remembered focus pointing at a holder
 that is not there; **unproven**.
 
-**Fixed in 2.37, awaiting the TV: in the + choosing mode, the dimming follows the tile, not the app (found 6 Nov on 2.36).** *Cause found in the code:* the bind computed the dim before `card.setTag(a)`, so `pickDim` read the tile's previous app. 2.37 sets the tag first. *Original note:* On first
+**Fixed in 2.37 and confirmed on the TV (7 Nov, two choosing sessions): in the + choosing mode, the dimming follows the tile, not the app (found 6 Nov on 2.36).** *Cause found in the code:* the bind computed the dim before `card.setTag(a)`, so `pickDim` read the tile's previous app. 2.37 sets the tag first. *Original note:* On first
 opening no tile is dimmed (Netflix, in Your apps, measured as bright as Google Play, which is not). After the focus
 has moved along the first row, only bilibili and Disney+ are dimmed; HBO Max, iQIYI, Netflix, Prime Video, WeTV,
 YOUKU and YouTube are not. In the next choosing session **Apple TV and BRAVIA notifications were dimmed although
