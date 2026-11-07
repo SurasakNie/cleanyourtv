@@ -362,7 +362,19 @@ played with no black screen and no lag, 250–330% CPU idle, no crash. Google Ca
 and is not affected by the Renderer switch.
 
 Checked again at 22:48 the same day, 21 h after a restart (the point where the loop began last time): `dmr` not
-running, CPU idle 321%. Still open: a check past 24 h, and whether the TV's own software update fixes the loop.
+running, CPU idle 321%.
+
+**7 Nov 19:05, past 24 h (up 1 day 17 h): the Renderer stays off, but the parent module looped on its own.**
+`dmr` was not running. The parent `com.sony.huey.dlna.module` (started 6 Nov 23:31) had run up **8 h 48 min of CPU**,
+yet it did not move over a 30 s sample and its 26 live threads totalled 50 s — so a thread spun for hours and then
+ended (`ps -T -o TID,TIME,CMD -p <pid>` shows this: process time far above the live threads' sum). When it ran is
+unknown; the log no longer reaches back. Its remaining log lines show the DLNA **ControlPoint** (the part that browses
+home media servers, not the Renderer) bound to **`wlan0`** with no IP (`IFUP: 0`, `LINKUP: 0`) on this Ethernet-only
+set — a plausible trigger for the busy loop, not proven. CPU idle was 327–346% when measured. **Owner's choice:
+monitor only.** If lag returns, check `dlna.module` first; the next steps would be any media-server switch in Sony's
+Home network screen, or disabling `com.sony.huey.dlna.module` in Settings › Apps (reversible; Sony's Media Player
+would lose home-server browsing, Google Cast is unaffected). Also still open: whether the TV's own software update
+fixes either loop.
 
 **6 Nov 23:31: one more Youku black screen, not the renderer.** During § 2.33 item 7 (Banner = Live input), Youku
 opened from Home and stayed black while loading. It was a cold start (process started 23:31:35), Youku logged its
