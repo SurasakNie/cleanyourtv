@@ -206,19 +206,19 @@ Setup: check the TV's IP first (Before you start), install `tvhome-2.38.apk`, th
 (screenshot), not by counting presses. Favorite apps rows is normally **0**: set it to **1** for items 9–10 and back to
 0 afterwards; restore Focus style and Glow to what they were at the start.
 
-- [ ] **1.** (remote) Focus style **Zoom**: hold OK on an app in Your apps › Move → the carried tile is zoomed like a normal selection, **not** see-through; every other tile is dimmed; Left/Right moves it; OK puts it down and the dimming ends
-- [ ] **2.** (remote) Repeat item 1 with **Lift**, **Glass halo**, **Underline** and **Lift + bar** → the carried tile shows that style (lift; coloured halo; bar just below; lift with gap and bar) while it moves, and the bar follows it
-- [ ] **3.** (remote) With Favorite apps rows = 1, Move a Favorite-row app: the same look; it still cannot cross into Your apps (and a Your apps tile cannot cross into the Favorite rows)
-- [ ] **4.** Settings › Glow, highlight **Random position** (do not pick) → the glow jumps to a new place about every 1.6 s; **no white rings**; no flicker between jumps
-- [ ] **5.** Same for **Random ×2** and **Random ×3** → the main glow and its 1 / 2 extra glows in shifted colours jump together
-- [ ] **6.** **Random position and shape** → the glow jumps and changes shape (wide or tall)
-- [ ] **7.** **Slow drift** → the glow moves slowly and smoothly, no jumps, no flicker
-- [ ] **8.** Highlight a still style (Classic, Per app, Follow, Two glows, Ribbon) → the drawing stops moving at once; Back out of the page → nothing keeps running (no lag on Home)
-- [ ] **9.** **Apps tab**: on the **last app of a row**, Right → the **first app of the next row**; on the **first app of a row**, Left → the **last app of the row above**; mid-row Left/Right unchanged; Left on the very first app and Right on the very last app do nothing; a target row off screen scrolls into view
-- [ ] **10.** Favorite apps rows = **1** (then 2 if more Favorites exist): the same wrap between Favorite rows; Left on the first Favorite does **not** jump into Your apps; set rows back to 0
-- [ ] **11.** Your apps: Left on the first tile and Right on the + still do nothing; Inputs tab: the row still stops at both ends
-- [ ] **12.** Launcher settings › About shows **2.38**
-- [ ] **13.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+- [x] **1.** (remote) Focus style **Zoom**: hold OK on an app in Your apps › Move → the carried tile is zoomed like a normal selection, **not** see-through; every other tile is dimmed; Left/Right moves it; OK puts it down and the dimming ends — **7 Nov: pass** (owner's remote)
+- [x] **2.** (remote) Repeat item 1 with **Lift**, **Glass halo**, **Underline** and **Lift + bar** → the carried tile shows that style (lift; coloured halo; bar just below; lift with gap and bar) while it moves, and the bar follows it — **7 Nov: pass**, all four styles (owner's remote)
+- [x] **3.** (remote) With Favorite apps rows = 1, Move a Favorite-row app: the same look; it still cannot cross into Your apps (and a Your apps tile cannot cross into the Favorite rows) — **7 Nov: pass** (owner's remote; rows set back to 0)
+- [x] **4.** Settings › Glow, highlight **Random position** (do not pick) → the glow jumps to a new place about every 1.6 s; **no white rings**; no flicker between jumps — **7 Nov: pass**: six frames 0.7 s apart all differ (mean change 2.4–9.3 in the preview box); no white rings. Flicker judged by the owner on screen, not from stills
+- [x] **5.** Same for **Random ×2** and **Random ×3** → the main glow and its 1 / 2 extra glows in shifted colours jump together — **7 Nov: pass** (×2 change 2.9–7.9, ×3 2.4–6.8; two and three glows in shifted colours)
+- [x] **6.** **Random position and shape** → the glow jumps and changes shape (wide or tall) — **7 Nov: pass** (change 0.9–7.7; round top right, then wide on the left)
+- [x] **7.** **Slow drift** → the glow moves slowly and smoothly, no jumps, no flicker — **7 Nov: pass** (frames 0.4 s apart change 0.4–0.9: small, steady steps)
+- [x] **8.** Highlight a still style (Classic, Per app, Follow, Two glows, Ribbon) → the drawing stops moving at once; Back out of the page → nothing keeps running (no lag on Home) — **7 Nov: pass**: Classic and Ribbon frames identical (change 0); after Back, Home drew **0 frames in 6 s** (`dumpsys gfxinfo`)
+- [x] **9.** **Apps tab**: on the **last app of a row**, Right → the **first app of the next row**; on the **first app of a row**, Left → the **last app of the row above**; mid-row Left/Right unchanged; Left on the very first app and Right on the very last app do nothing; a target row off screen scrolls into view — **7 Nov: pass**: (0,7) Right › (1,0); (1,0) Left › (0,7); mid-row normal; (0,0) Left and (3,7) Right stay. All four rows fit on screen, so the scroll case did not arise
+- [x] **10.** Favorite apps rows = **1** (then 2 if more Favorites exist): the same wrap between Favorite rows; Left on the first Favorite does **not** jump into Your apps; set rows back to 0 — **7 Nov: pass** with rows = 2 (8 + 8 Favorites): row 1 last Right › row 2 first, and back with Left; Left on the first Favorite stays (does not enter Your apps); Right on the very last stays. Rows set back to 0
+- [x] **11.** Your apps: Left on the first tile and Right on the + still do nothing; Inputs tab: the row still stops at both ends — **7 Nov: pass, with one unexplained case**: Left on the first tile stays; Inputs HDMI 1 Left and HDMI 4 Right stay; Right on the + stayed in 4 of 5 tries, but **once (the first try) the focus went to the Home pill** — not reproduced in four retries, two with the same key sequence; the focus read just before was blank, so a transition may have been caught
+- [x] **12.** Launcher settings › About shows **2.38** — **7 Nov: pass** (Version 2.38 (238))
+- [x] **13.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime — **7 Nov: pass**: 754 lines 22:11–22:43 covering the whole run including Move: 0 `FATAL`, 0 `E AndroidRuntime`, no launcher restart; known noise only (23 `Duplicate finish request`, 6 toast, 5 `BufferQueueProducer`)
 
 Not checked here: anything on screen; the glow ticker's cost was judged from the code (one redraw per 120 ms tick for
 Slow drift, one per 1.6 s for the Random styles), not measured on the TV.
