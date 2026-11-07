@@ -60,7 +60,7 @@ class FocusBarOutsideTheTileTest(unittest.TestCase):
         self.assertIn("onDrawOver", draw)
         self.assertIn("showsBar()", draw)
         self.assertIn("isFocused()", draw)
-        self.assertIn("moving != null) return", draw, "no bar on a tile being carried")
+        # 2.37 also hid the bar while carrying; 2.38 shows it (owner, 7 Nov) — see test_238.MoveShowsTheFocusStyleTest.
         self.assertIn("child.getBottom()", draw, "the layout bottom, so a lifted tile leaves a gap above the bar")
         self.assertIn("child.getLeft()", draw)
         self.assertIn("child.getRight()", draw, "full tile width")
@@ -108,16 +108,8 @@ class PreviewDrawingsTest(unittest.TestCase):
                         "the text size must be set before its height is used to place it")
         self.assertRegex(banner, r"titleBase = top \+ wh \+ [^;]*- paint\.ascent\(\)")
 
-    def test_the_moving_glow_styles_show_clear_marks_and_nothing_animates(self):
-        glow = method(self.preview, "private void drawGlow(Canvas c, float w, float h)")
-        self.assertIn("mark(", glow)
-        mark = method(self.preview, "private void mark(")
-        self.assertIn("Paint.Style.STROKE", mark)
-        alpha = int(re.search(r"0x([0-9A-Fa-f]{2})FFFFFF", mark).group(1), 16)
-        self.assertGreaterEqual(alpha, 0xB0, "faint marks were not seen on the TV; these must be clear")
-        for animation in ("postInvalidate", "ValueAnimator", "postDelayed"):
-            with self.subTest(animation=animation):
-                self.assertNotIn(animation, self.preview, "a still drawing cannot flicker")
+    # 2.37's still white marks for the moving glow styles were replaced in 2.38 by a moving glow (owner, 7 Nov):
+    # see test_238.GlowPreviewMovesTest.
 
 
 if __name__ == "__main__":

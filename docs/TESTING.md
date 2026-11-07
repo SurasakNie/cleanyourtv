@@ -32,7 +32,7 @@ fixed.
 .\adb.exe connect 192.168.1.19:5555
 .\adb.exe shell ip -4 addr show eth0
 .\adb.exe shell dumpsys package com.gathin.tvhome | findstr versionName
-.\adb.exe install -r tvhome-2.37.apk
+.\adb.exe install -r tvhome-2.38.apk
 ```
 
 **The rule that applies to every build:** nothing on Home may overlap. The banner, the performance card, the rows
@@ -168,7 +168,7 @@ Setup: check the TV's IP first (Before you start), install `tvhome-2.37.apk`, th
 - [x] **3.** + › OK: apps already in Your apps are dimmed, **only** those, and the dimming stays right after moving along the rows and in a second choosing session (§ 2.34 #2) — **7 Nov: pass** (exactly the 15 apps in Your apps dimmed, the same after moving along the rows and in a second session)
 - [x] **4.** Focus style **Underline**: a bar just **below** the focused tile, touching it, as wide as the tile, in the app's colour; on iQIYI, Prime Video, bilibili the bar is clearly visible; on HBO Max it is **white** — **7 Nov: pass** (clear on iQIYI, Prime Video, bilibili; HBO Max's bar reads light grey — its own colour, which passes the 3:1 rule, so not switched to white)
 - [x] **5.** Focus style **Lift + bar**: the tile rises; the bar stays below with a visible **gap**; no zoom — **7 Nov: pass**
-- [x] **6.** Both bar styles: the bar follows the focus through Your apps, the Favorite rows and the Apps tab, and leaves nothing behind when the focus moves on or the row scrolls; Move (hold OK › Move) shows no bar — **7 Nov: pass in Your apps and the Apps tab; not run:** the Favorite rows (set to 0) and Move (needs hold-OK on the remote). **Later the same evening: Favorite rows pass** (rows set to 1 with Lift + bar: the bar followed Google Play › FLIXER › up to YouTube and left nothing behind), **Move passes as written** (owner's remote: no bar while moving, the bar back on the focused tile after; YouTube put back in place). Rows set back to 0, Focus style back to Zoom. **The owner wants this changed:** while moving, the tile should show the chosen Focus style's effect — see HANDOFF *For the next fix batch*
+- [x] **6.** Both bar styles: the bar follows the focus through Your apps, the Favorite rows and the Apps tab, and leaves nothing behind when the focus moves on or the row scrolls; Move (hold OK › Move) shows no bar *(2.37's rule — **from 2.38 the carried tile shows the bar too**, see § 2.38 item 1)* — **7 Nov: pass in Your apps and the Apps tab; not run:** the Favorite rows (set to 0) and Move (needs hold-OK on the remote). **Later the same evening: Favorite rows pass** (rows set to 1 with Lift + bar: the bar followed Google Play › FLIXER › up to YouTube and left nothing behind), **Move passes as written** (owner's remote: no bar while moving, the bar back on the focused tile after; YouTube put back in place). Rows set back to 0, Focus style back to Zoom. **The owner wants this changed:** while moving, the tile should show the chosen Focus style's effect — see HANDOFF *For the next fix batch*
 - [x] **7.** Zoom, Lift and Glass halo look as in 2.36 — **7 Nov: pass**
 - [x] **8.** Settings › Focus style preview: Underline and Lift + bar drawn with the bar below the tile (and the gap for Lift + bar) — **7 Nov: pass**
 - [x] **9.** Settings › Banner preview, Live input row: "App name" **under** the window, not over it, and above the tiles — **7 Nov: pass**
@@ -183,6 +183,45 @@ Not checked here: anything on screen. The bar colour rule was checked as arithme
 (not attached to the cloud session; the readings above are the local session's). Still to do with the remote: item 6 in
 the Favorite rows and during Move. **Crunchyroll and Viki were added to Your apps by this test** — the owner removes them
 (hold OK › Remove).
+
+---
+
+## 2.38 — Move shows the focus style, the Glow preview moves, rows wrap
+
+**What changed.** (1) **Move** (hold OK › Move): the carried tile now looks like any focused tile in the chosen Focus
+style — Zoom, Lift, Glass halo, Underline (bar below) or Lift + bar (lift, gap, bar) — instead of 2.37's fixed 1.15 zoom,
+see-through look and no lift, halo or bar. What marks it as held is that **every other tile dims**. This replaces 2.37
+item 6's "Move shows no bar". (2) **Glow page preview**: the white rings, ellipses and dotted loop of 2.37 are gone. With
+Random position, Random ×2, Random ×3 or Random position and shape highlighted, the glow **jumps to a new place every
+1.6 s** (×2 and ×3 with their extra glows), as Home does on each new app; with Slow drift highlighted it **drifts** at
+Home's own pace. It runs only while the page is open on that row and stops on leaving. (3) **Left/Right wrap** in the
+**Apps tab** and Home's **Favorite rows**: Left on a row's first app → the **last app of the row above**; Right on a
+row's last app → the **first app of the row below**. Mid-row Left/Right is unchanged; Left on the very first app and
+Right on the very last app still stop; Your apps (one row) and the Inputs rows still stop at their ends. This
+deliberately reverses the 2.30 stop for those two grids.
+
+Setup: check the TV's IP first (Before you start), install `tvhome-2.38.apk`, then `.\adb.exe logcat -c`.
+**Notes for the local session:** adb cannot hold OK on this TV — **Move and the hold-OK menu need the owner's remote**
+(items 1–3). Since 2.37 the focused tile is kept in the middle of Your apps, so **find the + by what is focused**
+(screenshot), not by counting presses. Favorite apps rows is normally **0**: set it to **1** for items 9–10 and back to
+0 afterwards; restore Focus style and Glow to what they were at the start.
+
+- [ ] **1.** (remote) Focus style **Zoom**: hold OK on an app in Your apps › Move → the carried tile is zoomed like a normal selection, **not** see-through; every other tile is dimmed; Left/Right moves it; OK puts it down and the dimming ends
+- [ ] **2.** (remote) Repeat item 1 with **Lift**, **Glass halo**, **Underline** and **Lift + bar** → the carried tile shows that style (lift; coloured halo; bar just below; lift with gap and bar) while it moves, and the bar follows it
+- [ ] **3.** (remote) With Favorite apps rows = 1, Move a Favorite-row app: the same look; it still cannot cross into Your apps (and a Your apps tile cannot cross into the Favorite rows)
+- [ ] **4.** Settings › Glow, highlight **Random position** (do not pick) → the glow jumps to a new place about every 1.6 s; **no white rings**; no flicker between jumps
+- [ ] **5.** Same for **Random ×2** and **Random ×3** → the main glow and its 1 / 2 extra glows in shifted colours jump together
+- [ ] **6.** **Random position and shape** → the glow jumps and changes shape (wide or tall)
+- [ ] **7.** **Slow drift** → the glow moves slowly and smoothly, no jumps, no flicker
+- [ ] **8.** Highlight a still style (Classic, Per app, Follow, Two glows, Ribbon) → the drawing stops moving at once; Back out of the page → nothing keeps running (no lag on Home)
+- [ ] **9.** **Apps tab**: on the **last app of a row**, Right → the **first app of the next row**; on the **first app of a row**, Left → the **last app of the row above**; mid-row Left/Right unchanged; Left on the very first app and Right on the very last app do nothing; a target row off screen scrolls into view
+- [ ] **10.** Favorite apps rows = **1** (then 2 if more Favorites exist): the same wrap between Favorite rows; Left on the first Favorite does **not** jump into Your apps; set rows back to 0
+- [ ] **11.** Your apps: Left on the first tile and Right on the + still do nothing; Inputs tab: the row still stops at both ends
+- [ ] **12.** Launcher settings › About shows **2.38**
+- [ ] **13.** `.\adb.exe logcat -d | Select-String "FATAL|AndroidRuntime|com.gathin.tvhome"` → no FATAL or AndroidRuntime
+
+Not checked here: anything on screen; the glow ticker's cost was judged from the code (one redraw per 120 ms tick for
+Slow drift, one per 1.6 s for the Random styles), not measured on the TV.
 
 ---
 

@@ -14,6 +14,7 @@ closed investigations) is in [`HISTORY.md`](HISTORY.md); finished test checklist
 | TV | Sony Bravia KD-49X8500H (UR3), Android TV 9, ADB over the network at `192.168.1.19:5555` since 6 Nov (was `192.168.1.3`). **The address changes when the TV restarts — check it before every session** ([`TESTING.md`](TESTING.md#before-you-start)) |
 | Before it (31 Oct – 7 Nov) | **2.36** (`versionCode` 236), installed 31 Oct by the owner's local session (`versionName=2.36` confirmed, logcat cleared). **6 Nov, first on-screen run:** § 2.34 items 1–3 pass, item 2's dimming is wrong, and two new faults were found (§ 2 *Known bugs*); the Performance-card row at rows = 3 is greyed, so that bug is closed. Everything else in 2.33–2.36 is still unseen — see § 2 *Waiting on a test* |
 | Last builds with TV results | **2.32** (31 Oct): no flash at 0 Favorite rows, no window at 1–3; density 320 (= 2.0) confirmed; log clean. **2.33** installed earlier: log clean, no window at 1–3 rows; its 0-row behaviour was never reported. **2.31** (27 Oct): glow bars gone, Inputs-on-Home hidden, animations rename works — reported, not ticked. Older results: [`TESTING-history.md`](TESTING-history.md) |
+| Next build | **2.38** (`versionCode` 238) — the batch below, built 7 Nov, **not installed**: signer `a215696a…436e`, three permissions, **466,623 bytes** (gate 921,600), 298 tests OK; `tvhome-2.38.apk`; checklist [`TESTING.md`](TESTING.md) § 2.38. Opened as a PR, not merged |
 | On the TV now (since 7 Nov) | **2.37** (`versionCode` 237), installed 7 Nov over 2.36 by the owner's local session. **[`TESTING.md`](TESTING.md) § 2.37 items 1–12 pass**, no crash, no new fault; not run: the focus bar in the Favorite rows and during Move (remote needed). Merged as PR #17 |
 | `main` | Every build through **2.37** is merged (2.37 as PR #17, after its TV run). Before it, through 2.36 (PR #14, `c8d8df4`). Four builds — 2.33, 2.34, 2.35, 2.36 — went in **before any TV test**, at the owner's word; each is one revert PR away |
 | Branch | `claude/zen-euler-0mir9r`, restarted from `main` after each merge; no unmerged code |
@@ -87,7 +88,9 @@ The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in 
 ### The `Duplicate finish request` lines in the log (read 31 Oct; no change made)
 Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` (6–7 per run, never a crash). `MainActivity` is the HOME shim: `onCreate` starts `GtvActivity` and calls `finish()` once (`MainActivity.java:50`), and the same class serves `ACTION_LAUNCHER_SETTINGS` (the remote's Settings button, **not to be touched**). From the code alone there is a single `finish()` on that path, so the system's second request probably comes from the shim being launched again while still finishing; this is **not proven** and nothing in the symptoms is user-visible. Left alone on purpose. `BufferQueueProducer: disconnect: not connected` (3 per run) is graphics noise at surface teardown, also unverified.
 
-### For the next fix batch (opened 7 Nov, after 2.37)
+### For the next fix batch (opened 7 Nov, after 2.37) — built as 2.38, awaiting the TV
+**All three items below are in 2.38**; the TV check is [`TESTING.md`](TESTING.md) § 2.38 (Move items need the owner's remote).
+
 - **Move shows the chosen Focus style (owner, 7 Nov).** Today hold OK › Move gives the carried tile its own look
   whatever the style: a fixed 1.15 zoom and the ghost alpha, with the lift and the halo off (`!carrying`,
   `GtvActivity.java` ~2158–2165 and ~2190–2208) and no bar (`moving != null`, ~2266); 2.37 § 6 checks that no bar
