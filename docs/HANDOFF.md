@@ -88,8 +88,11 @@ The checklists are in **[`docs/TESTING.md`](TESTING.md)**; finished ones are in 
 ### The `Duplicate finish request` lines in the log (read 31 Oct; no change made)
 Both the 2.32 and 2.33 logs carry `Duplicate finish request` for `MainActivity` (6–7 per run, never a crash). `MainActivity` is the HOME shim: `onCreate` starts `GtvActivity` and calls `finish()` once (`MainActivity.java:50`), and the same class serves `ACTION_LAUNCHER_SETTINGS` (the remote's Settings button, **not to be touched**). From the code alone there is a single `finish()` on that path, so the system's second request probably comes from the shim being launched again while still finishing; this is **not proven** and nothing in the symptoms is user-visible. Left alone on purpose. `BufferQueueProducer: disconnect: not connected` (3 per run) is graphics noise at surface teardown, also unverified.
 
-### For the next fix batch (opened 7 Nov, after 2.37) — built as 2.38, awaiting the TV
-**All three items below are in 2.38**; the TV check is [`TESTING.md`](TESTING.md) § 2.38 (Move items need the owner's remote).
+### For the next fix batch
+Nothing yet. Add the owner's next findings here.
+
+### The 2.38 batch (opened 7 Nov, after 2.37) — built as 2.38, passed on the TV 7 Nov, merged as PR #18
+**All three items below are in 2.38**; the TV check is [`TESTING.md`](TESTING.md) § 2.38, all 13 items pass (Move by the owner's remote).
 
 - **Move shows the chosen Focus style (owner, 7 Nov).** Today hold OK › Move gives the carried tile its own look
   whatever the style: a fixed 1.15 zoom and the ghost alpha, with the lift and the halo off (`!carrying`,
